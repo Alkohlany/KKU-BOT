@@ -24,25 +24,24 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 
 async def init_db():
-    async with async_session() as session:
-        async with session.begin():
-            await session.run_sync(Base.metadata.create_all)
-            logger.info("Database tables created successfully")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created successfully")
 
-            try:
-                await session.execute(text("ALTER TABLE study_plans ADD COLUMN channel_message_id INTEGER"))
-            except Exception:
-                pass
-            try:
-                await session.execute(text("ALTER TABLE study_plans ADD COLUMN group_id INTEGER REFERENCES study_plan_groups(id)"))
-            except Exception:
-                pass
-            try:
-                await session.execute(text("ALTER TABLE study_plan_groups ADD COLUMN channel_message_id INTEGER"))
-            except Exception:
-                pass
+        try:
+            await conn.execute(text("ALTER TABLE study_plans ADD COLUMN channel_message_id INTEGER"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE study_plans ADD COLUMN group_id INTEGER REFERENCES study_plan_groups(id)"))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN channel_message_id INTEGER"))
+        except Exception:
+            pass
 
-        result = await session.execute(select(StudyPlan).limit(1))
+        result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
             plans = [
                 StudyPlan(
@@ -74,8 +73,11 @@ async def init_db():
                     is_active=True
                 ),
             ]
-            session.add_all(plans)
-            await session.commit()
+            for plan in plans:
+                await conn.execute(
+                    text("INSERT INTO study_plans (title, description, faculty, level, is_active, created_at) VALUES (:title, :description, :faculty, :level, :is_active, NOW())"),
+                    {"title": plan.title, "description": plan.description, "faculty": plan.faculty, "level": plan.level, "is_active": plan.is_active}
+                )
             logger.info("Seeded 4 test study plans")
 
 
