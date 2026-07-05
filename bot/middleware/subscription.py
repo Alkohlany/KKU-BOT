@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 from bot.services.database import get_user, create_user, update_user_subscription, is_banned
 from bot.config import CHANNEL_ID, CHANNEL_LINK
 from datetime import timedelta
@@ -18,6 +18,73 @@ async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -
             return True
         logger.error(f"Error checking subscription: {e}")
         return False
+
+
+async def group_subscription_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+
+    chat = update.effective_chat
+    if chat.type not in ["group", "supergroup"]:
+        return
+
+    user = update.effective_user
+    if not user:
+        return
+
+    try:
+        member = await chat.get_member(user.id)
+        if member.status in ["administrator", "creator"]:
+            return
+    except Exception:
+        return
+
+    if await is_banned(user.id):
+        return
+
+    db_user = await get_user(user.id)
+    if not db_user:
+        db_user = await create_user(
+            telegram_id=user.id,
+            username=user.username,
+            first_name=user.first_name
+        )
+
+    if db_user.is_subscribed:
+        return
+
+    from datetime import datetime
+    now = datetime.utcnow()
+    if db_user.last_check:
+        time_since_check = now - db_user.last_check
+        if db_user.is_subscribed and time_since_check < timedelta(hours=6):
+            return
+
+    is_sub = await check_subscription(user.id, context)
+    await update_user_subscription(user.id, is_sub)
+
+    if not is_sub:
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+
+        keyboard = [[
+            InlineKeyboardButton("📢 اشترك في القناة", url=CHANNEL_LINK),
+            InlineKeyboardButton("✅ تحقق من الاشتراك", callback_data="check_subscription")
+        ]]
+        markup = InlineKeyboardMarkup(keyboard)
+        await chat.send_message(
+            f"📢 {user.first_name}، لاستخدام البوت يجب الاشتراك في القناة أولاً\n\n"
+            f"🔗 الاشتراك هنا: {CHANNEL_LINK}",
+            reply_markup=markup
+        )
+
+
+group_subscription_handler = MessageHandler(
+    filters.TEXT & ~filters.COMMAND & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP),
+    group_subscription_check
+)
 
 
 async def subscription_required(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
