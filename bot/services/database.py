@@ -24,71 +24,59 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        try:
-            await conn.execute(text("ALTER TABLE study_plans ADD COLUMN channel_message_id INTEGER"))
-        except Exception:
-            pass
-        try:
-            await conn.execute(text("ALTER TABLE study_plans ADD COLUMN group_id INTEGER REFERENCES study_plan_groups(id)"))
-        except Exception:
-            pass
-        try:
-            await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN channel_message_id INTEGER"))
-        except Exception:
-            pass
-    await _seed_study_plans()
-
-    # حذف الخطط القديمة التي لا تنتمي لأي مجموعة
     async with async_session() as session:
-        stmt = select(StudyPlan).where(StudyPlan.group_id == None)
-        result = await session.execute(stmt)
-        old_plans = result.scalars().all()
-        for plan in old_plans:
-            await session.delete(plan)
-        await session.commit()
+        async with session.begin():
+            await session.run_sync(Base.metadata.create_all)
+            logger.info("Database tables created successfully")
 
+            try:
+                await session.execute(text("ALTER TABLE study_plans ADD COLUMN channel_message_id INTEGER"))
+            except Exception:
+                pass
+            try:
+                await session.execute(text("ALTER TABLE study_plans ADD COLUMN group_id INTEGER REFERENCES study_plan_groups(id)"))
+            except Exception:
+                pass
+            try:
+                await session.execute(text("ALTER TABLE study_plan_groups ADD COLUMN channel_message_id INTEGER"))
+            except Exception:
+                pass
 
-async def _seed_study_plans():
-    async with async_session() as session:
         result = await session.execute(select(StudyPlan).limit(1))
-        if result.scalar_one_or_none():
-            return
-
-        plans = [
-            StudyPlan(
-                title="خطة بكالوريوس هندسة الحاسب",
-                description="برنامج دراسي لدرجة البكالوريوس في هندسة الحاسب والمعلومات، يشمل البرمجة وشبكات الحاسب والذكاء الاصطناعي",
-                faculty="كلية الهندسة",
-                level="بكالوريوس",
-                is_active=True
-            ),
-            StudyPlan(
-                title="خطة بكالوريوس إدارة الأعمال",
-                description="برنامج دراسي لدرجة البكالوريوس في إدارة الأعمال، يشمل التسويق والمالية وإدارة الموارد البشرية",
-                faculty="كلية إدارة الأعمال",
-                level="بكالوريوس",
-                is_active=True
-            ),
-            StudyPlan(
-                title="خطة بكالوريوس الطب البشري",
-                description="برنامج دراسي لدرجة بكالوريوس الطب البشري، مدة 7 سنوات تشمل مرحلة العلوم الطبية والتمريض والتدريب السريري",
-                faculty="كلية الطب",
-                level="بكالوريوس",
-                is_active=True
-            ),
-            StudyPlan(
-                title="خطة بكالوريوس التربية",
-                description="برنامج دراسي لدرجة البكالوريوس في التربية، يشمل أساليب التدريس وعلم النفس التربوي والمناهج",
-                faculty="كلية التربية",
-                level="بكالوريوس",
-                is_active=True
-            ),
-        ]
-        session.add_all(plans)
-        await session.commit()
-        logger.info("Seeded 4 test study plans")
+        if not result.scalar_one_or_none():
+            plans = [
+                StudyPlan(
+                    title="خطة بكالوريوس هندسة الحاسب",
+                    description="برنامج دراسي لدرجة البكالوريوس في هندسة الحاسب والمعلومات، يشمل البرمجة وشبكات الحاسب والذكاء الاصطناعي",
+                    faculty="كلية الهندسة",
+                    level="بكالوريوس",
+                    is_active=True
+                ),
+                StudyPlan(
+                    title="خطة بكالوريوس إدارة الأعمال",
+                    description="برنامج دراسي لدرجة البكالوريوس في إدارة الأعمال، يشمل التسويق والمالية وإدارة الموارد البشرية",
+                    faculty="كلية إدارة الأعمال",
+                    level="بكالوريوس",
+                    is_active=True
+                ),
+                StudyPlan(
+                    title="خطة بكالوريوس الطب البشري",
+                    description="برنامج دراسي لدرجة بكالوريوس الطب البشري، مدة 7 سنوات تشمل مرحلة العلوم الطبية والتمريض والتدريب السريري",
+                    faculty="كلية الطب",
+                    level="بكالوريوس",
+                    is_active=True
+                ),
+                StudyPlan(
+                    title="خطة بكالوريوس التربية",
+                    description="برنامج دراسي لدرجة البكالوريوس في التربية، يشمل أساليب التدريس وعلم النفس التربوي والمناهج",
+                    faculty="كلية التربية",
+                    level="بكالوريوس",
+                    is_active=True
+                ),
+            ]
+            session.add_all(plans)
+            await session.commit()
+            logger.info("Seeded 4 test study plans")
 
 
 async def get_user(telegram_id: int) -> User | None:
