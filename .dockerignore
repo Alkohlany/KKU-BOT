@@ -42,10 +42,9 @@ docker-compose.override.yml
 uploads/*
 !uploads/.gitkeep
 
-# Dashboard (not needed in bot container)
+# Dashboard
 dashboard/node_modules/
 dashboard/dist/
-dashboard/src/
 
 # Documentation
 *.md

@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`;
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 function handle401(res) {
   if (res.status === 401) {
