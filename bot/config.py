@@ -12,3 +12,5 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "").split(",") if x]
+
+CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")

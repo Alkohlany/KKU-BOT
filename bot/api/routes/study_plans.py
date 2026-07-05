@@ -1,7 +1,7 @@
 import os
 import httpx
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import select
@@ -12,12 +12,10 @@ from bot.services.database import (
     create_study_plan_group, delete_study_plan_group, get_study_plans_by_group,
     update_study_plan_group
 )
+from bot.services.cloud_storage import upload_raw
 from bot.config import BOT_TOKEN, CHANNEL_ID
 
 router = APIRouter()
-
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'uploads')
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 async def update_group_post(group_id: int):
@@ -168,21 +166,17 @@ async def upload_study_plan(
     group_id: int = Form(None),
     file: Optional[UploadFile] = File(None),
 ):
-    file_path = None
     file_url = None
     if file:
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
         content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
-        file_url = f"/api/study-plans/file/{file.filename}"
+        file_url = upload_raw(content, filename=file.filename, folder="kku-bot/plans")
 
     plan = await add_study_plan(
         title=title,
         description=description,
         faculty=faculty,
         level=level,
-        plan_url=file_path or plan_url,
+        plan_url=plan_url,
         file_url=file_url,
         group_id=group_id,
     )
@@ -220,16 +214,14 @@ async def publish_group_plans(group_id: int):
                 caption += f"\n🔴انظموا لقروب جامعة الملك خالد العام\n\nhttps://t.me/KKU_Main1 \n\n\nانظمو لقروب الواتساب العام\n\nhttps://whatsapp.com/channel/0029VbD8NhHC1FuKSEmrJY2W"
 
                 try:
-                    if plan.plan_url and os.path.exists(plan.plan_url):
-                        with open(plan.plan_url, "rb") as f:
-                            files = {"document": (os.path.basename(plan.plan_url), f, "application/octet-stream")}
-                            data = {"chat_id": CHANNEL_ID, "caption": caption, "parse_mode": "HTML"}
-                            resp = await client.post(
-                                f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                                files=files,
-                                data=data,
-                                timeout=60
-                            )
+                    if plan.file_url:
+                        data = {"chat_id": CHANNEL_ID, "caption": caption, "parse_mode": "HTML"}
+                        data["text"] = plan.file_url
+                        resp = await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                            data=data,
+                            timeout=30
+                        )
                     else:
                         data = {"chat_id": CHANNEL_ID, "text": caption, "parse_mode": "HTML"}
                         resp = await client.post(
@@ -254,10 +246,7 @@ async def publish_group_plans(group_id: int):
 
 @router.get("/file/{filename}")
 async def get_study_plan_file(filename: str):
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    raise HTTPException(status_code=404, detail="File not found")
+    raise HTTPException(status_code=404, detail="Files are stored on Cloudinary. Use the file_url from the API response.")
 
 
 @router.put("/{plan_id}")
@@ -290,11 +279,9 @@ async def update_study_plan(
             plan.group_id = group_id
 
         if file:
-            file_path = os.path.join(UPLOAD_DIR, file.filename)
-            with open(file_path, "wb") as f:
-                content = await file.read()
-                f.write(content)
-            plan.plan_url = file_path
+            content = await file.read()
+            file_url = upload_raw(content, filename=file.filename, folder="kku-bot/plans")
+            plan.plan_url = file_url
 
         await session.commit()
         return {"message": "Study plan updated successfully", "id": plan_id}

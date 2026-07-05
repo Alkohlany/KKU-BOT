@@ -5,16 +5,12 @@ from typing import Optional
 from datetime import datetime
 from bot.services.database import add_news, get_all_news, publish_news, get_all_groups, delete_news
 from bot.services.news_publisher import publish_to_groups
+from bot.services.cloud_storage import upload_image, upload_raw
 from bot.models.models import News
 from bot.config import BOT_TOKEN
 import httpx
-import os
-import uuid
 
 router = APIRouter()
-
-UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "uploads"))
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 class NewsCreate(BaseModel):
@@ -61,34 +57,16 @@ async def create_news_with_file(
     file_url = None
 
     if image:
-        ext = os.path.splitext(image.filename)[1] if image.filename else ".jpg"
-        filename = f"{uuid.uuid4().hex}{ext}"
-        filepath = os.path.join(UPLOAD_DIR, filename)
         img_data = await image.read()
-        with open(filepath, "wb") as f:
-            f.write(img_data)
-        image_url = f"/api/news/file/{filename}"
+        image_url = upload_image(img_data, folder="kku-bot/news")
 
     if file:
-        ext = os.path.splitext(file.filename)[1] if file.filename else ".bin"
-        filename = f"{uuid.uuid4().hex}{ext}"
-        filepath = os.path.join(UPLOAD_DIR, filename)
         file_data = await file.read()
-        with open(filepath, "wb") as f:
-            f.write(file_data)
-        file_url = f"/api/news/file/{filename}"
+        file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
 
     n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url)
     return {"id": n.id, "title": n.title, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "published": n.is_published}
-
-
-@router.get("/file/{filename}")
-async def serve_file(filename: str):
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(filepath)
 
 
 @router.post("/{news_id}/publish")

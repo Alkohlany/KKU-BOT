@@ -1,17 +1,12 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from bot.services.database import (add_scheduled_post, get_all_scheduled_posts, 
                                    get_pending_posts, mark_post_published, delete_scheduled_post)
-import os
-import uuid
+from bot.services.cloud_storage import upload_image, upload_raw
 
 router = APIRouter()
-
-UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "uploads"))
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 class ScheduledPostCreate(BaseModel):
@@ -73,22 +68,12 @@ async def create_scheduled_post_with_file(
     file_url = None
 
     if image:
-        ext = os.path.splitext(image.filename)[1] if image.filename else ".jpg"
-        filename = f"scheduled_{uuid.uuid4().hex}{ext}"
-        filepath = os.path.join(UPLOAD_DIR, filename)
-        data = await image.read()
-        with open(filepath, "wb") as f:
-            f.write(data)
-        image_url = f"/api/news/file/{filename}"
+        img_data = await image.read()
+        image_url = upload_image(img_data, folder="kku-bot/scheduled")
 
     if file:
-        ext = os.path.splitext(file.filename)[1] if file.filename else ".bin"
-        filename = f"scheduled_{uuid.uuid4().hex}{ext}"
-        filepath = os.path.join(UPLOAD_DIR, filename)
-        data = await file.read()
-        with open(filepath, "wb") as f:
-            f.write(data)
-        file_url = f"/api/news/file/{filename}"
+        file_data = await file.read()
+        file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/scheduled")
 
     dt = datetime.fromisoformat(schedule_time)
     p = await add_scheduled_post(title=title, content=content,
