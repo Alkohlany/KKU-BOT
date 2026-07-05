@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from bot.api.routes import auth, responses, groups, users, stats, news, questions, scheduled_posts, study_plans
 import os
 
@@ -37,12 +38,13 @@ DASHBOARD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "dashboard",
 if os.path.exists(DASHBOARD_DIR):
     app.mount("/assets", StaticFiles(directory=os.path.join(DASHBOARD_DIR, "assets")), name="assets")
 
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        file_path = os.path.join(DASHBOARD_DIR, full_path)
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(DASHBOARD_DIR, "index.html"))
+    @app.exception_handler(StarletteHTTPException)
+    async def spa_fallback(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == 404 and not request.url.path.startswith("/api"):
+            index_path = os.path.join(DASHBOARD_DIR, "index.html")
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 else:
     @app.get("/")
     async def root():
