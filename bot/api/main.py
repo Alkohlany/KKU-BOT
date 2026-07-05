@@ -1,7 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from bot.api.routes import auth, responses, groups, users, stats, news, questions, scheduled_posts, study_plans
 import os
 
@@ -14,6 +14,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(responses.router, prefix="/api/responses", tags=["Responses"])
@@ -33,9 +39,6 @@ if os.path.exists(DASHBOARD_DIR):
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        if full_path.startswith("api/") or full_path.startswith("health"):
-            from fastapi import HTTPException
-            raise HTTPException(status_code=404, detail="API endpoint not found")
         file_path = os.path.join(DASHBOARD_DIR, full_path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
@@ -44,8 +47,3 @@ else:
     @app.get("/")
     async def root():
         return {"message": "KKU Bot Dashboard API"}
-
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
