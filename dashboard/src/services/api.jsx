@@ -1,0 +1,154 @@
+const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`;
+
+function handle401(res) {
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+    return true;
+  }
+  return false;
+}
+
+const api = {
+  async get(endpoint) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (handle401(res)) return;
+    if (!res.ok) throw new Error(`GET ${endpoint} failed`);
+    return res.json();
+  },
+
+  async post(endpoint, data) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(data),
+    });
+    if (handle401(res)) return;
+    if (!res.ok) throw new Error(`POST ${endpoint} failed`);
+    return res.json();
+  },
+
+  async put(endpoint, data) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(data),
+    });
+    if (handle401(res)) return;
+    if (!res.ok) throw new Error(`PUT ${endpoint} failed`);
+    return res.json();
+  },
+
+  async delete(endpoint) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (handle401(res)) return;
+    if (!res.ok) throw new Error(`DELETE ${endpoint} failed`);
+    return res.json();
+  },
+
+  getStats: () => api.get('/stats'),
+  getResponses: () => api.get('/responses'),
+  addResponse: (data) => api.post('/responses', data),
+  updateResponse: (id, data) => api.put(`/responses/${id}`, data),
+  deleteResponse: (id) => api.delete(`/responses/${id}`),
+  getGroups: () => api.get('/groups'),
+  addGroup: (data) => api.post('/groups', data),
+  toggleGroup: (id, enabled) => api.put(`/groups/${id}/toggle`, { enabled }),
+  getBannedUsers: () => api.get('/users/banned'),
+  banUser: (data) => api.post('/users/banned', data),
+  unbanUser: (id) => api.delete(`/users/banned/${id}`),
+  getActivityLog: () => api.get('/stats/activity'),
+  getSettings: () => api.get('/stats/settings'),
+  updateSettings: (data) => api.put('/stats/settings', data),
+  login: (data) => api.post('/auth/login', data),
+  verify: () => api.post('/auth/verify'),
+
+  async postFormData(endpoint, formData) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (handle401(res)) return;
+    if (!res.ok) throw new Error(`POST ${endpoint} failed`);
+    return res.json();
+  },
+
+  uploadWithProgress(endpoint, formData, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const token = localStorage.getItem('token');
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else if (xhr.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          reject(new Error('Unauthorized'));
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status}`));
+        }
+      });
+
+      xhr.addEventListener('error', () => reject(new Error('Network error')));
+      xhr.addEventListener('abort', () => reject(new Error('Aborted')));
+
+      xhr.open('POST', `${API_URL}${endpoint}`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.send(formData);
+    });
+  },
+
+  getNews: () => api.get('/news'),
+  addNews: (data) => api.post('/news', data),
+  addNewsWithFile: (formData) => api.postFormData('/news/upload', formData),
+  publishNews: (id) => api.post(`/news/${id}/publish`),
+  deleteNews: (id) => api.delete(`/news/${id}`),
+
+  getQuestions: () => api.get('/questions'),
+  addQuestion: (data) => api.post('/questions', data),
+  updateQuestion: (id, data) => api.put(`/questions/${id}`, data),
+  deleteQuestion: (id) => api.delete(`/questions/${id}`),
+
+  getScheduledPosts: () => api.get('/scheduled-posts'),
+  addScheduledPost: (data) => api.post('/scheduled-posts', data),
+  addScheduledPostWithFile: (formData) => api.postFormData('/scheduled-posts/upload', formData),
+  deleteScheduledPost: (id) => api.delete(`/scheduled-posts/${id}`),
+
+  getStudyPlans: () => api.get('/study-plans'),
+  addStudyPlan: (data) => api.post('/study-plans', data),
+  addStudyPlanWithFile: (formData) => api.postFormData('/study-plans/upload', formData),
+  deleteStudyPlan: (id) => api.delete(`/study-plans/${id}`),
+
+  getStudyPlanGroups: () => api.get('/study-plans/groups'),
+  getStudyPlanGroup: (id) => api.get(`/study-plans/groups/${id}`),
+  addStudyPlanGroup: (data) => api.post('/study-plans/groups', data),
+  deleteStudyPlanGroup: (id) => api.delete(`/study-plans/groups/${id}`),
+  publishGroupPlans: (groupId) => api.post(`/study-plans/publish-group/${groupId}`),
+};
+
+export default api;

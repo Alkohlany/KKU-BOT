@@ -1,0 +1,31 @@
+import logging
+from datetime import datetime, timezone
+from bot.services.database import get_pending_posts, mark_post_published, get_all_groups
+from bot.services.news_publisher import publish_to_groups
+
+logger = logging.getLogger(__name__)
+
+
+async def check_scheduled_posts(context):
+    try:
+        pending = await get_pending_posts()
+        logger.info(f"Scheduler check: found {len(pending)} pending posts")
+
+        for post in pending:
+            try:
+                logger.info(f"Publishing scheduled post ID={post.id}: {post.content[:50]}...")
+                sent = await publish_to_groups(
+                    text=post.content,
+                    image_url=post.image_url,
+                    file_url=post.file_url
+                )
+                await mark_post_published(post.id)
+                logger.info(f"Published scheduled post ID={post.id}, sent to {sent} groups")
+
+                if post.is_recurring and post.recurring_interval:
+                    from bot.services.database import reschedule_post
+                    await reschedule_post(post.id, post.recurring_interval)
+            except Exception as e:
+                logger.error(f"Error publishing scheduled post ID={post.id}: {e}")
+    except Exception as e:
+        logger.error(f"Error in scheduler check: {e}")
