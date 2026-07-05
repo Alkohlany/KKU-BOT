@@ -1,5 +1,6 @@
 import logging
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.error import Conflict
 from bot.config import BOT_TOKEN, ADMIN_IDS
 from bot.services.database import init_db
 from bot.handlers.start import start_handler, feature_handler
@@ -35,6 +36,13 @@ async def post_init(application):
     logger.info("Database initialized and scheduler started")
 
 
+async def error_handler(update, context):
+    if isinstance(context.error, Conflict):
+        logger.warning("Conflict detected - another bot instance is running. Retrying...")
+        return
+    logger.error(f"Unhandled exception: {context.error}", exc_info=context.error)
+
+
 def main():
     application = (
         ApplicationBuilder()
@@ -42,6 +50,8 @@ def main():
         .post_init(post_init)
         .build()
     )
+
+    application.add_error_handler(error_handler)
 
     application.add_handler(start_handler)
     application.add_handler(feature_handler)

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 SPAM_KEYWORDS = [
     # تسويق/إعلان
-    "اشترك", "اشتراك", "عرض", "خصم", "توصيل", "شحن",
+    "عرض", "خصم", "توصيل", "شحن",
     "إعلان", "إعلانات", "تسويق", "ربح", "دخل",
     "taplink", "linktr", "bit.ly", "tinyurl",
     "casino", "bet", "gambling",
