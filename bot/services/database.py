@@ -28,55 +28,21 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created successfully")
 
-        try:
-            await conn.execute(text("ALTER TABLE study_plans ADD COLUMN channel_message_id INTEGER"))
-        except Exception:
-            pass
-        try:
-            await conn.execute(text("ALTER TABLE study_plans ADD COLUMN group_id INTEGER REFERENCES study_plan_groups(id)"))
-        except Exception:
-            pass
-        try:
-            await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN channel_message_id INTEGER"))
-        except Exception:
-            pass
+        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
+        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES study_plan_groups(id)"))
+        await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
-            plans = [
-                StudyPlan(
-                    title="خطة بكالوريوس هندسة الحاسب",
-                    description="برنامج دراسي لدرجة البكالوريوس في هندسة الحاسب والمعلومات، يشمل البرمجة وشبكات الحاسب والذكاء الاصطناعي",
-                    faculty="كلية الهندسة",
-                    level="بكالوريوس",
-                    is_active=True
-                ),
-                StudyPlan(
-                    title="خطة بكالوريوس إدارة الأعمال",
-                    description="برنامج دراسي لدرجة البكالوريوس في إدارة الأعمال، يشمل التسويق والمالية وإدارة الموارد البشرية",
-                    faculty="كلية إدارة الأعمال",
-                    level="بكالوريوس",
-                    is_active=True
-                ),
-                StudyPlan(
-                    title="خطة بكالوريوس الطب البشري",
-                    description="برنامج دراسي لدرجة بكالوريوس الطب البشري، مدة 7 سنوات تشمل مرحلة العلوم الطبية والتمريض والتدريب السريري",
-                    faculty="كلية الطب",
-                    level="بكالوريوس",
-                    is_active=True
-                ),
-                StudyPlan(
-                    title="خطة بكالوريوس التربية",
-                    description="برنامج دراسي لدرجة البكالوريوس في التربية، يشمل أساليب التدريس وعلم النفس التربوي والمناهج",
-                    faculty="كلية التربية",
-                    level="بكالوريوس",
-                    is_active=True
-                ),
-            ]
-            for plan in plans:
+            for plan_data in [
+                ("خطة بكالوريوس هندسة الحاسب", "برنامج دراسي لدرجة البكالوريوس في هندسة الحاسب والمعلومات، يشمل البرمجة وشبكات الحاسب والذكاء الاصطناعي", "كلية الهندسة", "بكالوريوس"),
+                ("خطة بكالوريوس إدارة الأعمال", "برنامج دراسي لدرجة البكالوريوس في إدارة الأعمال، يشمل التسويق والمالية وإدارة الموارد البشرية", "كلية إدارة الأعمال", "بكالوريوس"),
+                ("خطة بكالوريوس الطب البشري", "برنامج دراسي لدرجة بكالوريوس الطب البشري، مدة 7 سنوات تشمل مرحلة العلوم الطبية والتمريض والتدريب السريري", "كلية الطب", "بكالوريوس"),
+                ("خطة بكالوريوس التربية", "برنامج دراسي لدرجة البكالوريوس في التربية، يشمل أساليب التدريس وعلم النفس التربوي والمناهج", "كلية التربية", "بكالوريوس"),
+            ]:
                 await conn.execute(
-                    text("INSERT INTO study_plans (title, description, faculty, level, is_active, created_at) VALUES (:title, :description, :faculty, :level, :is_active, NOW())"),
-                    {"title": plan.title, "description": plan.description, "faculty": plan.faculty, "level": plan.level, "is_active": plan.is_active}
+                    text("INSERT INTO study_plans (title, description, faculty, level, is_active, created_at) VALUES (:title, :description, :faculty, :level, true, NOW())"),
+                    {"title": plan_data[0], "description": plan_data[1], "faculty": plan_data[2], "level": plan_data[3]}
                 )
             logger.info("Seeded 4 test study plans")
 
