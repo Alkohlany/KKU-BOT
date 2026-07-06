@@ -259,7 +259,8 @@ async def publish_group_plans(group_id: int):
                     if plan.file_url:
                         file_resp = await client.get(plan.file_url, timeout=60)
                         if file_resp.status_code == 200:
-                            files = {"document": ("plan.pdf", file_resp.content, "application/pdf")}
+                            filename = f"{plan.title}.pdf"
+                            files = {"document": (filename, file_resp.content, "application/pdf")}
                             data = {"chat_id": CHANNEL_ID, "caption": caption, "parse_mode": "HTML"}
                             resp = await client.post(
                                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
