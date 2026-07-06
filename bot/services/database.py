@@ -442,7 +442,7 @@ async def delete_study_plan_group(group_id: int):
 
 
 # ==================== Study Plans ====================
-async def add_study_plan(title, description, faculty, level, plan_url=None, file_url=None, group_id=None):
+async def add_study_plan(title, description=None, faculty=None, level=None, plan_url=None, file_url=None, group_id=None):
     async with async_session() as session:
         plan = StudyPlan(title=title, description=description, faculty=faculty,
                         level=level, plan_url=plan_url, file_url=file_url, group_id=group_id)
