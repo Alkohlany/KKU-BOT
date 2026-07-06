@@ -16,6 +16,13 @@ export default function StudyPlans() {
   const [publishing, setPublishing] = useState(null);
   const [editingPlan, setEditingPlan] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -224,8 +231,8 @@ export default function StudyPlans() {
 
   return (
     <>
-      <div className="card">
-        <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+      <div className="card" style={{ overflow: 'visible' }}>
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: 12, position: 'sticky', top: 0, zIndex: 10, background: 'var(--white)' }}>
           <div className="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
@@ -270,6 +277,9 @@ export default function StudyPlans() {
               borderBottom: '1px solid var(--gray-200)',
               background: 'var(--gray-50)',
               fontSize: 14,
+              position: 'sticky',
+              top: 70,
+              zIndex: 9,
             }}
           >
             <span
@@ -286,7 +296,7 @@ export default function StudyPlans() {
         {view === 'groups' ? (
           <div style={{ padding: 24 }}>
             {filteredGroups.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${windowWidth < 768 ? 120 : 200}px, 1fr))`, gap: 16 }}>
                 {filteredGroups.map((group) => {
                   const planCount = plans.filter((p) => p.group_id === group.id).length;
                   const status = getPublishStatus(group);
@@ -298,7 +308,7 @@ export default function StudyPlans() {
                         background: 'var(--white)',
                         border: '1px solid var(--gray-200)',
                         borderRadius: 12,
-                        padding: 20,
+                        padding: windowWidth < 768 ? 12 : 20,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         display: 'flex',
@@ -312,19 +322,19 @@ export default function StudyPlans() {
                     >
                       <div
                         style={{
-                          width: 56,
-                          height: 56,
+                          width: windowWidth < 768 ? 40 : 56,
+                          height: windowWidth < 768 ? 40 : 56,
                           borderRadius: 14,
                           background: 'var(--primary-bg)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: 28,
+                          fontSize: windowWidth < 768 ? 22 : 28,
                         }}
                       >
                         📁
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--gray-800)' }}>
+                      <div style={{ fontWeight: 700, fontSize: windowWidth < 768 ? 13 : 15, color: 'var(--gray-800)' }}>
                         {group.title}
                       </div>
                       {group.group_tag && (
@@ -361,28 +371,28 @@ export default function StudyPlans() {
                       <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                         <button
                           className="btn btn-primary btn-sm"
-                          style={{ fontSize: 12, padding: '6px 14px' }}
+                          style={{ fontSize: 12, padding: windowWidth < 768 ? '6px 10px' : '6px 14px' }}
                           disabled={publishing === group.id}
                           onClick={(e) => { e.stopPropagation(); handlePublishGroup(group.id); }}
                         >
-                          {publishing === group.id ? '...' : getPublishButtonText(group)}
+                          {publishing === group.id ? '...' : windowWidth < 768 ? '' : getPublishButtonText(group)}
                         </button>
                         <button
                           className="btn btn-secondary btn-sm btn-icon"
-                          style={{ padding: '6px 10px' }}
+                          style={{ padding: windowWidth < 768 ? '6px 8px' : '6px 10px' }}
                           onClick={(e) => { e.stopPropagation(); openEditGroupModal(group); }}
                         >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg width={windowWidth < 768 ? 11 : 13} height={windowWidth < 768 ? 11 : 13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
                         <button
                           className="btn btn-danger btn-sm"
-                          style={{ padding: '6px 10px' }}
+                          style={{ padding: windowWidth < 768 ? '6px 8px' : '6px 10px' }}
                           onClick={(e) => { e.stopPropagation(); handleDeleteGroup(group.id); }}
                         >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg width={windowWidth < 768 ? 10 : 12} height={windowWidth < 768 ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                           </svg>
@@ -414,8 +424,8 @@ export default function StudyPlans() {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 14,
-                        padding: '14px 16px',
+                        gap: windowWidth < 768 ? 10 : 14,
+                        padding: windowWidth < 768 ? '10px 12px' : '14px 16px',
                         borderRadius: 10,
                         border: '1px solid var(--gray-200)',
                         transition: 'all 0.15s',
@@ -425,14 +435,14 @@ export default function StudyPlans() {
                     >
                       <div
                         style={{
-                          width: 40,
-                          height: 40,
+                          width: windowWidth < 768 ? 32 : 40,
+                          height: windowWidth < 768 ? 32 : 40,
                           borderRadius: 10,
                           background: 'var(--info-light)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: 20,
+                          fontSize: windowWidth < 768 ? 16 : 20,
                           flexShrink: 0,
                         }}
                       >
@@ -444,8 +454,8 @@ export default function StudyPlans() {
                         </div>
                         <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                           {group && (
-                            <span className="status-badge active" style={{ fontSize: 11 }}>
-                              {group.title}
+                            <span className="status-badge active" style={{ fontSize: windowWidth < 768 ? 9 : 11 }}>
+                              {windowWidth < 768 ? group.title.charAt(0) : group.title}
                             </span>
                           )}
                           {plan.channel_message_id && (
@@ -458,20 +468,20 @@ export default function StudyPlans() {
                       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                         <button
                           className="btn btn-secondary btn-icon"
-                          style={{ padding: 6 }}
+                          style={{ padding: windowWidth < 768 ? 4 : 6 }}
                           onClick={() => openEditPlanModal(plan)}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg width={windowWidth < 768 ? 12 : 14} height={windowWidth < 768 ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
                         <button
                           className="btn btn-danger btn-icon"
-                          style={{ flexShrink: 0 }}
+                          style={{ flexShrink: 0, padding: windowWidth < 768 ? 4 : 'unset' }}
                           onClick={() => handleDeletePlan(plan.id)}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg width={windowWidth < 768 ? 12 : 14} height={windowWidth < 768 ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                           </svg>
