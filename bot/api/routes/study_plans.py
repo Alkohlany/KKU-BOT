@@ -71,7 +71,8 @@ async def update_group_post(group_id: int, force_new: bool = False):
                         "chat_id": CHANNEL_ID,
                         "message_id": group.channel_message_id,
                         "text": text,
-                        "parse_mode": "HTML"
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True
                     },
                     timeout=30
                 )
@@ -93,7 +94,8 @@ async def update_group_post(group_id: int, force_new: bool = False):
                     data={
                         "chat_id": CHANNEL_ID,
                         "text": text,
-                        "parse_mode": "HTML"
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True
                     },
                     timeout=30
                 )
