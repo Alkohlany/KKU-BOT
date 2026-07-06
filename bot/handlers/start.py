@@ -48,6 +48,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_subscribed:
         return
 
+    if context.args and context.args[0] == "plans":
+        from bot.handlers.study_plans import plans_command
+        await plans_command(update, context)
+        return
+
     markup = InlineKeyboardMarkup(FEATURES_KEYBOARD)
     await update.message.reply_text(START_MESSAGE, reply_markup=markup)
 
