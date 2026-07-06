@@ -8,7 +8,7 @@ export default function StudyPlans() {
   const [activeGroup, setActiveGroup] = useState(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', college: '', level: '', file: null, group_id: '' });
+  const [form, setForm] = useState({ title: '', file: null, group_id: '' });
   const [groupForm, setGroupForm] = useState({ title: '', description: '', group_tag: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export default function StudyPlans() {
   const folderPlans = plans.filter((p) => activeGroup && p.group_id === activeGroup.id);
 
   const filteredPlans = folderPlans.filter(
-    (p) => p.title?.includes(search) || p.description?.includes(search) || p.college?.includes(search) || p.level?.includes(search)
+    (p) => p.title?.includes(search)
   );
 
   const getPublishStatus = (group) => {
@@ -82,9 +82,6 @@ export default function StudyPlans() {
         if (form.file) {
           const formDataObj = new FormData();
           formDataObj.append('title', form.title);
-          formDataObj.append('description', form.description);
-          formDataObj.append('faculty', form.college);
-          formDataObj.append('level', form.level);
           if (form.group_id) {
             formDataObj.append('group_id', form.group_id);
           }
@@ -93,9 +90,6 @@ export default function StudyPlans() {
         } else {
           await api.updateStudyPlan(editingPlan.id, {
             title: form.title,
-            description: form.description,
-            faculty: form.college,
-            level: form.level,
             group_id: form.group_id || null,
           });
         }
@@ -105,9 +99,6 @@ export default function StudyPlans() {
         if (form.file) {
           const formDataObj = new FormData();
           formDataObj.append('title', form.title);
-          formDataObj.append('description', form.description);
-          formDataObj.append('faculty', form.college);
-          formDataObj.append('level', form.level);
           if (form.group_id) {
             formDataObj.append('group_id', form.group_id);
           }
@@ -116,15 +107,12 @@ export default function StudyPlans() {
         } else {
           newItem = await api.addStudyPlan({
             title: form.title,
-            description: form.description,
-            faculty: form.college,
-            level: form.level,
             group_id: form.group_id || null,
           });
         }
         setPlans([...plans, newItem]);
       }
-      setForm({ title: '', description: '', college: '', level: '', file: null, group_id: '' });
+      setForm({ title: '', file: null, group_id: '' });
       setEditingPlan(null);
       setShowPlanModal(false);
     } catch (err) {
@@ -193,7 +181,7 @@ export default function StudyPlans() {
 
   const openAddPlanModal = () => {
     setEditingPlan(null);
-    setForm({ title: '', description: '', college: '', level: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '' });
+    setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '' });
     setShowPlanModal(true);
   };
 
@@ -201,9 +189,6 @@ export default function StudyPlans() {
     setEditingPlan(plan);
     setForm({
       title: plan.title || '',
-      description: plan.description || '',
-      college: plan.faculty || plan.college || '',
-      level: plan.level || '',
       file: null,
       group_id: plan.group_id ? String(plan.group_id) : '',
     });
@@ -457,22 +442,11 @@ export default function StudyPlans() {
                         <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-800)' }}>
                           {plan.title}
                         </div>
-                        {plan.description && (
-                          <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {plan.description}
-                          </div>
-                        )}
                         <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                           {group && (
                             <span className="status-badge active" style={{ fontSize: 11 }}>
                               {group.title}
                             </span>
-                          )}
-                          {plan.college && (
-                            <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>{plan.college}</span>
-                          )}
-                          {plan.level && (
-                            <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>{plan.level}</span>
                           )}
                           {plan.channel_message_id && (
                             <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>
@@ -603,41 +577,7 @@ export default function StudyPlans() {
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                 />
               </div>
-              <div className="form-group">
-                <label>الوصف</label>
-                <textarea
-                  className="form-input"
-                  placeholder="وصف الخطة الدراسية..."
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  style={{ minHeight: 100 }}
-                />
-              </div>
-              <div className="form-group">
-                <label>الكلية</label>
-                <input
-                  className="form-input"
-                  placeholder="مثال: كلية الطب"
-                  value={form.college}
-                  onChange={(e) => setForm({ ...form, college: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>المستوى</label>
-                <select
-                  className="form-input"
-                  value={form.level}
-                  onChange={(e) => setForm({ ...form, level: e.target.value })}
-                >
-                  <option value="">اختر المستوى</option>
-                  <option value="المستوى الأول">المستوى الأول</option>
-                  <option value="المستوى الثاني">المستوى الثاني</option>
-                  <option value="المستوى الثالث">المستوى الثالث</option>
-                  <option value="المستوى الرابع">المستوى الرابع</option>
-                  <option value="المستوى الخامس">المستوى الخامس</option>
-                  <option value="الدراسات العليا">الدراسات العليا</option>
-                </select>
-              </div>
+
               <div className="form-group">
                 <label>الملف المرفق {editingPlan ? '(اتركه فارغاً للإبقاء على الملف الحالي)' : '(اختياري)'}</label>
                 <input
