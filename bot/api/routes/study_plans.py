@@ -45,12 +45,11 @@ async def update_group_post(group_id: int):
 
         today = Hijri.today()
         arabic_year = to_arabic_numerals(today.year)
-        text = f"📂 محدث خطط التخصصات {arabic_year}هـ\n"
-        text += f"{group.title}\n"
+        text = f"{group.title} {arabic_year}هـ\n"
         for plan in all_plans:
             if plan.channel_message_id:
                 plan_link = f"https://t.me/{channel_username}/{plan.channel_message_id}"
-                text += f"خطة {plan.title} ⬇️\n{plan_link}\n\n"
+                text += f"خطة {plan.title} 🔻\n{plan_link}\n\n"
             else:
                 text += f"خطة {plan.title}\n\n"
 
@@ -146,6 +145,26 @@ async def create_study_plan_group_endpoint(data: StudyPlanGroupCreate):
         print(f"Error publishing group to channel: {e}")
 
     return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "message": "Group created successfully"}
+
+
+@router.put("/groups/{group_id}")
+async def update_study_plan_group_endpoint(group_id: int, data: StudyPlanGroupCreate):
+    async with async_session() as session:
+        stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
+        result = await session.execute(stmt)
+        group = result.scalar_one_or_none()
+        if not group:
+            raise HTTPException(status_code=404, detail="Group not found")
+        if data.title is not None:
+            group.title = data.title
+        if data.description is not None:
+            group.description = data.description
+        if data.group_tag is not None:
+            group.group_tag = data.group_tag
+        await session.commit()
+
+    await update_group_post(group_id)
+    return {"id": group_id, "title": data.title, "message": "Group updated successfully"}
 
 
 @router.delete("/groups/{group_id}")
@@ -332,6 +351,8 @@ async def update_study_plan(
         if not plan:
             raise HTTPException(status_code=404, detail="Study plan not found")
 
+        old_group_id = plan.group_id
+
         if title is not None:
             plan.title = title
         if description is not None:
@@ -343,16 +364,34 @@ async def update_study_plan(
         if group_id is not None:
             plan.group_id = group_id
 
+        new_group_id = plan.group_id
+
         if file:
             content = await file.read()
             file_url = upload_raw(content, filename=file.filename, folder="kku-bot/plans")
             plan.plan_url = file_url
 
         await session.commit()
-        return {"message": "Study plan updated successfully", "id": plan_id}
+
+    if old_group_id and old_group_id != new_group_id:
+        await update_group_post(old_group_id)
+    if new_group_id:
+        await update_group_post(new_group_id)
+
+    return {"message": "Study plan updated successfully", "id": plan_id}
 
 
 @router.delete("/{plan_id}")
 async def delete_study_plan_endpoint(plan_id: int):
+    async with async_session() as session:
+        stmt = select(StudyPlan).where(StudyPlan.id == plan_id)
+        result = await session.execute(stmt)
+        plan = result.scalar_one_or_none()
+        group_id = plan.group_id if plan else None
+
     await delete_study_plan(plan_id)
+
+    if group_id:
+        await update_group_post(group_id)
+
     return {"status": "deleted"}

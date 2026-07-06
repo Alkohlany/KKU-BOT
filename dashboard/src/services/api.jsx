@@ -90,6 +90,18 @@ const api = {
     return res.json();
   },
 
+  async putFormData(endpoint, formData) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (handle401(res)) return;
+    if (!res.ok) throw new Error(`PUT ${endpoint} failed`);
+    return res.json();
+  },
+
   uploadWithProgress(endpoint, formData, onProgress) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -149,6 +161,9 @@ const api = {
   addStudyPlanGroup: (data) => api.post('/study-plans/groups', data),
   deleteStudyPlanGroup: (id) => api.delete(`/study-plans/groups/${id}`),
   publishGroupPlans: (groupId) => api.post(`/study-plans/publish-group/${groupId}`),
+  updateStudyPlan: (id, data) => api.put(`/study-plans/${id}`, data),
+  updateStudyPlanWithFile: (id, formData) => api.putFormData(`/study-plans/${id}`, formData),
+  updateStudyPlanGroup: (id, data) => api.put(`/study-plans/groups/${id}`, data),
 };
 
 export default api;

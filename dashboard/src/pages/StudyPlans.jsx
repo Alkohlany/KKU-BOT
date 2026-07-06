@@ -14,6 +14,8 @@ export default function StudyPlans() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(null);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [editingGroup, setEditingGroup] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -56,33 +58,74 @@ export default function StudyPlans() {
     (p) => p.title?.includes(search) || p.description?.includes(search) || p.college?.includes(search) || p.level?.includes(search)
   );
 
+  const getPublishStatus = (group) => {
+    const totalPlans = plans.filter((p) => p.group_id === group.id).length;
+    const publishedPlans = plans.filter((p) => p.group_id === group.id && p.channel_message_id).length;
+    if (publishedPlans === 0) return { text: 'غير منشور', color: 'var(--gray-400)', bg: 'var(--gray-100)', total: totalPlans, published: publishedPlans };
+    if (publishedPlans < totalPlans) return { text: `منشور جزئياً ${publishedPlans}/${totalPlans}`, color: '#b76e00', bg: '#fff3e0', total: totalPlans, published: publishedPlans };
+    return { text: 'منشور كلياً', color: 'var(--primary)', bg: 'var(--primary-bg)', total: totalPlans, published: publishedPlans };
+  };
+
+  const getPublishButtonText = (group) => {
+    const totalPlans = plans.filter((p) => p.group_id === group.id).length;
+    const publishedPlans = plans.filter((p) => p.group_id === group.id && p.channel_message_id).length;
+    if (totalPlans === 0 || publishedPlans === 0) return 'نشر الكل';
+    if (publishedPlans > 0 && publishedPlans < totalPlans) return `نشر ${totalPlans - publishedPlans}`;
+    return 'إعادة نشر';
+  };
+
   const handleSavePlan = async () => {
     if (!form.title) return;
     setSaving(true);
     try {
-      let newItem;
-      if (form.file) {
-        const formDataObj = new FormData();
-        formDataObj.append('title', form.title);
-        formDataObj.append('description', form.description);
-        formDataObj.append('faculty', form.college);
-        formDataObj.append('level', form.level);
-        if (form.group_id) {
-          formDataObj.append('group_id', form.group_id);
+      if (editingPlan) {
+        if (form.file) {
+          const formDataObj = new FormData();
+          formDataObj.append('title', form.title);
+          formDataObj.append('description', form.description);
+          formDataObj.append('faculty', form.college);
+          formDataObj.append('level', form.level);
+          if (form.group_id) {
+            formDataObj.append('group_id', form.group_id);
+          }
+          formDataObj.append('file', form.file);
+          await api.updateStudyPlanWithFile(editingPlan.id, formDataObj);
+        } else {
+          await api.updateStudyPlan(editingPlan.id, {
+            title: form.title,
+            description: form.description,
+            faculty: form.college,
+            level: form.level,
+            group_id: form.group_id || null,
+          });
         }
-        formDataObj.append('file', form.file);
-        newItem = await api.addStudyPlanWithFile(formDataObj);
+        await loadData();
       } else {
-        newItem = await api.addStudyPlan({
-          title: form.title,
-          description: form.description,
-          faculty: form.college,
-          level: form.level,
-          group_id: form.group_id || null,
-        });
+        let newItem;
+        if (form.file) {
+          const formDataObj = new FormData();
+          formDataObj.append('title', form.title);
+          formDataObj.append('description', form.description);
+          formDataObj.append('faculty', form.college);
+          formDataObj.append('level', form.level);
+          if (form.group_id) {
+            formDataObj.append('group_id', form.group_id);
+          }
+          formDataObj.append('file', form.file);
+          newItem = await api.addStudyPlanWithFile(formDataObj);
+        } else {
+          newItem = await api.addStudyPlan({
+            title: form.title,
+            description: form.description,
+            faculty: form.college,
+            level: form.level,
+            group_id: form.group_id || null,
+          });
+        }
+        setPlans([...plans, newItem]);
       }
-      setPlans([...plans, newItem]);
       setForm({ title: '', description: '', college: '', level: '', file: null, group_id: '' });
+      setEditingPlan(null);
       setShowPlanModal(false);
     } catch (err) {
       console.error('Failed to save study plan:', err);
@@ -95,9 +138,15 @@ export default function StudyPlans() {
     if (!groupForm.title) return;
     setSaving(true);
     try {
-      const newGroup = await api.addStudyPlanGroup(groupForm);
-      setGroups([...groups, newGroup]);
+      if (editingGroup) {
+        await api.updateStudyPlanGroup(editingGroup.id, groupForm);
+        await loadData();
+      } else {
+        const newGroup = await api.addStudyPlanGroup(groupForm);
+        setGroups([...groups, newGroup]);
+      }
       setGroupForm({ title: '', description: '', group_tag: '' });
+      setEditingGroup(null);
       setShowGroupModal(false);
     } catch (err) {
       console.error('Failed to save group:', err);
@@ -142,6 +191,44 @@ export default function StudyPlans() {
     }
   };
 
+  const openAddPlanModal = () => {
+    setEditingPlan(null);
+    setForm({ title: '', description: '', college: '', level: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '' });
+    setShowPlanModal(true);
+  };
+
+  const openEditPlanModal = (plan) => {
+    setEditingPlan(plan);
+    setForm({
+      title: plan.title || '',
+      description: plan.description || '',
+      college: plan.faculty || plan.college || '',
+      level: plan.level || '',
+      file: null,
+      group_id: plan.group_id ? String(plan.group_id) : '',
+    });
+    setShowPlanModal(true);
+  };
+
+  const openAddGroupModal = () => {
+    setEditingGroup(null);
+    setGroupForm({ title: '', description: '', group_tag: '' });
+    setShowGroupModal(true);
+  };
+
+  const openEditGroupModal = (group) => {
+    setEditingGroup(group);
+    setGroupForm({ title: group.title || '', description: group.description || '', group_tag: group.group_tag || '' });
+    setShowGroupModal(true);
+  };
+
+  const closeModals = () => {
+    setShowPlanModal(false);
+    setShowGroupModal(false);
+    setEditingPlan(null);
+    setEditingGroup(null);
+  };
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>
@@ -175,16 +262,13 @@ export default function StudyPlans() {
                 رجوع
               </button>
             )}
-            <button className="btn btn-secondary" onClick={() => { setGroupForm({ title: '', description: '', group_tag: '' }); setShowGroupModal(true); }}>
+            <button className="btn btn-secondary" onClick={openAddGroupModal}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               </svg>
               إضافة مجموعة
             </button>
-            <button className="btn btn-primary" onClick={() => {
-              setForm({ title: '', description: '', college: '', level: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '' });
-              setShowPlanModal(true);
-            }}>
+            <button className="btn btn-primary" onClick={openAddPlanModal}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -220,6 +304,7 @@ export default function StudyPlans() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                 {filteredGroups.map((group) => {
                   const planCount = plans.filter((p) => p.group_id === group.id).length;
+                  const status = getPublishStatus(group);
                   return (
                     <div
                       key={group.id}
@@ -274,6 +359,20 @@ export default function StudyPlans() {
                       <div style={{ fontSize: 13, color: 'var(--gray-500)' }}>
                         {planCount} {planCount === 1 ? 'خطة' : 'خطط'}
                       </div>
+                      {planCount > 0 && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: status.color,
+                            background: status.bg,
+                            padding: '2px 10px',
+                            borderRadius: 20,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {status.text}
+                        </span>
+                      )}
                       <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                         <button
                           className="btn btn-primary btn-sm"
@@ -281,7 +380,17 @@ export default function StudyPlans() {
                           disabled={publishing === group.id}
                           onClick={(e) => { e.stopPropagation(); handlePublishGroup(group.id); }}
                         >
-                          {publishing === group.id ? '...' : 'نشر'}
+                          {publishing === group.id ? '...' : getPublishButtonText(group)}
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm btn-icon"
+                          style={{ padding: '6px 10px' }}
+                          onClick={(e) => { e.stopPropagation(); openEditGroupModal(group); }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
                         </button>
                         <button
                           className="btn btn-danger btn-sm"
@@ -372,16 +481,28 @@ export default function StudyPlans() {
                           )}
                         </div>
                       </div>
-                      <button
-                        className="btn btn-danger btn-icon"
-                        style={{ flexShrink: 0 }}
-                        onClick={() => handleDeletePlan(plan.id)}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        <button
+                          className="btn btn-secondary btn-icon"
+                          style={{ padding: 6 }}
+                          onClick={() => openEditPlanModal(plan)}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          className="btn btn-danger btn-icon"
+                          style={{ flexShrink: 0 }}
+                          onClick={() => handleDeletePlan(plan.id)}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -400,13 +521,13 @@ export default function StudyPlans() {
         )}
       </div>
 
-      {/* Add Group Modal */}
+      {/* Add/Edit Group Modal */}
       {showGroupModal && (
-        <div className="modal-overlay" onClick={() => setShowGroupModal(false)}>
+        <div className="modal-overlay" onClick={() => closeModals()}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>إضافة مجموعة جديدة</h3>
-              <button className="modal-close" onClick={() => setShowGroupModal(false)}>✕</button>
+              <h3>{editingGroup ? 'تعديل المجموعة' : 'إضافة مجموعة جديدة'}</h3>
+              <button className="modal-close" onClick={() => closeModals()}>✕</button>
             </div>
             <div className="modal-body">
               <div className="form-group">
@@ -443,21 +564,21 @@ export default function StudyPlans() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleSaveGroup} disabled={saving}>
-                {saving ? 'جاري الحفظ...' : 'إضافة'}
+                {saving ? 'جاري الحفظ...' : (editingGroup ? 'حفظ التعديلات' : 'إضافة')}
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowGroupModal(false)}>إلغاء</button>
+              <button className="btn btn-secondary" onClick={() => closeModals()}>إلغاء</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Add Plan Modal */}
+      {/* Add/Edit Plan Modal */}
       {showPlanModal && (
-        <div className="modal-overlay" onClick={() => setShowPlanModal(false)}>
+        <div className="modal-overlay" onClick={() => closeModals()}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>إضافة خطة جديدة</h3>
-              <button className="modal-close" onClick={() => setShowPlanModal(false)}>✕</button>
+              <h3>{editingPlan ? 'تعديل الخطة' : 'إضافة خطة جديدة'}</h3>
+              <button className="modal-close" onClick={() => closeModals()}>✕</button>
             </div>
             <div className="modal-body">
               <div className="form-group">
@@ -518,7 +639,7 @@ export default function StudyPlans() {
                 </select>
               </div>
               <div className="form-group">
-                <label>الملف المرفق (اختياري)</label>
+                <label>الملف المرفق {editingPlan ? '(اتركه فارغاً للإبقاء على الملف الحالي)' : '(اختياري)'}</label>
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
@@ -534,9 +655,9 @@ export default function StudyPlans() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleSavePlan} disabled={saving}>
-                {saving ? 'جاري الحفظ...' : 'إضافة'}
+                {saving ? 'جاري الحفظ...' : (editingPlan ? 'حفظ التعديلات' : 'إضافة')}
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowPlanModal(false)}>إلغاء</button>
+              <button className="btn btn-secondary" onClick={() => closeModals()}>إلغاء</button>
             </div>
           </div>
         </div>
