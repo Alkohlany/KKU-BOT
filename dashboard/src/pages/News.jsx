@@ -8,7 +8,7 @@ export default function News() {
   const { showToast } = useToast();
   const [news, setNews] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ title: '', content: '' });
+  const [form, setForm] = useState({ title: '', content: '', as_document: false });
   const [uploadFile, setUploadFile] = useState(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishItem, setPublishItem] = useState(null);
@@ -50,6 +50,7 @@ export default function News() {
         formData.append('title', form.title);
         formData.append('content', form.content);
         formData.append('file', uploadFile);
+        formData.append('as_document', form.as_document);
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
         });
@@ -57,7 +58,7 @@ export default function News() {
         newItem = await api.addNews(form);
       }
       setNews([...news, newItem]);
-      setForm({ title: '', content: '' });
+      setForm({ title: '', content: '', as_document: false });
       setUploadFile(null);
       setShowModal(false);
     } catch (err) {
@@ -138,7 +139,7 @@ export default function News() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setForm({ title: '', content: '' }); setUploadFile(null); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ title: '', content: '', as_document: false }); setUploadFile(null); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -156,6 +157,7 @@ export default function News() {
                   <th>المحتوى</th>
                   <th>الصورة</th>
                   <th>الملف</th>
+                  <th>طريقة الإرسال</th>
                   <th>الحالة</th>
                   <th>إجراءات</th>
                 </tr>
@@ -180,6 +182,9 @@ export default function News() {
                       ) : (
                         <span style={{ color: 'var(--gray-400)' }}>-</span>
                       )}
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--gray-500)' }}>
+                      {item.fileUrl || item.imageUrl ? (item.asDocument ? 'كمرفق' : 'عرض مباشر') : '-'}
                     </td>
                     <td>
                       <span className={`status-badge ${item.published ? 'active' : 'inactive'}`}>
@@ -257,6 +262,11 @@ export default function News() {
                       </svg>
                       <span style={{ fontSize: 12, color: 'var(--gray-600)' }}>📎 ملف مرفق</span>
                     </div>
+                  )}
+                  {(item.fileUrl || item.imageUrl) && (
+                    <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, marginBottom: 8 }}>
+                      طريقة الإرسال: {item.asDocument ? 'كمرفق' : 'عرض مباشر'}
+                    </p>
                   )}
                   <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 0 }}>
                     {item.content?.substring(0, 100)}...
@@ -340,6 +350,20 @@ export default function News() {
                     {uploadFile.name}
                   </small>
                 )}
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.as_document}
+                    onChange={(e) => setForm({ ...form, as_document: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  إرسال كملف مرفق (بدلاً من العرض المباشر)
+                </label>
+                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12 }}>
+                  عند التفعيل، سيتم إرسال الملف كمرفق قابل للتحميل بدلاً من عرضه مباشرة
+                </small>
               </div>
             </div>
             <div className="modal-footer">

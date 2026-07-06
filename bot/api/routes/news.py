@@ -19,10 +19,12 @@ class NewsCreate(BaseModel):
     image_url: Optional[str] = None
     file_url: Optional[str] = None
     publish_to_channel: bool = False
+    as_document: bool = False
 
 
 class PublishPayload(BaseModel):
     publish_to_channel: bool = False
+    as_document: bool = False
 
 
 @router.get("/")
@@ -37,6 +39,7 @@ async def get_news():
             "fileUrl": n.file_url,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel,
+            "asDocument": n.as_document,
             "publishedAt": n.published_at.isoformat() if n.published_at else None,
             "createdAt": n.created_at.isoformat() if n.created_at else None,
         }
@@ -48,10 +51,11 @@ async def get_news():
 async def create_news(data: NewsCreate):
     n = await add_news(title=data.title, content=data.content,
                          image_url=data.image_url, file_url=data.file_url,
-                         publish_to_channel=data.publish_to_channel)
+                         publish_to_channel=data.publish_to_channel,
+                         as_document=data.as_document)
     return {"id": n.id, "title": n.title, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "published": n.is_published,
-            "publishToChannel": n.publish_to_channel}
+            "publishToChannel": n.publish_to_channel, "as_document": n.as_document}
 
 
 @router.post("/upload")
@@ -60,6 +64,7 @@ async def create_news_with_file(
     content: str = Form(...),
     file: Optional[UploadFile] = File(None),
     publish_to_channel: bool = Form(False),
+    as_document: bool = Form(False),
 ):
     image_url = None
     file_url = None
@@ -74,10 +79,10 @@ async def create_news_with_file(
             file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
 
     n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url,
-                        publish_to_channel=publish_to_channel)
+                        publish_to_channel=publish_to_channel, as_document=as_document)
     return {"id": n.id, "title": n.title, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "published": n.is_published,
-            "publishToChannel": n.publish_to_channel}
+            "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
 
 
 @router.post("/{news_id}/publish")
@@ -90,9 +95,10 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
             raise HTTPException(status_code=404, detail="News not found")
 
         publish_to_channel = payload.publish_to_channel if payload else news.publish_to_channel
+        as_document = payload.as_document if payload else news.as_document
         text = f"📰 {news.title}\n\n{news.content}"
         sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url,
-                                        publish_to_channel=publish_to_channel)
+                                        publish_to_channel=publish_to_channel, as_document=as_document)
 
         await publish_news(news_id)
         return {"status": "published", "sent": sent, "failed": 0}

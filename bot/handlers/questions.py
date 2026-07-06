@@ -29,7 +29,9 @@ async def questions_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = await search_question(query)
         if result:
             if result.file_url:
-                if result.file_type == 'photo':
+                if result.as_document:
+                    await update.message.reply_document(document=result.file_url, caption=f"❓ {result.question}\n\n✅ {result.answer}")
+                elif result.file_type == 'photo':
                     await update.message.reply_photo(photo=result.file_url, caption=f"❓ {result.question}\n\n✅ {result.answer}")
                 elif result.file_type == 'video':
                     await update.message.reply_video(video=result.file_url, caption=f"❓ {result.question}\n\n✅ {result.answer}")

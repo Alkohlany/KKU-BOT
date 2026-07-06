@@ -98,7 +98,12 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         if best_match:
             try:
                 if best_match.file_url:
-                    if best_match.file_type == 'photo':
+                    if best_match.as_document:
+                        await update.message.reply_document(
+                            document=best_match.file_url,
+                            caption=best_match.response
+                        )
+                    elif best_match.file_type == 'photo':
                         await update.message.reply_photo(
                             photo=best_match.file_url,
                             caption=best_match.response
@@ -139,7 +144,9 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
             await increment_question_usage(question_result.id)
             try:
                 if question_result.file_url:
-                    if question_result.file_type == 'photo':
+                    if question_result.as_document:
+                        await update.message.reply_document(document=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                    elif question_result.file_type == 'photo':
                         await update.message.reply_photo(photo=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
                     elif question_result.file_type == 'video':
                         await update.message.reply_video(video=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")

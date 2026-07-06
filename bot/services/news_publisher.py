@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "uploads"))
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, publish_to_channel: bool = False):
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, publish_to_channel: bool = False, as_document: bool = False):
     groups = await get_all_groups()
     sent = 0
 
@@ -18,14 +18,14 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
         if not group.is_active:
             continue
         try:
-            await _send_to_chat(str(group.chat_id), text, image_url, file_url)
+            await _send_to_chat(str(group.chat_id), text, image_url, file_url, as_document)
             sent += 1
         except Exception as e:
             logger.error(f"Failed to send to group {group.chat_id}: {e}")
 
     if publish_to_channel and CHANNEL_ID:
         try:
-            await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url)
+            await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url, as_document)
             sent += 1
         except Exception as e:
             logger.error(f"Failed to send to channel {CHANNEL_ID}: {e}")
@@ -33,9 +33,36 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     return sent
 
 
-async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None):
+async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, as_document: bool = False):
     async with httpx.AsyncClient() as client:
         sent_photo = False
+        
+        if as_document and (image_url or file_url):
+            url = image_url or file_url
+            filepath = _resolve_file(url)
+            if filepath and os.path.exists(filepath):
+                content_type = mimetypes.guess_type(filepath)[0] or "application/octet-stream"
+                try:
+                    with open(filepath, "rb") as f:
+                        resp = await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
+                            data={"chat_id": chat_id, "caption": text},
+                            files={"document": (os.path.basename(filepath), f, content_type)},
+                            timeout=30
+                        )
+                except Exception as e:
+                    logger.error(f"Error sending document to {chat_id}: {e}")
+            elif url.startswith("http"):
+                try:
+                    resp = await client.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
+                        json={"chat_id": chat_id, "document": url, "caption": text},
+                        timeout=30
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending document URL to {chat_id}: {e}")
+            return
+        
         if image_url:
             filepath = _resolve_file(image_url)
             if filepath and os.path.exists(filepath):

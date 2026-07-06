@@ -38,6 +38,7 @@ class AutoResponse(Base):
     created_by = Column(BigInteger)
     file_url = Column(String(500), nullable=True)
     file_type = Column(String(50), nullable=True)
+    as_document = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
@@ -73,6 +74,7 @@ class News(Base):
     published_at = Column(DateTime)
     created_by = Column(BigInteger)
     publish_to_channel = Column(Boolean, default=False)
+    as_document = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
@@ -86,6 +88,7 @@ class Question(Base):
     keywords = Column(String(500))
     file_url = Column(String(500), nullable=True)
     file_type = Column(String(50), nullable=True)
+    as_document = Column(Boolean, default=False)
     usage_count = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
@@ -106,6 +109,7 @@ class ScheduledPost(Base):
     published_at = Column(DateTime)
     created_by = Column(BigInteger)
     publish_to_channel = Column(Boolean, default=False)
+    as_document = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 

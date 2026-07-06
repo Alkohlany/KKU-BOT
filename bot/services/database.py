@@ -33,6 +33,10 @@ async def init_db():
         await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS publish_to_channel BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS publish_to_channel BOOLEAN DEFAULT FALSE"))
+        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
+        await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
@@ -113,9 +117,9 @@ async def remove_group(chat_id: int):
         await session.commit()
 
 
-async def add_auto_response(keyword: str, response: str, created_by: int, file_url: str = None, file_type: str = None) -> AutoResponse:
+async def add_auto_response(keyword: str, response: str, created_by: int, file_url: str = None, file_type: str = None, as_document: bool = False) -> AutoResponse:
     async with async_session() as session:
-        ar = AutoResponse(keyword=keyword, response=response, created_by=created_by, file_url=file_url, file_type=file_type)
+        ar = AutoResponse(keyword=keyword, response=response, created_by=created_by, file_url=file_url, file_type=file_type, as_document=as_document)
         session.add(ar)
         await session.commit()
         await session.refresh(ar)
@@ -144,7 +148,7 @@ async def remove_auto_response(response_id: int):
         await session.commit()
 
 
-async def update_auto_response(response_id: int, keyword: str = None, response: str = None, is_active: bool = None, file_url: str = None, file_type: str = None):
+async def update_auto_response(response_id: int, keyword: str = None, response: str = None, is_active: bool = None, file_url: str = None, file_type: str = None, as_document: bool = None):
     async with async_session() as session:
         stmt = select(AutoResponse).where(AutoResponse.id == response_id)
         result = await session.execute(stmt)
@@ -161,6 +165,8 @@ async def update_auto_response(response_id: int, keyword: str = None, response: 
             ar.file_url = file_url
         if file_type is not None:
             ar.file_type = file_type
+        if as_document is not None:
+            ar.as_document = as_document
         await session.commit()
         await session.refresh(ar)
         return ar
@@ -191,11 +197,11 @@ async def log_activity(action: str, details: str = None, performed_by: int = Non
 
 
 # ==================== News ====================
-async def add_news(title, content, image_url=None, file_url=None, created_by=None, publish_to_channel=False):
+async def add_news(title, content, image_url=None, file_url=None, created_by=None, publish_to_channel=False, as_document=False):
     async with async_session() as session:
         news = News(title=title, content=content, image_url=image_url, 
                    file_url=file_url, created_by=created_by,
-                   publish_to_channel=publish_to_channel)
+                   publish_to_channel=publish_to_channel, as_document=as_document)
         session.add(news)
         await session.commit()
         return news
@@ -219,9 +225,9 @@ async def delete_news(news_id):
 
 
 # ==================== Questions ====================
-async def add_question(question, answer, category=None, keywords=None, file_url=None, file_type=None):
+async def add_question(question, answer, category=None, keywords=None, file_url=None, file_type=None, as_document=False):
     async with async_session() as session:
-        q = Question(question=question, answer=answer, category=category, keywords=keywords, file_url=file_url, file_type=file_type)
+        q = Question(question=question, answer=answer, category=category, keywords=keywords, file_url=file_url, file_type=file_type, as_document=as_document)
         session.add(q)
         await session.commit()
         await session.refresh(q)
@@ -274,7 +280,7 @@ async def delete_question(question_id):
         await session.execute(delete(Question).where(Question.id == question_id))
         await session.commit()
 
-async def update_question(question_id: int, question: str = None, answer: str = None, category: str = None, keywords: str = None, file_url: str = None, file_type: str = None):
+async def update_question(question_id: int, question: str = None, answer: str = None, category: str = None, keywords: str = None, file_url: str = None, file_type: str = None, as_document: bool = None):
     async with async_session() as session:
         from sqlalchemy import select
         stmt = select(Question).where(Question.id == question_id)
@@ -294,6 +300,8 @@ async def update_question(question_id: int, question: str = None, answer: str = 
             q.file_url = file_url
         if file_type is not None:
             q.file_type = file_type
+        if as_document is not None:
+            q.as_document = as_document
         await session.commit()
         await session.refresh(q)
         return q
@@ -302,12 +310,12 @@ async def update_question(question_id: int, question: str = None, answer: str = 
 # ==================== Scheduled Posts ====================
 async def add_scheduled_post(title, content, schedule_time, image_url=None, file_url=None, 
                             is_recurring=False, recurring_interval=None, created_by=None,
-                            publish_to_channel=False):
+                            publish_to_channel=False, as_document=False):
     async with async_session() as session:
         post = ScheduledPost(title=title, content=content, schedule_time=schedule_time,
                             image_url=image_url, file_url=file_url, is_recurring=is_recurring,
                             recurring_interval=recurring_interval, created_by=created_by,
-                            publish_to_channel=publish_to_channel)
+                            publish_to_channel=publish_to_channel, as_document=as_document)
         session.add(post)
         await session.commit()
         return post

@@ -8,7 +8,7 @@ export default function ScheduledPosts() {
   const { showToast } = useToast();
   const [posts, setPosts] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false });
+  const [form, setForm] = useState({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false, as_document: false });
   const [uploadFile, setUploadFile] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -44,6 +44,7 @@ export default function ScheduledPosts() {
         formData.append('schedule_time', form.scheduledTime);
         formData.append('is_recurring', form.recurring);
         formData.append('publish_to_channel', form.publish_to_channel);
+        formData.append('as_document', form.as_document);
         if (form.title) formData.append('title', form.title);
         formData.append('file', uploadFile);
         newItem = await api.addScheduledPostWithFile(formData);
@@ -53,10 +54,11 @@ export default function ScheduledPosts() {
           schedule_time: form.scheduledTime,
           is_recurring: form.recurring,
           publish_to_channel: form.publish_to_channel,
+          as_document: form.as_document,
         });
       }
       setPosts([...posts, newItem]);
-      setForm({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false });
+      setForm({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false, as_document: false });
       setUploadFile(null);
       setShowModal(false);
     } catch (err) {
@@ -117,7 +119,7 @@ export default function ScheduledPosts() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setForm({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false }); setUploadFile(null); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false, as_document: false }); setUploadFile(null); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -146,9 +148,14 @@ export default function ScheduledPosts() {
                       {item.content?.substring(0, 80)}...
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {item.imageUrl && <span className="status-badge active">🖼️ صورة</span>}
                         {item.fileUrl && <span className="status-badge active">📎 ملف</span>}
+                        {(item.imageUrl || item.fileUrl) && (
+                          <span className="status-badge active">
+                            {item.asDocument ? 'كمرفق' : 'عرض مباشر'}
+                          </span>
+                        )}
                         {!item.imageUrl && !item.fileUrl && <span style={{ color: 'var(--gray-400)' }}>-</span>}
                       </div>
                     </td>
@@ -213,6 +220,11 @@ export default function ScheduledPosts() {
                     </span>
                     {item.imageUrl && <span className="status-badge active" style={{ fontSize: 11 }}>🖼️ صورة</span>}
                     {item.fileUrl && <span className="status-badge active" style={{ fontSize: 11 }}>📎 ملف</span>}
+                    {(item.imageUrl || item.fileUrl) && (
+                      <span className="status-badge active" style={{ fontSize: 11 }}>
+                        {item.asDocument ? 'كمرفق' : 'عرض مباشر'}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="mobile-card-meta">
@@ -267,6 +279,20 @@ export default function ScheduledPosts() {
                     {uploadFile.name}
                   </small>
                 )}
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.as_document}
+                    onChange={(e) => setForm({ ...form, as_document: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  إرسال كملف مرفق (بدلاً من العرض المباشر)
+                </label>
+                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12 }}>
+                  عند التفعيل، سيتم إرسال الملف كمرفق قابل للتحميل بدلاً من عرضه مباشرة
+                </small>
               </div>
               <div className="form-group">
                 <label>وقت النشر</label>

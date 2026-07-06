@@ -9,7 +9,7 @@ export default function Responses() {
   const [responses, setResponses] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ keyword: '', response: '', file: null, file_url: '', file_type: '' });
+  const [form, setForm] = useState({ keyword: '', response: '', file: null, file_url: '', file_type: '', as_document: false });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,10 +43,11 @@ export default function Responses() {
           formData.append('keyword', form.keyword);
           formData.append('response', form.response);
           formData.append('file', form.file);
+          formData.append('as_document', form.as_document);
           const updated = await api.updateResponseWithFile(editItem.id, formData);
           setResponses(responses.map((r) => r.id === editItem.id ? updated : r));
         } else {
-          const payload = { keyword: form.keyword, response: form.response };
+          const payload = { keyword: form.keyword, response: form.response, as_document: form.as_document };
           if (form.file_url !== editItem.file_url) {
             payload.file_url = form.file_url || null;
             payload.file_type = form.file_type || null;
@@ -60,6 +61,7 @@ export default function Responses() {
           formData.append('keyword', form.keyword);
           formData.append('response', form.response);
           formData.append('file', form.file);
+          formData.append('as_document', form.as_document);
           const newItem = await api.addResponseWithFile(formData);
           setResponses([...responses, newItem]);
         } else {
@@ -67,7 +69,7 @@ export default function Responses() {
           setResponses([...responses, newItem]);
         }
       }
-      setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '' });
+      setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '', as_document: false });
       setEditItem(null);
       setShowModal(false);
     } catch (err) {
@@ -79,7 +81,7 @@ export default function Responses() {
 
   const handleEdit = (item) => {
     setEditItem(item);
-    setForm({ keyword: item.keyword, response: item.response || '', file: null, file_url: item.file_url || '', file_type: item.file_type || '' });
+    setForm({ keyword: item.keyword, response: item.response || '', file: null, file_url: item.file_url || '', file_type: item.file_type || '', as_document: item.as_document || false });
     setShowModal(true);
   };
 
@@ -133,7 +135,7 @@ export default function Responses() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '' }); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '', as_document: false }); setShowModal(true); }}>
               + إضافة رد جديد
             </button>
           </div>
@@ -146,6 +148,7 @@ export default function Responses() {
                   <th>الكلمة المفتاحية</th>
                   <th>الرد</th>
                   <th>المرفق</th>
+                  <th>طريقة الإرسال</th>
                   <th>الحالة</th>
                   <th>إجراءات</th>
                 </tr>
@@ -166,6 +169,9 @@ export default function Responses() {
                           {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
                         </span>
                       ) : '-'}
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--gray-500)' }}>
+                      {item.file_url ? (item.as_document ? 'كمرفق' : 'عرض مباشر') : '-'}
                     </td>
                     <td>
                       <label className="toggle-switch">
@@ -228,6 +234,7 @@ export default function Responses() {
                   {item.file_url && (
                     <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>
                       📎 {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
+                      {item.as_document ? ' (كمرفق)' : ' (عرض مباشر)'}
                     </p>
                   )}
                 </div>
@@ -306,6 +313,20 @@ export default function Responses() {
                     📎 يوجد ملف مرفق حالياً
                   </small>
                 )}
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.as_document}
+                    onChange={(e) => setForm({ ...form, as_document: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  إرسال كملف مرفق (بدلاً من العرض المباشر)
+                </label>
+                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12 }}>
+                  عند التفعيل، سيتم إرسال الملف كمرفق قابل للتحميل بدلاً من عرضه مباشرة
+                </small>
               </div>
             </div>
             <div className="modal-footer">

@@ -19,6 +19,7 @@ class ScheduledPostCreate(BaseModel):
     is_recurring: bool = False
     recurring_interval: Optional[str] = None
     publish_to_channel: bool = False
+    as_document: bool = False
 
 
 @router.get("/")
@@ -36,6 +37,7 @@ async def get_scheduled_posts():
             "recurringInterval": p.recurring_interval,
             "isPublished": p.is_published,
             "publishToChannel": p.publish_to_channel,
+            "asDocument": p.as_document,
             "createdAt": p.created_at.isoformat() if p.created_at else None,
         }
         for p in items
@@ -51,17 +53,18 @@ async def create_scheduled_post(data: ScheduledPostCreate):
         riyadh_tz = ZoneInfo("Asia/Riyadh")
         dt = dt.replace(tzinfo=riyadh_tz).astimezone(timezone.utc).replace(tzinfo=None)
     p = await add_scheduled_post(title=data.title, content=data.content,
-                                   schedule_time=dt,
-                                   image_url=data.image_url, file_url=data.file_url,
-                                   is_recurring=data.is_recurring,
-                                   recurring_interval=data.recurring_interval,
-                                   publish_to_channel=data.publish_to_channel)
+                                    schedule_time=dt,
+                                    image_url=data.image_url, file_url=data.file_url,
+                                    is_recurring=data.is_recurring,
+                                    recurring_interval=data.recurring_interval,
+                                    publish_to_channel=data.publish_to_channel,
+                                    as_document=data.as_document)
     return {
         "id": p.id, "title": p.title, "content": p.content,
         "imageUrl": p.image_url, "fileUrl": p.file_url,
         "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
         "recurring": p.is_recurring, "isPublished": p.is_published,
-        "publishToChannel": p.publish_to_channel
+        "publishToChannel": p.publish_to_channel, "asDocument": p.as_document
     }
 
 
@@ -74,6 +77,7 @@ async def create_scheduled_post_with_file(
     recurring_interval: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     publish_to_channel: bool = Form(False),
+    as_document: bool = Form(False),
 ):
     image_url = None
     file_url = None
@@ -94,17 +98,18 @@ async def create_scheduled_post_with_file(
         riyadh_tz = ZoneInfo("Asia/Riyadh")
         dt = dt.replace(tzinfo=riyadh_tz).astimezone(timezone.utc).replace(tzinfo=None)
     p = await add_scheduled_post(title=title, content=content,
-                                   schedule_time=dt,
-                                   image_url=image_url, file_url=file_url,
-                                   is_recurring=is_recurring,
-                                   recurring_interval=recurring_interval,
-                                   publish_to_channel=publish_to_channel)
+                                    schedule_time=dt,
+                                    image_url=image_url, file_url=file_url,
+                                    is_recurring=is_recurring,
+                                    recurring_interval=recurring_interval,
+                                    publish_to_channel=publish_to_channel,
+                                    as_document=as_document)
     return {
         "id": p.id, "title": p.title, "content": p.content,
         "imageUrl": p.image_url, "fileUrl": p.file_url,
         "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
         "recurring": p.is_recurring, "isPublished": p.is_published,
-        "publishToChannel": p.publish_to_channel
+        "publishToChannel": p.publish_to_channel, "asDocument": p.as_document
     }
 
 

@@ -9,7 +9,7 @@ export default function Questions() {
   const [questions, setQuestions] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '' });
+  const [form, setForm] = useState({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '', as_document: false });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,10 +45,11 @@ export default function Questions() {
           if (form.category) formData.append('category', form.category);
           if (form.keywords) formData.append('keywords', form.keywords);
           formData.append('file', form.file);
+          formData.append('as_document', form.as_document);
           const updated = await api.updateQuestionWithFile(editItem.id, formData);
           setQuestions(questions.map((q) => q.id === editItem.id ? updated : q));
         } else {
-          const payload = { question: form.question, answer: form.answer, category: form.category, keywords: form.keywords };
+          const payload = { question: form.question, answer: form.answer, category: form.category, keywords: form.keywords, as_document: form.as_document };
           if (form.file_url !== editItem.file_url) {
             payload.file_url = form.file_url || null;
             payload.file_type = form.file_type || null;
@@ -64,6 +65,7 @@ export default function Questions() {
           if (form.category) formData.append('category', form.category);
           if (form.keywords) formData.append('keywords', form.keywords);
           formData.append('file', form.file);
+          formData.append('as_document', form.as_document);
           const newItem = await api.addQuestionWithFile(formData);
           setQuestions([...questions, newItem]);
         } else {
@@ -71,7 +73,7 @@ export default function Questions() {
           setQuestions([...questions, newItem]);
         }
       }
-      setForm({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '' });
+      setForm({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '', as_document: false });
       setEditItem(null);
       setShowModal(false);
     } catch (err) {
@@ -91,6 +93,7 @@ export default function Questions() {
       file: null,
       file_url: item.file_url || '',
       file_type: item.file_type || '',
+      as_document: item.as_document || false,
     });
     setShowModal(true);
   };
@@ -132,7 +135,7 @@ export default function Questions() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '' }); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '', as_document: false }); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -149,6 +152,7 @@ export default function Questions() {
                   <th>السؤال</th>
                   <th>الإجابة</th>
                   <th>المرفق</th>
+                  <th>طريقة الإرسال</th>
                   <th>الفئة</th>
                   <th>الكلمات المفتاحية</th>
                   <th>إجراءات</th>
@@ -167,6 +171,9 @@ export default function Questions() {
                           📎 {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
                         </span>
                       ) : '-'}
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--gray-500)' }}>
+                      {item.file_url ? (item.as_document ? 'كمرفق' : 'عرض مباشر') : '-'}
                     </td>
                     <td>
                       {item.category ? (
@@ -233,6 +240,7 @@ export default function Questions() {
                   {item.file_url && (
                     <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>
                       📎 {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
+                      {item.as_document ? ' (كمرفق)' : ' (عرض مباشر)'}
                     </p>
                   )}
                 </div>
@@ -323,6 +331,20 @@ export default function Questions() {
                     📎 يوجد ملف مرفق حالياً
                   </small>
                 )}
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.as_document}
+                    onChange={(e) => setForm({ ...form, as_document: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  إرسال كملف مرفق (بدلاً من العرض المباشر)
+                </label>
+                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12 }}>
+                  عند التفعيل، سيتم إرسال الملف كمرفق قابل للتحميل بدلاً من عرضه مباشرة
+                </small>
               </div>
             </div>
             <div className="modal-footer">
