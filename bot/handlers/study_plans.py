@@ -12,6 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_type = update.effective_chat.type
+    if chat_type in ['group', 'supergroup']:
+        bot_username = context.bot.username
+        await update.message.reply_text(
+            f"📚 للاطلاع على الخطط الدراسية يرجى استخدام البوت في المحادثة الخاصة:\n"
+            f"https://t.me/{bot_username}?start=plans"
+        )
+        return
+
     is_subscribed = await subscription_required(update, context)
     if not is_subscribed:
         return
