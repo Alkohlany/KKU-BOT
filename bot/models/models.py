@@ -36,6 +36,8 @@ class AutoResponse(Base):
     response = Column(Text, nullable=False)
     is_active = Column(Boolean, default=True)
     created_by = Column(BigInteger)
+    file_url = Column(String(500), nullable=True)
+    file_type = Column(String(50), nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 

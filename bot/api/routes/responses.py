@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, delete
 from bot.api.database import get_db
 from bot.api.auth import get_current_user
 from bot.models.models import AutoResponse
+from bot.services.cloud_storage import upload_raw
+from bot.services.database import add_auto_response, update_auto_response
 
 router = APIRouter()
 
@@ -13,12 +15,25 @@ router = APIRouter()
 class CustomResponseCreate(BaseModel):
     keyword: str
     response: str
+    file_url: Optional[str] = None
+    file_type: Optional[str] = None
 
 
 class CustomResponseUpdate(BaseModel):
     keyword: Optional[str] = None
     response: Optional[str] = None
     enabled: Optional[bool] = None
+    file_url: Optional[str] = None
+    file_type: Optional[str] = None
+
+
+def detect_file_type(filename: str) -> str:
+    ext = filename.lower().split('.')[-1] if '.' in filename else ''
+    if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+        return 'photo'
+    if ext in ('mp4', 'avi', 'mov', 'mkv'):
+        return 'video'
+    return 'document'
 
 
 @router.get("")
@@ -34,6 +49,8 @@ async def get_custom_responses(
             "keyword": r.keyword,
             "response": r.response,
             "enabled": r.is_active,
+            "file_url": r.file_url,
+            "file_type": r.file_type,
         }
         for r in items
     ]
@@ -45,11 +62,33 @@ async def create_custom_response(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    ar = AutoResponse(keyword=data.keyword, response=data.response, created_by=0)
+    ar = await add_auto_response(
+        keyword=data.keyword, response=data.response, created_by=0,
+        file_url=data.file_url, file_type=data.file_type
+    )
+    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "file_url": ar.file_url, "file_type": ar.file_type}
+
+
+@router.post("/upload")
+async def upload_custom_response(
+    keyword: str = Form(...),
+    response: str = Form(...),
+    file: UploadFile = File(None),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    file_url = None
+    file_type = None
+    if file:
+        content = await file.read()
+        file_url = upload_raw(content, filename=file.filename, folder="kku-bot/responses")
+        file_type = detect_file_type(file.filename)
+
+    ar = AutoResponse(keyword=keyword, response=response, created_by=0, file_url=file_url, file_type=file_type)
     db.add(ar)
     await db.commit()
     await db.refresh(ar)
-    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active}
+    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "file_url": ar.file_url, "file_type": ar.file_type}
 
 
 @router.put("/{response_id}")
@@ -59,21 +98,44 @@ async def update_custom_response(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
+    ar = await update_auto_response(
+        response_id=response_id,
+        keyword=data.keyword,
+        response=data.response,
+        is_active=data.enabled,
+        file_url=data.file_url,
+        file_type=data.file_type,
+    )
+    if not ar:
+        raise HTTPException(status_code=404, detail="Response not found")
+    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "file_url": ar.file_url, "file_type": ar.file_type}
+
+
+@router.put("/upload/{response_id}")
+async def upload_update_custom_response(
+    response_id: int,
+    keyword: str = Form(None),
+    response: str = Form(None),
+    file: UploadFile = File(None),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
     result = await db.execute(select(AutoResponse).where(AutoResponse.id == response_id))
     ar = result.scalar_one_or_none()
-
     if not ar:
         raise HTTPException(status_code=404, detail="Response not found")
 
-    if data.keyword is not None:
-        ar.keyword = data.keyword
-    if data.response is not None:
-        ar.response = data.response
-    if data.enabled is not None:
-        ar.is_active = data.enabled
+    if keyword is not None:
+        ar.keyword = keyword
+    if response is not None:
+        ar.response = response
+    if file:
+        content = await file.read()
+        ar.file_url = upload_raw(content, filename=file.filename, folder="kku-bot/responses")
+        ar.file_type = detect_file_type(file.filename)
 
     await db.commit()
-    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active}
+    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "file_url": ar.file_url, "file_type": ar.file_type}
 
 
 @router.delete("/{response_id}")

@@ -5,7 +5,7 @@ export default function Responses() {
   const [responses, setResponses] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ keyword: '', response: '' });
+  const [form, setForm] = useState({ keyword: '', response: '', file: null, file_url: '', file_type: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,15 +34,36 @@ export default function Responses() {
     setSaving(true);
     try {
       if (editItem && editItem.id) {
-        await api.updateResponse(editItem.id, form);
-        setResponses(responses.map((r) =>
-          r.id === editItem.id ? { ...r, ...form } : r
-        ));
+        if (form.file) {
+          const formData = new FormData();
+          formData.append('keyword', form.keyword);
+          formData.append('response', form.response);
+          formData.append('file', form.file);
+          const updated = await api.updateResponseWithFile(editItem.id, formData);
+          setResponses(responses.map((r) => r.id === editItem.id ? updated : r));
+        } else {
+          const payload = { keyword: form.keyword, response: form.response };
+          if (form.file_url !== editItem.file_url) {
+            payload.file_url = form.file_url || null;
+            payload.file_type = form.file_type || null;
+          }
+          const updated = await api.updateResponse(editItem.id, payload);
+          setResponses(responses.map((r) => r.id === editItem.id ? updated : r));
+        }
       } else {
-        const newItem = await api.addResponse(form);
-        setResponses([...responses, newItem]);
+        if (form.file) {
+          const formData = new FormData();
+          formData.append('keyword', form.keyword);
+          formData.append('response', form.response);
+          formData.append('file', form.file);
+          const newItem = await api.addResponseWithFile(formData);
+          setResponses([...responses, newItem]);
+        } else {
+          const newItem = await api.addResponse(form);
+          setResponses([...responses, newItem]);
+        }
       }
-      setForm({ keyword: '', response: '' });
+      setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '' });
       setEditItem(null);
       setShowModal(false);
     } catch (err) {
@@ -54,7 +75,7 @@ export default function Responses() {
 
   const handleEdit = (item) => {
     setEditItem(item);
-    setForm({ keyword: item.keyword, response: item.response || '' });
+    setForm({ keyword: item.keyword, response: item.response || '', file: null, file_url: item.file_url || '', file_type: item.file_type || '' });
     setShowModal(true);
   };
 
@@ -106,7 +127,7 @@ export default function Responses() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ keyword: '', response: '' }); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '' }); setShowModal(true); }}>
               + إضافة رد جديد
             </button>
           </div>
@@ -118,6 +139,7 @@ export default function Responses() {
                 <tr>
                   <th>الكلمة المفتاحية</th>
                   <th>الرد</th>
+                  <th>المرفق</th>
                   <th>الحالة</th>
                   <th>إجراءات</th>
                 </tr>
@@ -128,6 +150,16 @@ export default function Responses() {
                     <td><strong>{item.keyword}</strong></td>
                     <td style={{ maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.response}
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--gray-500)' }}>
+                      {item.file_url ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                          </svg>
+                          {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
+                        </span>
+                      ) : '-'}
                     </td>
                     <td>
                       <label className="toggle-switch">
@@ -187,6 +219,11 @@ export default function Responses() {
                 </div>
                 <div className="mobile-card-body">
                   <p>{item.response}</p>
+                  {item.file_url && (
+                    <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>
+                      📎 {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
+                    </p>
+                  )}
                 </div>
                 <div className="mobile-card-meta">
                   <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(item)}>
@@ -244,6 +281,25 @@ export default function Responses() {
                   onChange={(e) => setForm({ ...form, response: e.target.value })}
                   style={{ minHeight: 200 }}
                 />
+              </div>
+              <div className="form-group">
+                <label>الملف المرفق (اختياري)</label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.avi,.mov,.mkv,.pdf,.doc,.docx"
+                  className="form-input"
+                  onChange={(e) => setForm({ ...form, file: e.target.files[0] || null })}
+                />
+                {form.file && (
+                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
+                    {form.file.name}
+                  </small>
+                )}
+                {editItem && editItem.file_url && !form.file && (
+                  <small style={{ color: 'var(--primary)', marginTop: 4, display: 'block' }}>
+                    📎 يوجد ملف مرفق حالياً
+                  </small>
+                )}
               </div>
             </div>
             <div className="modal-footer">

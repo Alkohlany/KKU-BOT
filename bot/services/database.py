@@ -111,9 +111,9 @@ async def remove_group(chat_id: int):
         await session.commit()
 
 
-async def add_auto_response(keyword: str, response: str, created_by: int) -> AutoResponse:
+async def add_auto_response(keyword: str, response: str, created_by: int, file_url: str = None, file_type: str = None) -> AutoResponse:
     async with async_session() as session:
-        ar = AutoResponse(keyword=keyword, response=response, created_by=created_by)
+        ar = AutoResponse(keyword=keyword, response=response, created_by=created_by, file_url=file_url, file_type=file_type)
         session.add(ar)
         await session.commit()
         await session.refresh(ar)
@@ -140,6 +140,28 @@ async def remove_auto_response(response_id: int):
             delete(AutoResponse).where(AutoResponse.id == response_id)
         )
         await session.commit()
+
+
+async def update_auto_response(response_id: int, keyword: str = None, response: str = None, is_active: bool = None, file_url: str = None, file_type: str = None):
+    async with async_session() as session:
+        stmt = select(AutoResponse).where(AutoResponse.id == response_id)
+        result = await session.execute(stmt)
+        ar = result.scalar_one_or_none()
+        if not ar:
+            return None
+        if keyword is not None:
+            ar.keyword = keyword
+        if response is not None:
+            ar.response = response
+        if is_active is not None:
+            ar.is_active = is_active
+        if file_url is not None:
+            ar.file_url = file_url
+        if file_type is not None:
+            ar.file_type = file_type
+        await session.commit()
+        await session.refresh(ar)
+        return ar
 
 
 async def ban_user(telegram_id: int, reason: str = None, banned_by: int = None) -> BannedUser:
