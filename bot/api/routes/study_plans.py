@@ -215,13 +215,23 @@ async def publish_group_plans(group_id: int):
 
                 try:
                     if plan.file_url:
-                        data = {"chat_id": CHANNEL_ID, "caption": caption, "parse_mode": "HTML"}
-                        data["text"] = plan.file_url
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                            data=data,
-                            timeout=30
-                        )
+                        file_resp = await client.get(plan.file_url, timeout=60)
+                        if file_resp.status_code == 200:
+                            files = {"document": ("plan.pdf", file_resp.content, "application/pdf")}
+                            data = {"chat_id": CHANNEL_ID, "caption": caption, "parse_mode": "HTML"}
+                            resp = await client.post(
+                                f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
+                                files=files,
+                                data=data,
+                                timeout=60
+                            )
+                        else:
+                            data = {"chat_id": CHANNEL_ID, "text": caption + f"\n\n📎 {plan.file_url}", "parse_mode": "HTML"}
+                            resp = await client.post(
+                                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                                data=data,
+                                timeout=30
+                            )
                     else:
                         data = {"chat_id": CHANNEL_ID, "text": caption, "parse_mode": "HTML"}
                         resp = await client.post(
