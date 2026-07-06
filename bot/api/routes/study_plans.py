@@ -96,9 +96,6 @@ class StudyPlanGroupCreate(BaseModel):
 
 class StudyPlanCreate(BaseModel):
     title: str
-    description: Optional[str] = None
-    faculty: Optional[str] = None
-    level: Optional[str] = None
     plan_url: Optional[str] = None
     file_url: Optional[str] = None
     group_id: Optional[int] = None
@@ -185,8 +182,7 @@ async def get_study_plans(group_id: Optional[int] = None, faculty: Optional[str]
 
 @router.post("/")
 async def create_study_plan(data: StudyPlanCreate):
-    return await add_study_plan(title=data.title, description=data.description,
-                               faculty=data.faculty, level=data.level,
+    return await add_study_plan(title=data.title,
                                plan_url=data.plan_url, file_url=data.file_url,
                                group_id=data.group_id)
 
@@ -194,9 +190,6 @@ async def create_study_plan(data: StudyPlanCreate):
 @router.post("/upload")
 async def upload_study_plan(
     title: str = Form(...),
-    description: str = Form(""),
-    faculty: str = Form(""),
-    level: str = Form(""),
     plan_url: str = Form(""),
     group_id: int = Form(None),
     file: Optional[UploadFile] = File(None),
@@ -208,9 +201,6 @@ async def upload_study_plan(
 
     plan = await add_study_plan(
         title=title,
-        description=description,
-        faculty=faculty,
-        level=level,
         plan_url=plan_url,
         file_url=file_url,
         group_id=group_id,
@@ -337,9 +327,6 @@ async def get_study_plan_file(filename: str):
 async def update_study_plan(
     plan_id: int,
     title: str = Form(None),
-    description: str = Form(None),
-    faculty: str = Form(None),
-    level: str = Form(None),
     group_id: int = Form(None),
     file: UploadFile = File(None)
 ):
@@ -355,12 +342,6 @@ async def update_study_plan(
 
         if title is not None:
             plan.title = title
-        if description is not None:
-            plan.description = description
-        if faculty is not None:
-            plan.faculty = faculty
-        if level is not None:
-            plan.level = level
         if group_id is not None:
             plan.group_id = group_id
 
