@@ -247,7 +247,7 @@ async def publish_group_plans(group_id: int):
                 if group.group_tag:
                     caption += f"#{group.group_tag}\n"
                 caption += f"تخصص - {plan.title}\n\n"
-                caption += f'<a href="https://t.me/kkunewbot">t.me/kkunewbot</a>'
+                caption += f'<a href="https://t.me/kkunewbot"><code>t.me/kkunewbot</code></a>'
 
                 try:
                     if plan.file_url:
