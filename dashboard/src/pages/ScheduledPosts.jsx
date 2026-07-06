@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useConfirm } from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastContext';
 
 export default function ScheduledPosts() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [posts, setPosts] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false });
@@ -63,12 +67,15 @@ export default function ScheduledPosts() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذا المنشور المجدول؟')) return;
+    const ok = await confirm('هل أنت متأكد من حذف هذا المنشور المجدول؟');
+    if (!ok) return;
     try {
       await api.deleteScheduledPost(id);
       setPosts(posts.filter((p) => p.id !== id));
+      showToast('تم حذف المنشور بنجاح', 'success');
     } catch (err) {
       console.error('Failed to delete scheduled post:', err);
+      showToast('فشل حذف المنشور', 'error');
     }
   };
 

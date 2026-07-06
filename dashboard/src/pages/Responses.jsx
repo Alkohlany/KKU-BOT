@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useConfirm } from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastContext';
 
 export default function Responses() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [responses, setResponses] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -81,13 +85,15 @@ export default function Responses() {
 
   const handleDelete = async (id) => {
     if (!id) return;
-    if (window.confirm('هل أنت متأكد من حذف هذا الرد؟')) {
-      try {
-        await api.deleteResponse(id);
-        setResponses(responses.filter((r) => r.id !== id));
-      } catch (err) {
-        console.error('Failed to delete response:', err);
-      }
+    const ok = await confirm('هل أنت متأكد من حذف هذا الرد؟');
+    if (!ok) return;
+    try {
+      await api.deleteResponse(id);
+      setResponses(responses.filter((r) => r.id !== id));
+      showToast('تم حذف الرد بنجاح', 'success');
+    } catch (err) {
+      console.error('Failed to delete response:', err);
+      showToast('فشل حذف الرد', 'error');
     }
   };
 

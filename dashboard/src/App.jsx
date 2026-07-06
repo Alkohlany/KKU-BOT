@@ -13,6 +13,8 @@ import BannedUsers from './pages/BannedUsers'
 import ActivityLog from './pages/ActivityLog'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+import { ToastProvider } from './components/ToastContext'
+import { ConfirmProvider } from './components/ConfirmDialog'
 import './App.css'
 
 const pageTitles = {
@@ -68,9 +70,13 @@ function App() {
   }
 
   return (
-    <Router>
-      <Layout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-    </Router>
+    <ToastProvider>
+      <ConfirmProvider>
+        <Router>
+          <Layout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        </Router>
+      </ConfirmProvider>
+    </ToastProvider>
   )
 }
 

@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useConfirm } from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastContext';
 
 export default function News() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [news, setNews] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ title: '', content: '' });
@@ -98,12 +102,15 @@ export default function News() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذا الخبر؟')) return;
+    const ok = await confirm('هل أنت متأكد من حذف هذا الخبر؟');
+    if (!ok) return;
     try {
       await api.deleteNews(id);
       setNews(news.filter((n) => n.id !== id));
+      showToast('تم حذف الخبر بنجاح', 'success');
     } catch (err) {
       console.error('Failed to delete news:', err);
+      showToast('فشل حذف الخبر', 'error');
     }
   };
 

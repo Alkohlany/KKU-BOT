@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useConfirm } from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastContext';
 
 export default function Questions() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [questions, setQuestions] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -92,12 +96,15 @@ export default function Questions() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
+    const ok = await confirm('هل أنت متأكد من حذف هذا السؤال؟');
+    if (!ok) return;
     try {
       await api.deleteQuestion(id);
       setQuestions(questions.filter((q) => q.id !== id));
+      showToast('تم حذف السؤال بنجاح', 'success');
     } catch (err) {
       console.error('Failed to delete question:', err);
+      showToast('فشل حذف السؤال', 'error');
     }
   };
 

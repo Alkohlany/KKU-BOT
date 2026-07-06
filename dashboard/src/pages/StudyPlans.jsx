@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useConfirm } from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastContext';
 
 export default function StudyPlans() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [plans, setPlans] = useState([]);
   const [groups, setGroups] = useState([]);
   const [view, setView] = useState('groups');
@@ -151,7 +155,8 @@ export default function StudyPlans() {
   };
 
   const handleDeletePlan = async (id) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذه الخطة؟')) return;
+    const ok = await confirm('هل أنت متأكد من حذف هذه الخطة؟');
+    if (!ok) return;
     try {
       await api.deleteStudyPlan(id);
       setPlans(plans.filter((p) => p.id !== id));
@@ -161,7 +166,8 @@ export default function StudyPlans() {
   };
 
   const handleDeleteGroup = async (id) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذه المجموعة؟ سيتم حذف جميع الخطط التابعة لها.')) return;
+    const ok = await confirm('هل أنت متأكد من حذف هذه المجموعة؟ سيتم حذف جميع الخطط التابعة لها.');
+    if (!ok) return;
     try {
       await api.deleteStudyPlanGroup(id);
       setGroups(groups.filter((g) => g.id !== id));
@@ -176,11 +182,11 @@ export default function StudyPlans() {
     setPublishing(groupId);
     try {
       const result = await api.publishGroupPlans(groupId);
-      alert(result.message || 'تم النشر بنجاح');
+      showToast(result.message || 'تم النشر بنجاح', 'success');
       await loadData();
     } catch (err) {
       console.error('Failed to publish group plans:', err);
-      alert('حدث خطأ أثناء النشر');
+      showToast('حدث خطأ أثناء النشر', 'error');
     } finally {
       setPublishing(null);
     }

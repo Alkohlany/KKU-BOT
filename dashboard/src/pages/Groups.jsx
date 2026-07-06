@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useToast } from '../components/ToastContext';
 
 export default function Groups() {
+  const { showToast } = useToast();
   const [groups, setGroups] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export default function Groups() {
     try {
       const result = await api.addGroup({ chat_id: parseInt(form.chat_id), title: form.title || null });
       if (result.error) {
-        alert(result.error);
+        showToast(result.error, 'error');
       } else {
         setGroups([...groups, result]);
         setForm({ chat_id: '', title: '' });

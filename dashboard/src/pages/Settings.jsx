@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useToast } from '../components/ToastContext';
 
 export default function Settings({ onLogout }) {
+  const { showToast } = useToast();
   const [settings, setSettings] = useState({
     botToken: '',
     channelId: '',
@@ -16,8 +18,7 @@ export default function Settings({ onLogout }) {
   });
 
   const [showToken, setShowToken] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -33,15 +34,15 @@ export default function Settings({ onLogout }) {
   };
 
   const handleSave = async () => {
-    setLoading(true);
+    setSaving(true);
     try {
       await api.updateSettings(settings);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      showToast('تم حفظ الإعدادات بنجاح!', 'success');
     } catch {
       console.error('Failed to save settings');
+      showToast('فشل حفظ الإعدادات', 'error');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -214,7 +215,7 @@ export default function Settings({ onLogout }) {
               <polyline points="17 21 17 13 7 13 7 21" />
               <polyline points="7 3 7 8 15 8" />
             </svg>
-            {loading ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+            {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
           </button>
           <button className="btn btn-secondary">إعادة التعيين</button>
           <button className="btn btn-secondary" onClick={handleLogout} style={{ marginRight: 'auto' }}>
@@ -227,9 +228,7 @@ export default function Settings({ onLogout }) {
           </button>
         </div>
 
-        {saved && (
-          <div className="toast success">تم حفظ الإعدادات بنجاح!</div>
-        )}
+        
     </>
   );
 }

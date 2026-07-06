@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useConfirm } from '../components/ConfirmDialog';
+import { useToast } from '../components/ToastContext';
 
 export default function BannedUsers() {
+  const { confirm } = useConfirm();
+  const { showToast } = useToast();
   const [banned, setBanned] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ username: '', reason: '' });
@@ -44,13 +48,15 @@ export default function BannedUsers() {
   };
 
   const handleUnban = async (id) => {
-    if (window.confirm('هل أنت متأكد من إلغاء الحظر؟')) {
-      try {
-        await api.unbanUser(id);
-        setBanned(banned.filter((b) => b.id !== id));
-      } catch (err) {
-        console.error('Failed to unban user:', err);
-      }
+    const ok = await confirm('هل أنت متأكد من إلغاء الحظر؟');
+    if (!ok) return;
+    try {
+      await api.unbanUser(id);
+      setBanned(banned.filter((b) => b.id !== id));
+      showToast('تم إلغاء الحظر بنجاح', 'success');
+    } catch (err) {
+      console.error('Failed to unban user:', err);
+      showToast('فشل إلغاء الحظر', 'error');
     }
   };
 
