@@ -266,13 +266,31 @@ async def publish_group_plans(group_id: int):
         failed_plans = []
         batch_size = 10
 
-        async with httpx.AsyncClient(follow_redirects=True) as client:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
             for i in range(0, len(all_plans), batch_size):
                 batch = all_plans[i:i + batch_size]
                 media = []
+                files = {}
 
-                for plan in batch:
+                for idx, plan in enumerate(batch):
+                    file_key = f"file_{idx}"
+
                     if not plan.file_url:
+                        failed_plans.append(plan.title)
+                        continue
+
+                    pdf_content = None
+                    for dl_attempt in range(3):
+                        try:
+                            file_resp = await client.get(plan.file_url, timeout=90)
+                            if file_resp.status_code == 200:
+                                pdf_content = file_resp.content
+                                break
+                        except Exception:
+                            if dl_attempt < 2:
+                                await asyncio.sleep(2)
+
+                    if not pdf_content:
                         failed_plans.append(plan.title)
                         continue
 
@@ -282,9 +300,11 @@ async def publish_group_plans(group_id: int):
                     caption += f"تخصص - {plan.title}\n\n"
                     caption += f'<blockquote>t.me/kkunewbot</blockquote>'
 
+                    filename = f"{plan.title}.pdf"
+                    files[file_key] = (filename, pdf_content, "application/pdf")
                     media.append({
                         "type": "document",
-                        "media": plan.file_url,
+                        "media": f"attach://{file_key}",
                         "caption": caption,
                         "parse_mode": "HTML"
                     })
@@ -295,6 +315,7 @@ async def publish_group_plans(group_id: int):
                 for attempt in range(3):
                     resp = await client.post(
                         f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup",
+                        files=files,
                         data={"chat_id": CHANNEL_ID, "media": json.dumps(media)},
                         timeout=120
                     )
