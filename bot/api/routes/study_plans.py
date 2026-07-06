@@ -24,7 +24,7 @@ async def update_group_post(group_id: int):
         result = await session.execute(stmt)
         group = result.scalar_one_or_none()
 
-        if not group or not group.channel_message_id:
+        if not group:
             return
 
         plans_stmt = select(StudyPlan).where(
@@ -54,24 +54,32 @@ async def update_group_post(group_id: int):
         text += "#شاركها_فربما_يبحث_عنها_غيرك"
 
         async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
-                data={
-                    "chat_id": CHANNEL_ID,
-                    "message_id": group.channel_message_id,
-                    "text": text,
-                    "parse_mode": "HTML"
-                },
-                timeout=30
-            )
-
-            if resp.status_code != 200:
-                print(f"editMessageText failed: {resp.status_code} {resp.text}")
-                return
-
-            result = resp.json()
-            if not result.get("ok"):
-                print(f"editMessageText API error: {result}")
+            if group.channel_message_id:
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+                    data={
+                        "chat_id": CHANNEL_ID,
+                        "message_id": group.channel_message_id,
+                        "text": text,
+                        "parse_mode": "HTML"
+                    },
+                    timeout=30
+                )
+            else:
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    data={
+                        "chat_id": CHANNEL_ID,
+                        "text": text,
+                        "parse_mode": "HTML"
+                    },
+                    timeout=30
+                )
+                if resp.status_code == 200:
+                    result = resp.json()
+                    if result.get("ok"):
+                        group.channel_message_id = result["result"]["message_id"]
+                        await session.commit()
 
 
 class StudyPlanGroupCreate(BaseModel):
