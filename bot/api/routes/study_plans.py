@@ -49,9 +49,9 @@ async def update_group_post(group_id: int):
         for plan in all_plans:
             if plan.channel_message_id:
                 plan_link = f"https://t.me/{channel_username}/{plan.channel_message_id}"
-                text += f"خطة {plan.title} 🔻\n{plan_link}\n\n"
+                text += f"{plan.title} 🔻\n{plan_link}\n\n"
             else:
-                text += f"خطة {plan.title}\n\n"
+                text += f"{plan.title}\n\n"
 
         text += "🔴انظموا لقروب جامعة الملك خالد العام\n"
         text += "https://t.me/KKU_Main1\n\n"
