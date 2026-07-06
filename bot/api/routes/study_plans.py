@@ -231,31 +231,8 @@ async def publish_group_plans(group_id: int):
         plans_result = await session.execute(plans_stmt)
         all_plans = plans_result.scalars().all()
 
-        async with httpx.AsyncClient(follow_redirects=True) as client:
-            if group.channel_message_id:
-                try:
-                    await client.post(
-                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                        data={"chat_id": CHANNEL_ID, "message_id": group.channel_message_id},
-                        timeout=30
-                    )
-                except Exception as e:
-                    print(f"Error deleting group message: {e}")
-                group.channel_message_id = None
-
-            for plan in all_plans:
-                if plan.channel_message_id:
-                    try:
-                        await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                            data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
-                            timeout=30
-                        )
-                    except Exception as e:
-                        print(f"Error deleting plan message: {e}")
-                    plan.channel_message_id = None
-
-        await session.commit()
+        old_group_message_id = group.channel_message_id
+        old_plan_ids = {plan.id: plan.channel_message_id for plan in all_plans if plan.channel_message_id}
 
         if not all_plans:
             return {"message": "لا توجد خطط في هذه المجموعة"}
@@ -326,6 +303,30 @@ async def publish_group_plans(group_id: int):
                     failed_plans.extend(p.title for p in batch)
 
         await session.commit()
+
+        # Delete old messages only after new ones are sent
+        if old_group_message_id or old_plan_ids:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as del_client:
+                if old_group_message_id:
+                    try:
+                        await del_client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": CHANNEL_ID, "message_id": old_group_message_id},
+                            timeout=30
+                        )
+                    except Exception:
+                        pass
+                for plan in all_plans:
+                    old_id = old_plan_ids.get(plan.id)
+                    if old_id:
+                        try:
+                            await del_client.post(
+                                f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                                data={"chat_id": CHANNEL_ID, "message_id": old_id},
+                                timeout=30
+                            )
+                        except Exception:
+                            pass
 
         if published_count > 0:
             await update_group_post(group_id)
