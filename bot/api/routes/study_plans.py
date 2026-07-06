@@ -37,7 +37,7 @@ async def update_group_post(group_id: int):
         plans_stmt = select(StudyPlan).where(
             StudyPlan.group_id == group_id,
             StudyPlan.is_active == True
-        )
+        ).order_by(StudyPlan.channel_message_id.asc().nullslast())
         plans_result = await session.execute(plans_stmt)
         all_plans = plans_result.scalars().all()
 
