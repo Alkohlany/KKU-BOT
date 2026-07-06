@@ -204,8 +204,30 @@ async def publish_group_plans(group_id: int):
             all_plans_result = await session.execute(all_plans_stmt)
             all_plans = all_plans_result.scalars().all()
 
-            if all(p.channel_message_id for p in all_plans):
-                return {"message": "تم نشر هذه المجموعة مسبقاً"}
+            async with httpx.AsyncClient() as client:
+                for plan in all_plans:
+                    if plan.channel_message_id:
+                        try:
+                            await client.post(
+                                f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                                data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
+                                timeout=30
+                            )
+                        except Exception as e:
+                            print(f"Error deleting plan message {plan.channel_message_id}: {e}")
+                        plan.channel_message_id = None
+
+                try:
+                    await client.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                        data={"chat_id": CHANNEL_ID, "message_id": group.channel_message_id},
+                        timeout=30
+                    )
+                except Exception as e:
+                    print(f"Error deleting group message {group.channel_message_id}: {e}")
+
+            group.channel_message_id = None
+            await session.commit()
 
         plans_stmt = select(StudyPlan).where(
             StudyPlan.group_id == group_id,
