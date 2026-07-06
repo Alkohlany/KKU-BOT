@@ -180,6 +180,7 @@ def upload_file_to_cloudinary(plan_title: str, filename: str) -> str | None:
             folder="kku-bot/plans",
             resource_type="raw",
             public_id=public_id,
+            access_control=[{"access_type": "anonymous"}],
         )
         return result.get("secure_url")
     except Exception as e:

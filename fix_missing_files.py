@@ -92,6 +92,7 @@ def upload_to_cloudinary(plan_title: str, file_path: Path) -> str | None:
             folder="kku-bot/plans",
             resource_type="raw",
             public_id=public_id,
+            access_control=[{"access_type": "anonymous"}],
         )
         url = result.get("secure_url")
         logger.info(f"  Uploaded: {file_path.name} -> {url}")

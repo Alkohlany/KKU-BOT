@@ -17,5 +17,11 @@ def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
 
 
 def upload_raw(file_bytes: bytes, filename: str, folder: str = "kku-bot") -> str:
-    result = cloudinary.uploader.upload(file_bytes, folder=folder, resource_type="raw", public_id=filename)
+    result = cloudinary.uploader.upload(
+        file_bytes,
+        folder=folder,
+        resource_type="raw",
+        public_id=filename,
+        access_control=[{"access_type": "anonymous"}],
+    )
     return result["secure_url"]
