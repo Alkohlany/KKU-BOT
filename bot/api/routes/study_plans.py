@@ -202,29 +202,17 @@ async def publish_group_plans(group_id: int):
         group = result.scalar_one_or_none()
 
         if not group:
-            raise HTTPException(status_code=404, detail="Group not found")
+            return {"error": "المجموعة غير موجودة"}
 
-        if group.channel_message_id:
-            all_plans_stmt = select(StudyPlan).where(
-                StudyPlan.group_id == group_id,
-                StudyPlan.is_active == True
-            )
-            all_plans_result = await session.execute(all_plans_stmt)
-            all_plans = all_plans_result.scalars().all()
+        plans_stmt = select(StudyPlan).where(
+            StudyPlan.group_id == group_id,
+            StudyPlan.is_active == True
+        )
+        plans_result = await session.execute(plans_stmt)
+        all_plans = plans_result.scalars().all()
 
-            async with httpx.AsyncClient() as client:
-                for plan in all_plans:
-                    if plan.channel_message_id:
-                        try:
-                            await client.post(
-                                f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                                data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
-                                timeout=30
-                            )
-                        except Exception as e:
-                            print(f"Error deleting plan message {plan.channel_message_id}: {e}")
-                        plan.channel_message_id = None
-
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            if group.channel_message_id:
                 try:
                     await client.post(
                         f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
@@ -232,29 +220,34 @@ async def publish_group_plans(group_id: int):
                         timeout=30
                     )
                 except Exception as e:
-                    print(f"Error deleting group message {group.channel_message_id}: {e}")
+                    print(f"Error deleting group message: {e}")
+                group.channel_message_id = None
 
-            group.channel_message_id = None
-            await session.commit()
+            for plan in all_plans:
+                if plan.channel_message_id:
+                    try:
+                        await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
+                            timeout=30
+                        )
+                    except Exception as e:
+                        print(f"Error deleting plan message: {e}")
+                    plan.channel_message_id = None
 
-        plans_stmt = select(StudyPlan).where(
-            StudyPlan.group_id == group_id,
-            StudyPlan.is_active == True,
-            StudyPlan.channel_message_id == None
-        )
-        plans_result = await session.execute(plans_stmt)
-        unpublished_plans = plans_result.scalars().all()
+        await session.commit()
 
-        if not unpublished_plans:
-            return {"message": "لا توجد خطط غير منشورة"}
+        if not all_plans:
+            return {"message": "لا توجد خطط في هذه المجموعة"}
 
         published_count = 0
-        async with httpx.AsyncClient() as client:
-            for plan in unpublished_plans:
-                caption = "ملف الخطه المرفق\n\n"
-                caption += f"#{group.group_tag}\n" if group.group_tag else ""
-                caption += f"تخصص - {plan.title}\n"
-                caption += '\n<a href="https://t.me/kkunewbot">t.me/kkunewbot</a>'
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            for plan in all_plans:
+                caption = f"ملف الخطه المرفق\n\n"
+                if group.group_tag:
+                    caption += f"#{group.group_tag}\n"
+                caption += f"تخصص - {plan.title}\n\n"
+                caption += f'<a href="https://t.me/kkunewbot">t.me/kkunewbot</a>'
 
                 try:
                     if plan.file_url:
@@ -294,7 +287,8 @@ async def publish_group_plans(group_id: int):
         await session.commit()
 
         await update_group_post(group_id)
-        return {"message": f"تم نشر {published_count} خطط بنجاح"}
+
+        return {"message": f"تم نشر {published_count} خطة بنجاح"}
 
 
 @router.get("/file/{filename}")
