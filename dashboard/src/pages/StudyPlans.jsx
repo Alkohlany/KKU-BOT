@@ -21,6 +21,8 @@ export default function StudyPlans() {
   const [publishingPlan, setPublishingPlan] = useState(null);
   const [editingPlan, setEditingPlan] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
+  const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
+  const [deletingGroupId, setDeletingGroupId] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   useEffect(() => {
@@ -167,15 +169,33 @@ export default function StudyPlans() {
   };
 
   const handleDeleteGroup = async (id) => {
-    const ok = await confirm('هل أنت متأكد من حذف هذه المجموعة؟ سيتم حذف جميع الخطط التابعة لها.');
+    setDeletingGroupId(id);
+    setShowDeleteGroupModal(true);
+  };
+
+  const handleGroupResetPublish = async (id) => {
+    setShowDeleteGroupModal(false);
+    try {
+      await api.deleteStudyPlanGroup(id, 'reset');
+      showToast('تم حذف المنشورات من القناة بنجاح', 'success');
+      await loadData();
+    } catch (err) {
+      showToast('حدث خطأ أثناء حذف المنشورات', 'error');
+    }
+  };
+
+  const handleGroupPermanentDelete = async (id) => {
+    setShowDeleteGroupModal(false);
+    const ok = await confirm('هل أنت متأكد من الحذف النهائي؟ سيتم حذف المجموعة وجميع الخطط التابعة لها نهائياً.');
     if (!ok) return;
     try {
-      await api.deleteStudyPlanGroup(id);
+      await api.deleteStudyPlanGroup(id, 'permanent');
       setGroups(groups.filter((g) => g.id !== id));
       setPlans(plans.filter((p) => p.group_id !== id));
       if (activeGroup?.id === id) backToGroups();
+      showToast('تم حذف المجموعة نهائياً', 'success');
     } catch (err) {
-      console.error('Failed to delete group:', err);
+      showToast('حدث خطأ أثناء الحذف', 'error');
     }
   };
 
@@ -616,6 +636,43 @@ export default function StudyPlans() {
                 {saving ? 'جاري الحفظ...' : (editingPlan ? 'حفظ التعديلات' : 'إضافة')}
               </button>
               <button className="btn btn-secondary" onClick={() => closeModals()}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Group Options Modal */}
+      {showDeleteGroupModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteGroupModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>خيارات حذف المجموعة</h3>
+              <button className="modal-close" onClick={() => setShowDeleteGroupModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 14, color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 16 }}>
+                ماذا تريد أن تفعل بهذه المجموعة؟
+              </p>
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', marginBottom: 10, justifyContent: 'center' }}
+                onClick={() => handleGroupResetPublish(deletingGroupId)}
+              >
+                حذف من القناة فقط
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 16, textAlign: 'center' }}>
+                حذف جميع المنشورات من القناة مع الاحتفاظ بالمجموعة والخطط كمسودة
+              </p>
+              <button
+                className="btn btn-danger"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => handleGroupPermanentDelete(deletingGroupId)}
+              >
+                حذف نهائي
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 8, textAlign: 'center' }}>
+                حذف المجموعة وجميع الخطط التابعة لها نهائياً
+              </p>
             </div>
           </div>
         </div>

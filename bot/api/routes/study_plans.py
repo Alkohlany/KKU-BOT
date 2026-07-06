@@ -169,9 +169,48 @@ async def update_study_plan_group_endpoint(group_id: int, data: StudyPlanGroupCr
 
 
 @router.delete("/groups/{group_id}")
-async def delete_study_plan_group_endpoint(group_id: int):
-    await delete_study_plan_group(group_id)
-    return {"status": "deleted"}
+async def delete_study_plan_group_endpoint(group_id: int, mode: str = "permanent"):
+    if mode == "reset":
+        async with async_session() as session:
+            stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
+            result = await session.execute(stmt)
+            group = result.scalar_one_or_none()
+            if not group:
+                return {"error": "المجموعة غير موجودة"}
+
+            plans_stmt = select(StudyPlan).where(StudyPlan.group_id == group_id)
+            plans_result = await session.execute(plans_stmt)
+            all_plans = plans_result.scalars().all()
+
+            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+                if group.channel_message_id:
+                    try:
+                        await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": CHANNEL_ID, "message_id": group.channel_message_id},
+                            timeout=30
+                        )
+                    except Exception:
+                        pass
+                    group.channel_message_id = None
+
+                for plan in all_plans:
+                    if plan.channel_message_id:
+                        try:
+                            await client.post(
+                                f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                                data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
+                                timeout=30
+                            )
+                        except Exception:
+                            pass
+                        plan.channel_message_id = None
+
+            await session.commit()
+            return {"message": "تم حذف جميع المنشورات من القناة وإعادة تعيين المجموعة", "mode": "reset"}
+    else:
+        await delete_study_plan_group(group_id)
+        return {"status": "deleted", "mode": "permanent"}
 
 
 # ==================== Study Plans ====================

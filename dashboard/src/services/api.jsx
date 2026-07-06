@@ -163,7 +163,7 @@ const api = {
   getStudyPlanGroups: () => api.get('/study-plans/groups'),
   getStudyPlanGroup: (id) => api.get(`/study-plans/groups/${id}`),
   addStudyPlanGroup: (data) => api.post('/study-plans/groups', data),
-  deleteStudyPlanGroup: (id) => api.delete(`/study-plans/groups/${id}`),
+  deleteStudyPlanGroup: (id, mode = 'permanent') => api.delete(`/study-plans/groups/${id}?mode=${mode}`),
   publishGroupPlans: (groupId) => api.post(`/study-plans/publish-group/${groupId}`),
   publishPlan: (planId) => api.post(`/study-plans/publish-plan/${planId}`),
   updateStudyPlan: (id, data) => api.put(`/study-plans/${id}`, data),
