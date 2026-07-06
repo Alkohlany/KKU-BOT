@@ -4,7 +4,8 @@ import api from '../services/api';
 export default function StudyPlans() {
   const [plans, setPlans] = useState([]);
   const [groups, setGroups] = useState([]);
-  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [view, setView] = useState('groups');
+  const [activeGroup, setActiveGroup] = useState(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', college: '', level: '', file: null, group_id: '' });
@@ -33,12 +34,26 @@ export default function StudyPlans() {
     }
   };
 
-  const filtered = plans.filter(
-    (p) => p.title?.includes(search) || p.college?.includes(search) || p.description?.includes(search)
-  );
+  const openFolder = (group) => {
+    setActiveGroup(group);
+    setView('folder');
+    setSearch('');
+  };
+
+  const backToGroups = () => {
+    setActiveGroup(null);
+    setView('groups');
+    setSearch('');
+  };
 
   const filteredGroups = groups.filter(
-    (g) => g.title?.includes(search) || g.description?.includes(search)
+    (g) => g.title?.includes(search) || g.description?.includes(search) || g.group_tag?.includes(search)
+  );
+
+  const folderPlans = plans.filter((p) => activeGroup && p.group_id === activeGroup.id);
+
+  const filteredPlans = folderPlans.filter(
+    (p) => p.title?.includes(search) || p.description?.includes(search) || p.college?.includes(search) || p.level?.includes(search)
   );
 
   const handleSavePlan = async () => {
@@ -107,6 +122,7 @@ export default function StudyPlans() {
       await api.deleteStudyPlanGroup(id);
       setGroups(groups.filter((g) => g.id !== id));
       setPlans(plans.filter((p) => p.group_id !== id));
+      if (activeGroup?.id === id) backToGroups();
     } catch (err) {
       console.error('Failed to delete group:', err);
     }
@@ -137,67 +153,139 @@ export default function StudyPlans() {
   return (
     <>
       <div className="card">
-          <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
-            <div className="search-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                placeholder="بحث في المجموعات والخطط..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn btn-secondary" onClick={() => { setGroupForm({ title: '', description: '', group_tag: '' }); setShowGroupModal(true); }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                إضافة مجموعة
-              </button>
-              <button className="btn btn-primary" onClick={() => { setForm({ title: '', description: '', college: '', level: '', file: null, group_id: '' }); setShowPlanModal(true); }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                إضافة خطة جديدة
-              </button>
-            </div>
+        <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+          <div className="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              placeholder={view === 'groups' ? 'بحث في المجموعات...' : 'بحث في الخطط...'}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {view === 'folder' && (
+              <button className="btn btn-secondary" onClick={backToGroups}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                رجوع
+              </button>
+            )}
+            <button className="btn btn-secondary" onClick={() => { setGroupForm({ title: '', description: '', group_tag: '' }); setShowGroupModal(true); }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+              إضافة مجموعة
+            </button>
+            <button className="btn btn-primary" onClick={() => {
+              setForm({ title: '', description: '', college: '', level: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '' });
+              setShowPlanModal(true);
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              إضافة خطة جديدة
+            </button>
+          </div>
+        </div>
 
-          {/* Groups Section */}
-          <div style={{ marginBottom: 24, padding: '0 24px' }}>
-            <h3 style={{ marginBottom: 12, color: 'var(--gray-700)' }}>📂 المجموعات</h3>
+        {view === 'folder' && activeGroup && (
+          <div
+            style={{
+              padding: '12px 24px',
+              borderBottom: '1px solid var(--gray-200)',
+              background: 'var(--gray-50)',
+              fontSize: 14,
+            }}
+          >
+            <span
+              onClick={backToGroups}
+              style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: 500 }}
+            >
+              الخطط الدراسية
+            </span>
+            <span style={{ margin: '0 10px', color: 'var(--gray-400)' }}>/</span>
+            <span style={{ color: 'var(--gray-700)', fontWeight: 600 }}>{activeGroup.title}</span>
+          </div>
+        )}
+
+        {view === 'groups' ? (
+          <div style={{ padding: 24 }}>
             {filteredGroups.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(250px, 100%), 1fr))', gap: 12 }}>
-                {filteredGroups.map((group) => (
-                  <div
-                    key={group.id}
-                    style={{
-                      padding: 16,
-                      borderRadius: 8,
-                      border: selectedGroup === group.id ? '2px solid var(--primary)' : '1px solid var(--gray-200)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                    onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong>{group.title}</strong>
-                      <div style={{ display: 'flex', gap: 4 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                {filteredGroups.map((group) => {
+                  const planCount = plans.filter((p) => p.group_id === group.id).length;
+                  return (
+                    <div
+                      key={group.id}
+                      onClick={() => openFolder(group)}
+                      style={{
+                        background: 'var(--white)',
+                        border: '1px solid var(--gray-200)',
+                        borderRadius: 12,
+                        padding: 20,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        gap: 8,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(46,125,50,0.15)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--gray-200)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
+                    >
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 14,
+                          background: 'var(--primary-bg)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 28,
+                        }}
+                      >
+                        📁
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--gray-800)' }}>
+                        {group.title}
+                      </div>
+                      {group.group_tag && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--primary)',
+                            background: 'var(--primary-bg)',
+                            padding: '2px 10px',
+                            borderRadius: 20,
+                            fontWeight: 600,
+                          }}
+                        >
+                          #{group.group_tag}
+                        </span>
+                      )}
+                      <div style={{ fontSize: 13, color: 'var(--gray-500)' }}>
+                        {planCount} {planCount === 1 ? 'خطة' : 'خطط'}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                         <button
-                          className="btn btn-primary btn-icon"
-                          style={{ padding: '4px 8px', fontSize: 11 }}
+                          className="btn btn-primary btn-sm"
+                          style={{ fontSize: 12, padding: '6px 14px' }}
                           disabled={publishing === group.id}
                           onClick={(e) => { e.stopPropagation(); handlePublishGroup(group.id); }}
                         >
                           {publishing === group.id ? '...' : 'نشر'}
                         </button>
                         <button
-                          className="btn btn-danger btn-icon"
-                          style={{ padding: '4px 8px' }}
+                          className="btn btn-danger btn-sm"
+                          style={{ padding: '6px 10px' }}
                           onClick={(e) => { e.stopPropagation(); handleDeleteGroup(group.id); }}
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -207,117 +295,110 @@ export default function StudyPlans() {
                         </button>
                       </div>
                     </div>
-                    {group.description && (
-                      <p style={{ margin: '8px 0 0', color: 'var(--gray-500)', fontSize: 13 }}>
-                        {group.description}
-                      </p>
-                    )}
-                    <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>
-                      {plans.filter(p => p.group_id === group.id).length} خطط
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              <p style={{ color: 'var(--gray-400)', fontSize: 14 }}>لا توجد مجموعات بعد</p>
+              <div className="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                <h4>لا توجد مجموعات</h4>
+                <p>ابدأ بإضافة مجموعات خطط دراسية جديدة</p>
+              </div>
             )}
           </div>
-
-          {/* Plans Section */}
-          <div style={{ padding: '0 24px' }}>
-            <h3 style={{ marginBottom: 12, color: 'var(--gray-700)' }}>
-              📋 الخطط {selectedGroup ? `- ${groups.find(g => g.id === selectedGroup)?.title || ''}` : ''}
-            </h3>
-
-            {/* Desktop Table */}
-            <div className="table-container desktop-only">
-              <table>
-                <thead>
-                  <tr>
-                    <th>العنوان</th>
-                    <th>الوصف</th>
-                    <th>المجموعة</th>
-                    <th>الكلية</th>
-                    <th>المستوى</th>
-                    <th>إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered
-                    .filter(p => !selectedGroup || p.group_id === selectedGroup)
-                    .map((item) => (
-                    <tr key={item.id}>
-                      <td><strong>{item.title}</strong></td>
-                      <td style={{ maxWidth: 200, fontSize: 13 }}>{item.description?.substring(0, 60)}...</td>
-                      <td>
-                        <span className="status-badge active">
-                          {groups.find(g => g.id === item.group_id)?.title || '-'}
-                        </span>
-                      </td>
-                      <td>{item.college || '-'}</td>
-                      <td>{item.level || '-'}</td>
-                      <td>
-                        <button className="btn btn-danger btn-icon" onClick={() => handleDeletePlan(item.id)}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filtered.filter(p => !selectedGroup || p.group_id === selectedGroup).length === 0 && (
-                <div className="empty-state">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                  </svg>
-                  <h4>لا توجد خطط دراسية</h4>
-                  <p>ابدأ بإضافة خطط دراسية للطلاب</p>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Cards */}
-            <div className="mobile-cards">
-              {filtered
-                .filter(p => !selectedGroup || p.group_id === selectedGroup)
-                .map((item) => (
-                <div key={item.id} className="mobile-card">
-                  <div className="mobile-card-header">
-                    <strong>{item.title}</strong>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDeletePlan(item.id)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="mobile-card-body">
-                    {item.description && <p>{item.description.substring(0, 100)}...</p>}
-                    <div className="mobile-card-meta">
-                      <span>المجموعة: {groups.find(g => g.id === item.group_id)?.title || '-'}</span>
-                      <span>الكلية: {item.college || '-'}</span>
-                      <span>المستوى: {item.level || '-'}</span>
+        ) : (
+          <div style={{ padding: 24 }}>
+            {filteredPlans.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {filteredPlans.map((plan) => {
+                  const group = groups.find((g) => g.id === plan.group_id);
+                  return (
+                    <div
+                      key={plan.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                        padding: '14px 16px',
+                        borderRadius: 10,
+                        border: '1px solid var(--gray-200)',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--gray-300)'; e.currentTarget.style.background = 'var(--gray-50)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--gray-200)'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 10,
+                          background: 'var(--info-light)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 20,
+                          flexShrink: 0,
+                        }}
+                      >
+                        📄
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-800)' }}>
+                          {plan.title}
+                        </div>
+                        {plan.description && (
+                          <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {plan.description}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                          {group && (
+                            <span className="status-badge active" style={{ fontSize: 11 }}>
+                              {group.title}
+                            </span>
+                          )}
+                          {plan.college && (
+                            <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>{plan.college}</span>
+                          )}
+                          {plan.level && (
+                            <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>{plan.level}</span>
+                          )}
+                          {plan.channel_message_id && (
+                            <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>
+                              ✓ منشورة
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-danger btn-icon"
+                        style={{ flexShrink: 0 }}
+                        onClick={() => handleDeletePlan(plan.id)}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                      </button>
                     </div>
-                  </div>
-                </div>
-              ))}
-              {filtered.filter(p => !selectedGroup || p.group_id === selectedGroup).length === 0 && (
-                <div className="empty-state">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                  </svg>
-                  <h4>لا توجد خطط دراسية</h4>
-                  <p>ابدأ بإضافة خطط دراسية للطلاب</p>
-                </div>
-              )}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+                <h4>لا توجد خطط دراسية</h4>
+                <p>هذه المجموعة لا تحتوي على أي خطط دراسية بعد</p>
+              </div>
+            )}
           </div>
-        </div>
+        )}
+      </div>
 
       {/* Add Group Modal */}
       {showGroupModal && (
