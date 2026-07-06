@@ -216,8 +216,6 @@ async def upload_study_plan(
 @router.post("/publish-group/{group_id}")
 async def publish_group_plans(group_id: int):
     """نشر جميع خطط المجموعة على القناة"""
-    import asyncio
-
     async with async_session() as session:
         stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
         result = await session.execute(stmt)
@@ -312,24 +310,20 @@ async def publish_group_plans(group_id: int):
                 if not media:
                     continue
 
-                for attempt in range(3):
-                    resp = await client.post(
-                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup",
-                        files=files,
-                        data={"chat_id": CHANNEL_ID, "media": json.dumps(media)},
-                        timeout=120
-                    )
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup",
+                    files=files,
+                    data={"chat_id": CHANNEL_ID, "media": json.dumps(media)},
+                    timeout=120
+                )
 
-                    if resp.status_code == 200 and resp.json().get("ok"):
-                        messages = resp.json()["result"]
-                        for j, msg in enumerate(messages):
-                            batch[j].channel_message_id = msg["message_id"]
-                            published_count += 1
-                        break
-                    elif attempt < 2:
-                        await asyncio.sleep(3)
-                    else:
-                        failed_plans.extend(p.title for p in batch)
+                if resp.status_code == 200 and resp.json().get("ok"):
+                    messages = resp.json()["result"]
+                    for j, msg in enumerate(messages):
+                        batch[j].channel_message_id = msg["message_id"]
+                        published_count += 1
+                else:
+                    failed_plans.extend(p.title for p in batch)
 
         await session.commit()
 
