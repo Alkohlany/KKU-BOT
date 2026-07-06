@@ -353,8 +353,8 @@ export default function StudyPlans() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                        <button className="btn btn-primary btn-sm" style={{ fontSize: windowWidth < 768 ? 11 : 12, padding: windowWidth < 768 ? '4px 8px' : '6px 12px' }} disabled={publishing === group.id} onClick={(e) => { e.stopPropagation(); handlePublishGroup(group.id); }}>
-                          {publishing === group.id ? '...' : (windowWidth < 768 ? '' : getPublishButtonText(group))}
+                        <button className="btn btn-primary btn-sm" style={{ fontSize: 12, padding: '6px 12px', minWidth: 70, textAlign: 'center' }} disabled={publishing === group.id} onClick={(e) => { e.stopPropagation(); handlePublishGroup(group.id); }}>
+                          {publishing === group.id ? '...' : getPublishButtonText(group)}
                         </button>
                         <button className="btn btn-secondary btn-icon" style={{ padding: windowWidth < 768 ? 4 : 6 }} onClick={(e) => { e.stopPropagation(); openEditGroupModal(group); }}>
                           <svg width={windowWidth < 768 ? 11 : 13} height={windowWidth < 768 ? 11 : 13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
