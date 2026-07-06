@@ -13,7 +13,7 @@ from bot.handlers.admin import (
 )
 from bot.handlers.news import news_handler
 from bot.handlers.questions import questions_handler
-from bot.handlers.study_plans import plans_handler, plans_text_handler, plan_group_callback_handler, plan_callback_handler, plans_back_handler
+from bot.handlers.study_plans import plans_handler, plans_text_handler
 from bot.handlers.broadcast import broadcast_handler
 from bot.handlers.responses import responses_handler
 from bot.services.protection import protection_handler, protection_media_handler
@@ -60,9 +60,6 @@ def main():
     application.add_handler(questions_handler)
     application.add_handler(plans_handler)
     application.add_handler(plans_text_handler)
-    application.add_handler(plan_group_callback_handler)
-    application.add_handler(plan_callback_handler)
-    application.add_handler(plans_back_handler)
     application.add_handler(broadcast_handler)
     application.add_handler(responses_handler)
     application.add_handler(ban_handler)
