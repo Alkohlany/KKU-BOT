@@ -26,6 +26,7 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     groups = await get_all_study_plan_groups()
+    groups = [g for g in groups if g.channel_message_id is not None]
     if not groups:
         await update.message.reply_text("لا توجد مجموعات خطط دراسية مسجلة حالياً 📭")
         return
@@ -58,7 +59,10 @@ async def plan_group_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     channel_username = CHANNEL_ID.replace("@", "")
     channel_link = f"https://t.me/{channel_username}/{group.channel_message_id}"
 
-    await query.answer(url=channel_link)
+    await query.answer()
+    await query.message.reply_text(
+        f"🔗 رابط مجموعة الخطط:\n{channel_link}"
+    )
 
 
 async def plan_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,6 +94,7 @@ async def plans_back_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         pass
 
     groups = await get_all_study_plan_groups()
+    groups = [g for g in groups if g.channel_message_id is not None]
     if groups:
         keyboard = []
         for group in groups:
