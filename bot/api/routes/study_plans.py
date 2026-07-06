@@ -249,6 +249,7 @@ async def publish_group_plans(group_id: int):
         published_count = 0
         async with httpx.AsyncClient(follow_redirects=True) as client:
             for plan in all_plans:
+                caption = ""
                 if group.group_tag:
                     caption += f"#{group.group_tag}\n"
                 caption += f"تخصص - {plan.title}\n\n"
