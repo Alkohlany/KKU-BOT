@@ -41,6 +41,10 @@ async def update_group_post(group_id: int):
         plans_result = await session.execute(plans_stmt)
         all_plans = plans_result.scalars().all()
 
+        published = [p for p in all_plans if p.channel_message_id]
+        if not published and not group.channel_message_id:
+            return
+
         channel_username = CHANNEL_ID.replace("@", "")
 
         today = Hijri.today()
@@ -212,6 +216,8 @@ async def upload_study_plan(
 @router.post("/publish-group/{group_id}")
 async def publish_group_plans(group_id: int):
     """نشر جميع خطط المجموعة على القناة"""
+    import asyncio
+
     async with async_session() as session:
         stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
         result = await session.execute(stmt)
@@ -257,24 +263,17 @@ async def publish_group_plans(group_id: int):
             return {"message": "لا توجد خطط في هذه المجموعة"}
 
         published_count = 0
+        failed_plans = []
         batch_size = 10
+
         async with httpx.AsyncClient(follow_redirects=True) as client:
             for i in range(0, len(all_plans), batch_size):
                 batch = all_plans[i:i + batch_size]
                 media = []
-                files = {}
 
-                for idx, plan in enumerate(batch):
-                    file_key = f"file_{idx}"
-
+                for plan in batch:
                     if not plan.file_url:
-                        continue
-
-                    try:
-                        file_resp = await client.get(plan.file_url, timeout=60)
-                        if file_resp.status_code != 200:
-                            continue
-                    except Exception:
+                        failed_plans.append(plan.title)
                         continue
 
                     caption = ""
@@ -283,11 +282,9 @@ async def publish_group_plans(group_id: int):
                     caption += f"تخصص - {plan.title}\n\n"
                     caption += f'<blockquote>t.me/kkunewbot</blockquote>'
 
-                    filename = f"{plan.title}.pdf"
-                    files[file_key] = (filename, file_resp.content, "application/pdf")
                     media.append({
                         "type": "document",
-                        "media": f"attach://{file_key}",
+                        "media": plan.file_url,
                         "caption": caption,
                         "parse_mode": "HTML"
                     })
@@ -295,27 +292,34 @@ async def publish_group_plans(group_id: int):
                 if not media:
                     continue
 
-                data = {"chat_id": CHANNEL_ID, "media": json.dumps(media)}
-                resp = await client.post(
-                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup",
-                    files=files,
-                    data=data,
-                    timeout=120
-                )
+                for attempt in range(3):
+                    resp = await client.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup",
+                        data={"chat_id": CHANNEL_ID, "media": json.dumps(media)},
+                        timeout=120
+                    )
 
-                if resp.status_code == 200:
-                    result = resp.json()
-                    if result.get("ok"):
-                        messages = result["result"]
+                    if resp.status_code == 200 and resp.json().get("ok"):
+                        messages = resp.json()["result"]
                         for j, msg in enumerate(messages):
                             batch[j].channel_message_id = msg["message_id"]
                             published_count += 1
+                        break
+                    elif attempt < 2:
+                        await asyncio.sleep(3)
+                    else:
+                        failed_plans.extend(p.title for p in batch)
 
         await session.commit()
 
-        await update_group_post(group_id)
+        if published_count > 0:
+            await update_group_post(group_id)
 
-        return {"message": f"تم نشر {published_count} خطة بنجاح"}
+        result_text = f"تم نشر {published_count} خطة بنجاح"
+        if failed_plans:
+            result_text += f"\nفشل نشر {len(failed_plans)} خطة"
+
+        return {"message": result_text, "published": published_count, "failed": failed_plans}
 
 
 @router.get("/file/{filename}")
