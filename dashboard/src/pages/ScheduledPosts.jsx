@@ -5,8 +5,7 @@ export default function ScheduledPosts() {
   const [posts, setPosts] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ content: '', scheduledTime: '', recurring: false });
-  const [imageFile, setImageFile] = useState(null);
-  const [docFile, setDocFile] = useState(null);
+  const [uploadFile, setUploadFile] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,14 +34,13 @@ export default function ScheduledPosts() {
     setSaving(true);
     try {
       let newItem;
-      if (imageFile || docFile) {
+      if (uploadFile) {
         const formData = new FormData();
         formData.append('content', form.content);
         formData.append('schedule_time', form.scheduledTime);
         formData.append('is_recurring', form.recurring);
         if (form.title) formData.append('title', form.title);
-        if (imageFile) formData.append('image', imageFile);
-        if (docFile) formData.append('file', docFile);
+        formData.append('file', uploadFile);
         newItem = await api.addScheduledPostWithFile(formData);
       } else {
         newItem = await api.addScheduledPost({
@@ -53,8 +51,7 @@ export default function ScheduledPosts() {
       }
       setPosts([...posts, newItem]);
       setForm({ content: '', scheduledTime: '', recurring: false });
-      setImageFile(null);
-      setDocFile(null);
+      setUploadFile(null);
       setShowModal(false);
     } catch (err) {
       console.error('Failed to save scheduled post:', err);
@@ -111,7 +108,7 @@ export default function ScheduledPosts() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setForm({ content: '', scheduledTime: '', recurring: false }); setImageFile(null); setDocFile(null); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ content: '', scheduledTime: '', recurring: false }); setUploadFile(null); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -250,21 +247,17 @@ export default function ScheduledPosts() {
                 />
               </div>
               <div className="form-group">
-                <label>صورة (اختياري)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="form-input"
-                  onChange={(e) => setImageFile(e.target.files[0])}
-                />
-              </div>
-              <div className="form-group">
-                <label>ملف / فيديو (اختياري)</label>
+                <label>الملف المرفق (اختياري)</label>
                 <input
                   type="file"
                   className="form-input"
-                  onChange={(e) => setDocFile(e.target.files[0])}
+                  onChange={(e) => setUploadFile(e.target.files[0])}
                 />
+                {uploadFile && (
+                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
+                    {uploadFile.name}
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label>وقت النشر</label>

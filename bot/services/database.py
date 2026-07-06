@@ -216,11 +216,12 @@ async def delete_news(news_id):
 
 
 # ==================== Questions ====================
-async def add_question(question, answer, category=None, keywords=None):
+async def add_question(question, answer, category=None, keywords=None, file_url=None, file_type=None):
     async with async_session() as session:
-        q = Question(question=question, answer=answer, category=category, keywords=keywords)
+        q = Question(question=question, answer=answer, category=category, keywords=keywords, file_url=file_url, file_type=file_type)
         session.add(q)
         await session.commit()
+        await session.refresh(q)
         return q
 
 async def get_all_questions():
@@ -269,6 +270,30 @@ async def delete_question(question_id):
     async with async_session() as session:
         await session.execute(delete(Question).where(Question.id == question_id))
         await session.commit()
+
+async def update_question(question_id: int, question: str = None, answer: str = None, category: str = None, keywords: str = None, file_url: str = None, file_type: str = None):
+    async with async_session() as session:
+        from sqlalchemy import select
+        stmt = select(Question).where(Question.id == question_id)
+        result = await session.execute(stmt)
+        q = result.scalar_one_or_none()
+        if not q:
+            return None
+        if question is not None:
+            q.question = question
+        if answer is not None:
+            q.answer = answer
+        if category is not None:
+            q.category = category
+        if keywords is not None:
+            q.keywords = keywords
+        if file_url is not None:
+            q.file_url = file_url
+        if file_type is not None:
+            q.file_type = file_type
+        await session.commit()
+        await session.refresh(q)
+        return q
 
 
 # ==================== Scheduled Posts ====================

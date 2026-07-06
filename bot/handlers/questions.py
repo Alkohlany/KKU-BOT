@@ -28,7 +28,15 @@ async def questions_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = " ".join(context.args)
         result = await search_question(query)
         if result:
-            await update.message.reply_text(f"❓ {result.question}\n\n✅ {result.answer}")
+            if result.file_url:
+                if result.file_type == 'photo':
+                    await update.message.reply_photo(photo=result.file_url, caption=f"❓ {result.question}\n\n✅ {result.answer}")
+                elif result.file_type == 'video':
+                    await update.message.reply_video(video=result.file_url, caption=f"❓ {result.question}\n\n✅ {result.answer}")
+                else:
+                    await update.message.reply_document(document=result.file_url, caption=f"❓ {result.question}\n\n✅ {result.answer}")
+            else:
+                await update.message.reply_text(f"❓ {result.question}\n\n✅ {result.answer}")
         else:
             await update.message.reply_text("لم أجد جواب على سؤالك، جرب أسئلة ثانية أو اسأل في القروب")
     else:

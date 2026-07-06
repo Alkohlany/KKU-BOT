@@ -147,6 +147,8 @@ const api = {
   addQuestion: (data) => api.post('/questions', data),
   updateQuestion: (id, data) => api.put(`/questions/${id}`, data),
   deleteQuestion: (id) => api.delete(`/questions/${id}`),
+  addQuestionWithFile: (formData) => api.postFormData('/questions/upload', formData),
+  updateQuestionWithFile: (id, formData) => api.putFormData(`/questions/upload/${id}`, formData),
 
   getScheduledPosts: () => api.get('/scheduled-posts'),
   addScheduledPost: (data) => api.post('/scheduled-posts', data),

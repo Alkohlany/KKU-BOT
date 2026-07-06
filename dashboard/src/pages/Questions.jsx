@@ -5,7 +5,7 @@ export default function Questions() {
   const [questions, setQuestions] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ question: '', answer: '', category: '', keywords: '' });
+  const [form, setForm] = useState({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,13 +34,40 @@ export default function Questions() {
     setSaving(true);
     try {
       if (editItem) {
-        await api.updateQuestion(editItem.id, form);
-        setQuestions(questions.map((q) => q.id === editItem.id ? { ...q, ...form } : q));
+        if (form.file) {
+          const formData = new FormData();
+          formData.append('question', form.question);
+          formData.append('answer', form.answer);
+          if (form.category) formData.append('category', form.category);
+          if (form.keywords) formData.append('keywords', form.keywords);
+          formData.append('file', form.file);
+          const updated = await api.updateQuestionWithFile(editItem.id, formData);
+          setQuestions(questions.map((q) => q.id === editItem.id ? updated : q));
+        } else {
+          const payload = { question: form.question, answer: form.answer, category: form.category, keywords: form.keywords };
+          if (form.file_url !== editItem.file_url) {
+            payload.file_url = form.file_url || null;
+            payload.file_type = form.file_type || null;
+          }
+          const updated = await api.updateQuestion(editItem.id, payload);
+          setQuestions(questions.map((q) => q.id === editItem.id ? updated : q));
+        }
       } else {
-        const newItem = await api.addQuestion(form);
-        setQuestions([...questions, newItem]);
+        if (form.file) {
+          const formData = new FormData();
+          formData.append('question', form.question);
+          formData.append('answer', form.answer);
+          if (form.category) formData.append('category', form.category);
+          if (form.keywords) formData.append('keywords', form.keywords);
+          formData.append('file', form.file);
+          const newItem = await api.addQuestionWithFile(formData);
+          setQuestions([...questions, newItem]);
+        } else {
+          const newItem = await api.addQuestion(form);
+          setQuestions([...questions, newItem]);
+        }
       }
-      setForm({ question: '', answer: '', category: '', keywords: '' });
+      setForm({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '' });
       setEditItem(null);
       setShowModal(false);
     } catch (err) {
@@ -57,6 +84,9 @@ export default function Questions() {
       answer: item.answer,
       category: item.category || '',
       keywords: item.keywords || '',
+      file: null,
+      file_url: item.file_url || '',
+      file_type: item.file_type || '',
     });
     setShowModal(true);
   };
@@ -95,7 +125,7 @@ export default function Questions() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ question: '', answer: '', category: '', keywords: '' }); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ question: '', answer: '', category: '', keywords: '', file: null, file_url: '', file_type: '' }); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -111,6 +141,7 @@ export default function Questions() {
                 <tr>
                   <th>السؤال</th>
                   <th>الإجابة</th>
+                  <th>المرفق</th>
                   <th>الفئة</th>
                   <th>الكلمات المفتاحية</th>
                   <th>إجراءات</th>
@@ -122,6 +153,13 @@ export default function Questions() {
                     <td><strong>{item.question}</strong></td>
                     <td style={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.answer?.substring(0, 80)}...
+                    </td>
+                    <td style={{ fontSize: 13, color: 'var(--gray-500)' }}>
+                      {item.file_url ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          📎 {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
+                        </span>
+                      ) : '-'}
                     </td>
                     <td>
                       {item.category ? (
@@ -183,6 +221,11 @@ export default function Questions() {
                   {item.keywords && (
                     <p style={{ fontSize: 11, color: 'var(--gray-400)' }}>
                       🔑 {item.keywords}
+                    </p>
+                  )}
+                  {item.file_url && (
+                    <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>
+                      📎 {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
                     </p>
                   )}
                 </div>
@@ -254,6 +297,25 @@ export default function Questions() {
                   value={form.keywords}
                   onChange={(e) => setForm({ ...form, keywords: e.target.value })}
                 />
+              </div>
+              <div className="form-group">
+                <label>الملف المرفق (اختياري)</label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.avi,.mov,.mkv,.pdf,.doc,.docx"
+                  className="form-input"
+                  onChange={(e) => setForm({ ...form, file: e.target.files[0] || null })}
+                />
+                {form.file && (
+                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
+                    {form.file.name}
+                  </small>
+                )}
+                {editItem && editItem.file_url && !form.file && (
+                  <small style={{ color: 'var(--primary)', marginTop: 4, display: 'block' }}>
+                    📎 يوجد ملف مرفق حالياً
+                  </small>
+                )}
               </div>
             </div>
             <div className="modal-footer">

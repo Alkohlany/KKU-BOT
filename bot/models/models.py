@@ -83,6 +83,8 @@ class Question(Base):
     answer = Column(Text, nullable=False)
     category = Column(String(100))
     keywords = Column(String(500))
+    file_url = Column(String(500), nullable=True)
+    file_type = Column(String(50), nullable=True)
     usage_count = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())

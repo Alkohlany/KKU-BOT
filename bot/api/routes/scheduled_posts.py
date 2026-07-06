@@ -68,19 +68,19 @@ async def create_scheduled_post_with_file(
     is_recurring: bool = Form(False),
     title: Optional[str] = Form(None),
     recurring_interval: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
     file: Optional[UploadFile] = File(None),
 ):
     image_url = None
     file_url = None
 
-    if image:
-        img_data = await image.read()
-        image_url = upload_image(img_data, folder="kku-bot/scheduled")
-
     if file:
-        file_data = await file.read()
-        file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/scheduled")
+        ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
+        if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+            img_data = await file.read()
+            image_url = upload_image(img_data, folder="kku-bot/scheduled")
+        else:
+            file_data = await file.read()
+            file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/scheduled")
 
     dt = datetime.fromisoformat(schedule_time)
     if dt.tzinfo is not None:

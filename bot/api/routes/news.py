@@ -50,19 +50,19 @@ async def create_news(data: NewsCreate):
 async def create_news_with_file(
     title: str = Form(...),
     content: str = Form(...),
-    image: Optional[UploadFile] = File(None),
     file: Optional[UploadFile] = File(None),
 ):
     image_url = None
     file_url = None
 
-    if image:
-        img_data = await image.read()
-        image_url = upload_image(img_data, folder="kku-bot/news")
-
     if file:
-        file_data = await file.read()
-        file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
+        ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
+        if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+            img_data = await file.read()
+            image_url = upload_image(img_data, folder="kku-bot/news")
+        else:
+            file_data = await file.read()
+            file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
 
     n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url)
     return {"id": n.id, "title": n.title, "content": n.content,

@@ -5,8 +5,7 @@ export default function News() {
   const [news, setNews] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ title: '', content: '' });
-  const [imageFile, setImageFile] = useState(null);
-  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [uploadFile, setUploadFile] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,12 +38,11 @@ export default function News() {
     setUploadProgress(0);
     try {
       let newItem;
-      if (imageFile || attachmentFile) {
+      if (uploadFile) {
         const formData = new FormData();
         formData.append('title', form.title);
         formData.append('content', form.content);
-        if (imageFile) formData.append('image', imageFile);
-        if (attachmentFile) formData.append('file', attachmentFile);
+        formData.append('file', uploadFile);
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
         });
@@ -53,8 +51,7 @@ export default function News() {
       }
       setNews([...news, newItem]);
       setForm({ title: '', content: '' });
-      setImageFile(null);
-      setAttachmentFile(null);
+      setUploadFile(null);
       setShowModal(false);
     } catch (err) {
       console.error('Failed to save news:', err);
@@ -128,7 +125,7 @@ export default function News() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setForm({ title: '', content: '' }); setImageFile(null); setAttachmentFile(null); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ title: '', content: '' }); setUploadFile(null); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -319,21 +316,17 @@ export default function News() {
                 />
               </div>
               <div className="form-group">
-                <label>صورة اختيارية</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="form-input"
-                  onChange={(e) => setImageFile(e.target.files[0])}
-                />
-              </div>
-              <div className="form-group">
-                <label>ملف اختياري</label>
+                <label>الملف المرفق (اختياري)</label>
                 <input
                   type="file"
                   className="form-input"
-                  onChange={(e) => setAttachmentFile(e.target.files[0])}
+                  onChange={(e) => setUploadFile(e.target.files[0])}
                 />
+                {uploadFile && (
+                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
+                    {uploadFile.name}
+                  </small>
+                )}
               </div>
             </div>
             <div className="modal-footer">

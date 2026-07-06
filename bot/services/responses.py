@@ -138,9 +138,15 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         if question_result:
             await increment_question_usage(question_result.id)
             try:
-                await update.message.reply_text(
-                    f"❓ {question_result.question}\n\n✅ {question_result.answer}"
-                )
+                if question_result.file_url:
+                    if question_result.file_type == 'photo':
+                        await update.message.reply_photo(photo=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                    elif question_result.file_type == 'video':
+                        await update.message.reply_video(video=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                    else:
+                        await update.message.reply_document(document=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                else:
+                    await update.message.reply_text(f"❓ {question_result.question}\n\n✅ {question_result.answer}")
             except Exception as e:
                 logger.warning(f"Could not send question response: {e}")
 
