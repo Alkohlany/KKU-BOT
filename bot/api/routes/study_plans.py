@@ -1,5 +1,6 @@
 import os
 import httpx
+from hijri_converter import Hijri
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -16,6 +17,11 @@ from bot.services.cloud_storage import upload_raw
 from bot.config import BOT_TOKEN, CHANNEL_ID
 
 router = APIRouter()
+
+
+def to_arabic_numerals(number: int) -> str:
+    arabic_digits = "٠١٢٣٤٥٦٧٨٩"
+    return "".join(arabic_digits[int(d)] for d in str(number))
 
 
 async def update_group_post(group_id: int):
@@ -36,9 +42,11 @@ async def update_group_post(group_id: int):
 
         channel_username = CHANNEL_ID.replace("@", "")
 
-        text = "📂 محدث خطط التخصصات 1447هـ\n"
+        today = Hijri.today()
+        arabic_year = to_arabic_numerals(today.year)
+        text = f"📂 محدث خطط التخصصات {arabic_year}هـ\n"
         text += f"({group.title})\n"
-        text += "تاريخ التحديث: ١٤٤٧هـ\n\n"
+        text += f"تاريخ التحديث: {to_arabic_numerals(today.day)}/{to_arabic_numerals(today.month)}/{arabic_year}هـ\n\n"
 
         for plan in all_plans:
             if plan.channel_message_id:
@@ -243,7 +251,6 @@ async def publish_group_plans(group_id: int):
         published_count = 0
         async with httpx.AsyncClient(follow_redirects=True) as client:
             for plan in all_plans:
-                caption = f"ملف الخطه المرفق\n\n"
                 if group.group_tag:
                     caption += f"#{group.group_tag}\n"
                 caption += f"تخصص - {plan.title}\n\n"
