@@ -357,18 +357,6 @@ async def publish_single_plan(plan_id: int):
             group = g_result.scalar_one_or_none()
 
         async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
-            if plan.channel_message_id:
-                try:
-                    await client.post(
-                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                        data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
-                        timeout=30
-                    )
-                except Exception:
-                    pass
-                plan.channel_message_id = None
-                await session.commit()
-
             pdf_content = None
             for dl_attempt in range(3):
                 try:
@@ -401,6 +389,16 @@ async def publish_single_plan(plan_id: int):
             )
 
             if resp.status_code == 200 and resp.json().get("ok"):
+                old_message_id = plan.channel_message_id
+                if old_message_id:
+                    try:
+                        await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": CHANNEL_ID, "message_id": old_message_id},
+                            timeout=30
+                        )
+                    except Exception:
+                        pass
                 plan.channel_message_id = resp.json()["result"]["message_id"]
                 await session.commit()
 
