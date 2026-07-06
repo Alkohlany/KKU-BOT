@@ -18,6 +18,7 @@ export default function StudyPlans() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(null);
+  const [publishingPlan, setPublishingPlan] = useState(null);
   const [editingPlan, setEditingPlan] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -189,6 +190,20 @@ export default function StudyPlans() {
       showToast('حدث خطأ أثناء النشر', 'error');
     } finally {
       setPublishing(null);
+    }
+  };
+
+  const handlePublishPlan = async (planId) => {
+    setPublishingPlan(planId);
+    try {
+      const result = await api.publishPlan(planId);
+      showToast(result.message || result.error || 'تم النشر بنجاح', result.error ? 'error' : 'success');
+      await loadData();
+    } catch (err) {
+      console.error('Failed to publish plan:', err);
+      showToast('حدث خطأ أثناء نشر الخطة', 'error');
+    } finally {
+      setPublishingPlan(null);
     }
   };
 
@@ -443,6 +458,22 @@ export default function StudyPlans() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        <button
+                          className="btn btn-primary btn-icon"
+                          style={{ padding: windowWidth < 768 ? 4 : 6 }}
+                          onClick={() => handlePublishPlan(plan.id)}
+                          disabled={publishingPlan === plan.id}
+                          title="نشر الخطة"
+                        >
+                          {publishingPlan === plan.id ? (
+                            <span className="spinner" style={{ width: 14, height: 14 }} />
+                          ) : (
+                            <svg width={windowWidth < 768 ? 12 : 14} height={windowWidth < 768 ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M22 2L11 13" />
+                              <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                            </svg>
+                          )}
+                        </button>
                         <button
                           className="btn btn-secondary btn-icon"
                           style={{ padding: windowWidth < 768 ? 4 : 6 }}

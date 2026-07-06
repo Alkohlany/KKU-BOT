@@ -165,6 +165,7 @@ const api = {
   addStudyPlanGroup: (data) => api.post('/study-plans/groups', data),
   deleteStudyPlanGroup: (id) => api.delete(`/study-plans/groups/${id}`),
   publishGroupPlans: (groupId) => api.post(`/study-plans/publish-group/${groupId}`),
+  publishPlan: (planId) => api.post(`/study-plans/publish-plan/${planId}`),
   updateStudyPlan: (id, data) => api.put(`/study-plans/${id}`, data),
   updateStudyPlanWithFile: (id, formData) => api.putFormData(`/study-plans/${id}`, formData),
   updateStudyPlanGroup: (id, data) => api.put(`/study-plans/groups/${id}`, data),
