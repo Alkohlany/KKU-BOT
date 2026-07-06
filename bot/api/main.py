@@ -5,6 +5,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from bot.api.routes import auth, responses, groups, users, stats, news, questions, scheduled_posts, study_plans
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="KKU Bot Dashboard API", version="1.0.0")
 
@@ -49,3 +52,12 @@ else:
     @app.get("/")
     async def root():
         return {"message": "KKU Bot Dashboard API"}
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled API exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "حدث خطأ داخلي في الخادم"}
+    )

@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from bot.api.database import get_db
+from bot.services.database import get_db
 from bot.api.auth import get_current_user
 from bot.models.models import Group
 from bot.services.database import add_group, get_group

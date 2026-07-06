@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from bot.api.database import get_db
+from bot.services.database import get_db
 from bot.api.auth import get_current_user
 from bot.models.models import User, Group, AutoResponse, BannedUser, ActivityLog, Settings
 

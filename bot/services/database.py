@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 pool_settings = {
     "pool_size": 5,
-    "max_overflow": 10,
+    "max_overflow": 5,
     "pool_timeout": 30,
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -21,6 +21,11 @@ if "sqlite" in DATABASE_URL:
 
 engine = create_async_engine(DATABASE_URL, echo=False, **pool_settings)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+async def get_db():
+    async with async_session() as session:
+        yield session
 
 
 async def init_db():

@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from bot.services.database import add_news, get_all_news, publish_news, get_all_groups, delete_news
+from bot.services.database import async_session, add_news, get_all_news, publish_news, get_all_groups, delete_news
 from bot.services.news_publisher import publish_to_groups
 from bot.services.cloud_storage import upload_image, upload_raw
 from bot.models.models import News
@@ -87,7 +87,7 @@ async def create_news_with_file(
 
 @router.post("/{news_id}/publish")
 async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
-    async with __import__('bot.services.database', fromlist=['async_session']).async_session() as session:
+    async with async_session() as session:
         from sqlalchemy import select as sa_select
         result = await session.execute(sa_select(News).where(News.id == news_id))
         news = result.scalar_one_or_none()

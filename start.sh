@@ -25,5 +25,10 @@ graceful_shutdown() {
 
 trap graceful_shutdown SIGTERM SIGINT
 
-# Wait for any process to exit (waits for ALL background processes)
-wait
+# Wait for any process to exit, then kill the other
+wait -n
+EXIT_CODE=$?
+echo "A process exited with code $EXIT_CODE. Shutting down..."
+kill -TERM $BOT_PID $API_PID 2>/dev/null
+wait $BOT_PID $API_PID 2>/dev/null
+exit $EXIT_CODE

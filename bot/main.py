@@ -30,10 +30,14 @@ logger = logging.getLogger(__name__)
 
 
 async def post_init(application):
-    await init_db()
-    application.bot_data['admin_ids'] = ADMIN_IDS
-    application.job_queue.run_repeating(check_scheduled_posts, interval=60, first=10)
-    logger.info("Database initialized and scheduler started")
+    try:
+        await init_db()
+        application.bot_data['admin_ids'] = ADMIN_IDS
+        application.job_queue.run_repeating(check_scheduled_posts, interval=60, first=10)
+        logger.info("Database initialized and scheduler started")
+    except Exception as e:
+        logger.critical(f"Failed to initialize database: {e}", exc_info=True)
+        raise
 
 
 async def error_handler(update, context):
