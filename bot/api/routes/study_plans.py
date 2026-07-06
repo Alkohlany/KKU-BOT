@@ -36,21 +36,22 @@ async def update_group_post(group_id: int):
 
         channel_username = CHANNEL_ID.replace("@", "")
 
-        text = f"📂 {group.title}\n"
-
-        if group.description:
-            text += f"{group.description}\n"
-
-        text += "\n"
+        text = "📂 محدث خطط التخصصات 1447هـ\n"
+        text += f"({group.title})\n"
+        text += "تاريخ التحديث: ١٤٤٧هـ\n\n"
 
         for plan in all_plans:
             if plan.channel_message_id:
                 plan_link = f"https://t.me/{channel_username}/{plan.channel_message_id}"
-                text += f"{plan.title} ⬇️\n{plan_link}\n\n"
+                text += f"خطة {plan.title} ⬇️\n{plan_link}\n\n"
             else:
-                text += f"{plan.title}\n\n"
+                text += f"خطة {plan.title}\n\n"
 
-        text += "\n🔴انظموا لقروب جامعة الملك خالد العام\n\nhttps://t.me/KKU_Main1 \n\n\nانظمو لقروب الواتساب العام\n\nhttps://whatsapp.com/channel/0029VbD8NhHC1FuKSEmrJY2W\n\n#شاركها_فربما_يبحث_عنها_غيرك"
+        text += "🔴انظموا لقروب جامعة الملك خالد العام\n"
+        text += "https://t.me/KKU_Main1\n\n"
+        text += "🟢 انظمو لقروب الواتساب العام\n"
+        text += "https://whatsapp.com/channel/0029VbD8NhHC1FuKSEmrJY2W\n\n"
+        text += "#شاركها_فربما_يبحث_عنها_غيرك"
 
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -195,6 +196,17 @@ async def publish_group_plans(group_id: int):
         if not group:
             raise HTTPException(status_code=404, detail="Group not found")
 
+        if group.channel_message_id:
+            all_plans_stmt = select(StudyPlan).where(
+                StudyPlan.group_id == group_id,
+                StudyPlan.is_active == True
+            )
+            all_plans_result = await session.execute(all_plans_stmt)
+            all_plans = all_plans_result.scalars().all()
+
+            if all(p.channel_message_id for p in all_plans):
+                return {"message": "تم نشر هذه المجموعة مسبقاً"}
+
         plans_stmt = select(StudyPlan).where(
             StudyPlan.group_id == group_id,
             StudyPlan.is_active == True,
@@ -209,9 +221,10 @@ async def publish_group_plans(group_id: int):
         published_count = 0
         async with httpx.AsyncClient() as client:
             for plan in unpublished_plans:
-                caption = f"#{group.group_tag}\n" if group.group_tag else ""
+                caption = "ملف الخطه المرفق\n\n"
+                caption += f"#{group.group_tag}\n" if group.group_tag else ""
                 caption += f"تخصص - {plan.title}\n"
-                caption += f"\n🔴انظموا لقروب جامعة الملك خالد العام\n\nhttps://t.me/KKU_Main1 \n\n\nانظمو لقروب الواتساب العام\n\nhttps://whatsapp.com/channel/0029VbD8NhHC1FuKSEmrJY2W"
+                caption += '\n<a href="https://t.me/kkunewbot">t.me/kkunewbot</a>'
 
                 try:
                     if plan.file_url:
