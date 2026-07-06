@@ -337,6 +337,81 @@ async def publish_group_plans(group_id: int):
         return {"message": result_text, "published": published_count, "failed": failed_plans}
 
 
+@router.post("/publish-plan/{plan_id}")
+async def publish_single_plan(plan_id: int):
+    """نشر خطة واحدة على القناة"""
+    async with async_session() as session:
+        stmt = select(StudyPlan).where(StudyPlan.id == plan_id)
+        result = await session.execute(stmt)
+        plan = result.scalar_one_or_none()
+
+        if not plan:
+            return {"error": "الخطة غير موجودة"}
+        if not plan.file_url:
+            return {"error": "الخطة لا تحتوي على ملف مرفوع"}
+
+        group = None
+        if plan.group_id:
+            g_stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == plan.group_id)
+            g_result = await session.execute(g_stmt)
+            group = g_result.scalar_one_or_none()
+
+        async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
+            if plan.channel_message_id:
+                try:
+                    await client.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                        data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
+                        timeout=30
+                    )
+                except Exception:
+                    pass
+                plan.channel_message_id = None
+                await session.commit()
+
+            pdf_content = None
+            for dl_attempt in range(3):
+                try:
+                    file_resp = await client.get(plan.file_url, timeout=90)
+                    if file_resp.status_code == 200:
+                        pdf_content = file_resp.content
+                        break
+                except Exception:
+                    if dl_attempt < 2:
+                        pass
+
+            if not pdf_content:
+                return {"error": "فشل تحميل الملف من Cloudinary"}
+
+            caption = ""
+            if group and group.group_tag:
+                caption += f"#{group.group_tag}\n"
+            caption += f"تخصص - {plan.title}\n\n"
+            caption += f'<blockquote>t.me/kkunewbot</blockquote>'
+
+            resp = await client.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
+                data={
+                    "chat_id": CHANNEL_ID,
+                    "caption": caption,
+                    "parse_mode": "HTML"
+                },
+                files={"document": (f"{plan.title}.pdf", pdf_content, "application/pdf")},
+                timeout=120
+            )
+
+            if resp.status_code == 200 and resp.json().get("ok"):
+                plan.channel_message_id = resp.json()["result"]["message_id"]
+                await session.commit()
+
+                if group:
+                    await update_group_post(group.id)
+
+                return {"message": f"تم نشر {plan.title} بنجاح", "plan_id": plan.id}
+            else:
+                return {"error": f"فشل النشر: {resp.text}"}
+
+
 @router.get("/file/{filename}")
 async def get_study_plan_file(filename: str):
     raise HTTPException(status_code=404, detail="Files are stored on Cloudinary. Use the file_url from the API response.")
