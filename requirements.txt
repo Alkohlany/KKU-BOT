@@ -10,5 +10,5 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 gunicorn==21.2.0
-hijri-converter==3.0.0
+hijri-converter==2.3.2.post1
 cloudinary==1.41.0
