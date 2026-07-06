@@ -314,9 +314,12 @@ async def publish_group_plans(group_id: int):
                             if file_resp.status_code == 200:
                                 pdf_content = file_resp.content
                                 break
-                        except Exception:
-                            if dl_attempt < 2:
-                                await asyncio.sleep(2)
+                            else:
+                                print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
+                        except Exception as e:
+                            print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
+                        if dl_attempt < 2:
+                            await asyncio.sleep(2)
 
                     if not pdf_content:
                         failed_plans.append(plan.title)
@@ -418,9 +421,13 @@ async def publish_single_plan(plan_id: int):
                     if file_resp.status_code == 200:
                         pdf_content = file_resp.content
                         break
-                except Exception:
-                    if dl_attempt < 2:
-                        pass
+                    else:
+                        print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
+                except Exception as e:
+                    print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
+                if dl_attempt < 2:
+                    import asyncio
+                    await asyncio.sleep(2)
 
             if not pdf_content:
                 return {"error": "فشل تحميل الملف من Cloudinary"}

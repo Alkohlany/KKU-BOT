@@ -17,11 +17,14 @@ def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
 
 
 def upload_raw(file_bytes: bytes, filename: str, folder: str = "kku-bot") -> str:
+    import re
+    safe_name = re.sub(r'[^\w\s\u0600-\u06FF.\-]', '', filename)
+    safe_name = safe_name.strip().replace(' ', '_')
     result = cloudinary.uploader.upload(
         file_bytes,
         folder=folder,
         resource_type="raw",
-        public_id=filename,
+        public_id=safe_name,
         access_control=[{"access_type": "anonymous"}],
     )
     return result["secure_url"]
