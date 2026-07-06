@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from bot.models.models import Base, User, Group, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, ResponseCategory, Settings
 from bot.config import DATABASE_URL
 from sqlalchemy import select, update, delete, func, text
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import logging
 import os
 
@@ -261,8 +261,7 @@ async def add_scheduled_post(title, content, schedule_time, image_url=None, file
         return post
 
 async def get_pending_posts():
-    from datetime import datetime
-    now = datetime.now()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     async with async_session() as session:
         result = await session.execute(
             select(ScheduledPost).where(
@@ -285,8 +284,7 @@ async def mark_post_published(post_id):
         await session.commit()
 
 async def reschedule_post(post_id: int, recurring_interval: str):
-    from datetime import datetime, timedelta
-    now = datetime.now()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     if recurring_interval == "daily":
         next_time = now + timedelta(days=1)

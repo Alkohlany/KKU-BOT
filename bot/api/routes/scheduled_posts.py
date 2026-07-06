@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from bot.services.database import (add_scheduled_post, get_all_scheduled_posts, 
                                    get_pending_posts, mark_post_published, delete_scheduled_post)
 from bot.services.cloud_storage import upload_image, upload_raw
@@ -41,8 +41,11 @@ async def get_scheduled_posts():
 
 @router.post("/")
 async def create_scheduled_post(data: ScheduledPostCreate):
+    dt = data.schedule_time
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     p = await add_scheduled_post(title=data.title, content=data.content,
-                                   schedule_time=data.schedule_time,
+                                   schedule_time=dt,
                                    image_url=data.image_url, file_url=data.file_url,
                                    is_recurring=data.is_recurring,
                                    recurring_interval=data.recurring_interval)
@@ -76,6 +79,8 @@ async def create_scheduled_post_with_file(
         file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/scheduled")
 
     dt = datetime.fromisoformat(schedule_time)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     p = await add_scheduled_post(title=title, content=content,
                                    schedule_time=dt,
                                    image_url=image_url, file_url=file_url,
