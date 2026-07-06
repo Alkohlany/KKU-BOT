@@ -1,3 +1,4 @@
+import json
 import os
 import httpx
 from hijri_converter import Hijri
@@ -247,49 +248,59 @@ async def publish_group_plans(group_id: int):
             return {"message": "لا توجد خطط في هذه المجموعة"}
 
         published_count = 0
+        batch_size = 10
         async with httpx.AsyncClient(follow_redirects=True) as client:
-            for plan in all_plans:
-                caption = ""
-                if group.group_tag:
-                    caption += f"#{group.group_tag}\n"
-                caption += f"تخصص - {plan.title}\n\n"
-                caption += f'<blockquote>t.me/kkunewbot</blockquote>'
+            for i in range(0, len(all_plans), batch_size):
+                batch = all_plans[i:i + batch_size]
+                media = []
+                files = {}
 
-                try:
-                    if plan.file_url:
+                for idx, plan in enumerate(batch):
+                    file_key = f"file_{idx}"
+
+                    if not plan.file_url:
+                        continue
+
+                    try:
                         file_resp = await client.get(plan.file_url, timeout=60)
-                        if file_resp.status_code == 200:
-                            filename = f"{plan.title}.pdf"
-                            files = {"document": (filename, file_resp.content, "application/pdf")}
-                            data = {"chat_id": CHANNEL_ID, "caption": caption, "parse_mode": "HTML"}
-                            resp = await client.post(
-                                f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                                files=files,
-                                data=data,
-                                timeout=60
-                            )
-                        else:
-                            data = {"chat_id": CHANNEL_ID, "text": caption + f"\n\n📎 {plan.file_url}", "parse_mode": "HTML"}
-                            resp = await client.post(
-                                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                                data=data,
-                                timeout=30
-                            )
-                    else:
-                        data = {"chat_id": CHANNEL_ID, "text": caption, "parse_mode": "HTML"}
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                            data=data,
-                            timeout=30
-                        )
+                        if file_resp.status_code != 200:
+                            continue
+                    except Exception:
+                        continue
 
-                    if resp.status_code == 200:
-                        result = resp.json()
-                        if result.get("ok"):
-                            plan.channel_message_id = result["result"]["message_id"]
+                    caption = ""
+                    if group.group_tag:
+                        caption += f"#{group.group_tag}\n"
+                    caption += f"تخصص - {plan.title}\n\n"
+                    caption += f'<blockquote>t.me/kkunewbot</blockquote>'
+
+                    filename = f"{plan.title}.pdf"
+                    files[file_key] = (filename, file_resp.content, "application/pdf")
+                    media.append({
+                        "type": "document",
+                        "media": f"attach://{file_key}",
+                        "caption": caption,
+                        "parse_mode": "HTML"
+                    })
+
+                if not media:
+                    continue
+
+                data = {"chat_id": CHANNEL_ID, "media": json.dumps(media)}
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup",
+                    files=files,
+                    data=data,
+                    timeout=120
+                )
+
+                if resp.status_code == 200:
+                    result = resp.json()
+                    if result.get("ok"):
+                        messages = result["result"]
+                        for j, msg in enumerate(messages):
+                            batch[j].channel_message_id = msg["message_id"]
                             published_count += 1
-                except Exception as e:
-                    print(f"Error publishing plan {plan.id}: {e}")
 
         await session.commit()
 
