@@ -25,7 +25,7 @@ def to_arabic_numerals(number: int) -> str:
     return "".join(arabic_digits[int(d)] for d in str(number))
 
 
-async def update_group_post(group_id: int):
+async def update_group_post(group_id: int, force_new: bool = False):
     async with async_session() as session:
         stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
         result = await session.execute(stmt)
@@ -64,7 +64,7 @@ async def update_group_post(group_id: int):
         text += "#شاركها_فربما_يبحث_عنها_غيرك"
 
         async with httpx.AsyncClient() as client:
-            if group.channel_message_id:
+            if group.channel_message_id and not force_new:
                 resp = await client.post(
                     f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
                     data={
@@ -76,6 +76,18 @@ async def update_group_post(group_id: int):
                     timeout=30
                 )
             else:
+                if force_new and group.channel_message_id:
+                    try:
+                        await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": CHANNEL_ID, "message_id": group.channel_message_id},
+                            timeout=30
+                        )
+                    except Exception:
+                        pass
+                    group.channel_message_id = None
+                    await session.commit()
+
                 resp = await client.post(
                     f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                     data={
@@ -443,7 +455,7 @@ async def publish_single_plan(plan_id: int):
                 await session.commit()
 
                 if group:
-                    await update_group_post(group.id)
+                    await update_group_post(group.id, force_new=True)
 
                 return {"message": f"تم نشر {plan.title} بنجاح", "plan_id": plan.id}
             else:
