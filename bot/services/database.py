@@ -42,6 +42,8 @@ async def init_db():
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
+        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_url VARCHAR(500)"))
+        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS file_url VARCHAR(500)"))
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
 
