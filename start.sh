@@ -10,18 +10,20 @@ BOT_PID=$!
 uvicorn bot.api.main:app --host 0.0.0.0 --port ${PORT:-8000} &
 API_PID=$!
 
-# Handle shutdown
-cleanup() {
-    echo "Shutting down services..."
-    kill $BOT_PID 2>/dev/null
-    kill $API_PID 2>/dev/null
-    wait
+echo "Bot PID: $BOT_PID, API PID: $API_PID"
+
+# Graceful shutdown handler
+graceful_shutdown() {
+    echo "Shutting down gracefully..."
+    kill -TERM $BOT_PID 2>/dev/null
+    kill -TERM $API_PID 2>/dev/null
+    wait $BOT_PID 2>/dev/null
+    wait $API_PID 2>/dev/null
+    echo "Shutdown complete"
+    exit 0
 }
 
-trap cleanup SIGTERM SIGINT
+trap graceful_shutdown SIGTERM SIGINT
 
-echo "Bot PID: $BOT_PID"
-echo "API PID: $API_PID"
-
-# Wait for either process to exit
-wait -n $BOT_PID $API_PID
+# Wait for any process to exit (waits for ALL background processes)
+wait

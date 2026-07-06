@@ -38,7 +38,7 @@ async def post_init(application):
 
 async def error_handler(update, context):
     if isinstance(context.error, Conflict):
-        logger.warning("Conflict detected - another bot instance is running. Retrying...")
+        logger.warning("Conflict detected - another bot instance is active (likely deployment overlap). Waiting for it to disconnect...")
         return
     logger.error(f"Unhandled exception: {context.error}", exc_info=context.error)
 
