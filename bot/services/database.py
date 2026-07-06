@@ -189,10 +189,11 @@ async def log_activity(action: str, details: str = None, performed_by: int = Non
 
 
 # ==================== News ====================
-async def add_news(title, content, image_url=None, file_url=None, created_by=None):
+async def add_news(title, content, image_url=None, file_url=None, created_by=None, publish_to_channel=False):
     async with async_session() as session:
         news = News(title=title, content=content, image_url=image_url, 
-                   file_url=file_url, created_by=created_by)
+                   file_url=file_url, created_by=created_by,
+                   publish_to_channel=publish_to_channel)
         session.add(news)
         await session.commit()
         return news
@@ -298,11 +299,13 @@ async def update_question(question_id: int, question: str = None, answer: str = 
 
 # ==================== Scheduled Posts ====================
 async def add_scheduled_post(title, content, schedule_time, image_url=None, file_url=None, 
-                            is_recurring=False, recurring_interval=None, created_by=None):
+                            is_recurring=False, recurring_interval=None, created_by=None,
+                            publish_to_channel=False):
     async with async_session() as session:
         post = ScheduledPost(title=title, content=content, schedule_time=schedule_time,
                             image_url=image_url, file_url=file_url, is_recurring=is_recurring,
-                            recurring_interval=recurring_interval, created_by=created_by)
+                            recurring_interval=recurring_interval, created_by=created_by,
+                            publish_to_channel=publish_to_channel)
         session.add(post)
         await session.commit()
         return post

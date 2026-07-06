@@ -18,6 +18,7 @@ class ScheduledPostCreate(BaseModel):
     schedule_time: datetime
     is_recurring: bool = False
     recurring_interval: Optional[str] = None
+    publish_to_channel: bool = False
 
 
 @router.get("/")
@@ -34,6 +35,7 @@ async def get_scheduled_posts():
             "recurring": p.is_recurring,
             "recurringInterval": p.recurring_interval,
             "isPublished": p.is_published,
+            "publishToChannel": p.publish_to_channel,
             "createdAt": p.created_at.isoformat() if p.created_at else None,
         }
         for p in items
@@ -52,12 +54,14 @@ async def create_scheduled_post(data: ScheduledPostCreate):
                                    schedule_time=dt,
                                    image_url=data.image_url, file_url=data.file_url,
                                    is_recurring=data.is_recurring,
-                                   recurring_interval=data.recurring_interval)
+                                   recurring_interval=data.recurring_interval,
+                                   publish_to_channel=data.publish_to_channel)
     return {
         "id": p.id, "title": p.title, "content": p.content,
         "imageUrl": p.image_url, "fileUrl": p.file_url,
         "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
-        "recurring": p.is_recurring, "isPublished": p.is_published
+        "recurring": p.is_recurring, "isPublished": p.is_published,
+        "publishToChannel": p.publish_to_channel
     }
 
 
@@ -69,6 +73,7 @@ async def create_scheduled_post_with_file(
     title: Optional[str] = Form(None),
     recurring_interval: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
+    publish_to_channel: bool = Form(False),
 ):
     image_url = None
     file_url = None
@@ -92,12 +97,14 @@ async def create_scheduled_post_with_file(
                                    schedule_time=dt,
                                    image_url=image_url, file_url=file_url,
                                    is_recurring=is_recurring,
-                                   recurring_interval=recurring_interval)
+                                   recurring_interval=recurring_interval,
+                                   publish_to_channel=publish_to_channel)
     return {
         "id": p.id, "title": p.title, "content": p.content,
         "imageUrl": p.image_url, "fileUrl": p.file_url,
         "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
-        "recurring": p.is_recurring, "isPublished": p.is_published
+        "recurring": p.is_recurring, "isPublished": p.is_published,
+        "publishToChannel": p.publish_to_channel
     }
 
 

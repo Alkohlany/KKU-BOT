@@ -17,7 +17,8 @@ async def check_scheduled_posts(context):
                 sent = await publish_to_groups(
                     text=post.content,
                     image_url=post.image_url,
-                    file_url=post.file_url
+                    file_url=post.file_url,
+                    publish_to_channel=post.publish_to_channel
                 )
                 await mark_post_published(post.id)
                 logger.info(f"Published scheduled post ID={post.id}, sent to {sent} groups")

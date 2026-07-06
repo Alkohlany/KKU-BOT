@@ -4,7 +4,7 @@ import api from '../services/api';
 export default function ScheduledPosts() {
   const [posts, setPosts] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ content: '', scheduledTime: '', recurring: false });
+  const [form, setForm] = useState({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false });
   const [uploadFile, setUploadFile] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,7 @@ export default function ScheduledPosts() {
         formData.append('content', form.content);
         formData.append('schedule_time', form.scheduledTime);
         formData.append('is_recurring', form.recurring);
+        formData.append('publish_to_channel', form.publish_to_channel);
         if (form.title) formData.append('title', form.title);
         formData.append('file', uploadFile);
         newItem = await api.addScheduledPostWithFile(formData);
@@ -47,10 +48,11 @@ export default function ScheduledPosts() {
           content: form.content,
           schedule_time: form.scheduledTime,
           is_recurring: form.recurring,
+          publish_to_channel: form.publish_to_channel,
         });
       }
       setPosts([...posts, newItem]);
-      setForm({ content: '', scheduledTime: '', recurring: false });
+      setForm({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false });
       setUploadFile(null);
       setShowModal(false);
     } catch (err) {
@@ -108,7 +110,7 @@ export default function ScheduledPosts() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setForm({ content: '', scheduledTime: '', recurring: false }); setUploadFile(null); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false }); setUploadFile(null); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -278,6 +280,20 @@ export default function ScheduledPosts() {
                   />
                   منشور متكرر
                 </label>
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.publish_to_channel}
+                    onChange={(e) => setForm({ ...form, publish_to_channel: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  نشر في القناة الرسمية أيضاً
+                </label>
+                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12 }}>
+                  عند التفعيل، سيتم نشر المنشور في القروبات والقناة الرسمية معاً
+                </small>
               </div>
             </div>
             <div className="modal-footer">

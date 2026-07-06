@@ -6,6 +6,9 @@ export default function News() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ title: '', content: '' });
   const [uploadFile, setUploadFile] = useState(null);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishItem, setPublishItem] = useState(null);
+  const [publishToChannel, setPublishToChannel] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,12 +64,12 @@ export default function News() {
     }
   };
 
-  const handlePublish = async (id) => {
-    if (!window.confirm('هل أنت متأكد من نشر هذا الخبر في جميع القروبات؟')) return;
-    setPublishing(id);
+  const handlePublish = async () => {
+    if (!publishItem) return;
+    setPublishing(publishItem.id);
     setPublishProgress(0);
     try {
-      const publishPromise = api.publishNews(id);
+      const publishPromise = api.publishNews(publishItem.id, { publish_to_channel: publishToChannel });
       const progressInterval = setInterval(() => {
         setPublishProgress((prev) => {
           if (prev >= 90) {
@@ -80,7 +83,10 @@ export default function News() {
       await publishPromise;
       clearInterval(progressInterval);
       setPublishProgress(100);
-      setNews(news.map((n) => n.id === id ? { ...n, published: true } : n));
+      setNews(news.map((n) => n.id === publishItem.id ? { ...n, published: true } : n));
+      setShowPublishModal(false);
+      setPublishItem(null);
+      setPublishToChannel(false);
     } catch (err) {
       console.error('Failed to publish news:', err);
     } finally {
@@ -189,7 +195,7 @@ export default function News() {
                           ) : (
                             <button
                               className="btn btn-primary btn-icon"
-                              onClick={() => handlePublish(item.id)}
+                              onClick={() => { setPublishItem(item); setPublishToChannel(item.publishToChannel || false); setShowPublishModal(true); }}
                               title="نشر في جميع القروبات"
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -264,7 +270,7 @@ export default function News() {
                     ) : (
                       <button
                         className="btn btn-primary btn-sm"
-                        onClick={() => handlePublish(item.id)}
+                        onClick={() => { setPublishItem(item); setPublishToChannel(item.publishToChannel || false); setShowPublishModal(true); }}
                       >
                         نشر
                       </button>
@@ -353,6 +359,41 @@ export default function News() {
                 {saving ? 'جاري الحفظ...' : 'إضافة'}
               </button>
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish Modal */}
+      {showPublishModal && (
+        <div className="modal-overlay" onClick={() => { setShowPublishModal(false); setPublishItem(null); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>نشر الخبر</h3>
+              <button className="modal-close" onClick={() => { setShowPublishModal(false); setPublishItem(null); }}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: 16, color: 'var(--gray-600)', fontSize: 14 }}>
+                هل أنت متأكد من نشر هذا الخبر؟
+              </p>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 0', fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={publishToChannel}
+                  onChange={(e) => setPublishToChannel(e.target.checked)}
+                  style={{ width: 18, height: 18 }}
+                />
+                نشر في القناة الرسمية أيضاً
+              </label>
+              <p style={{ marginTop: 8, fontSize: 12, color: 'var(--gray-400)' }}>
+                عند تفعيل هذا الخيار، سيتم نشر الخبر في القروبات والقناة الرسمية معاً
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={handlePublish} disabled={publishing !== null}>
+                {publishing === publishItem?.id ? 'جاري النشر...' : 'تأكيد النشر'}
+              </button>
+              <button className="btn btn-secondary" onClick={() => { setShowPublishModal(false); setPublishItem(null); }}>إلغاء</button>
             </div>
           </div>
         </div>

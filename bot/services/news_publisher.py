@@ -3,14 +3,14 @@ import os
 import mimetypes
 import logging
 from bot.services.database import get_all_groups
-from bot.config import BOT_TOKEN
+from bot.config import BOT_TOKEN, CHANNEL_ID
 
 logger = logging.getLogger(__name__)
 
 UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "uploads"))
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None):
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, publish_to_channel: bool = False):
     groups = await get_all_groups()
     sent = 0
 
@@ -22,6 +22,13 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
             sent += 1
         except Exception as e:
             logger.error(f"Failed to send to group {group.chat_id}: {e}")
+
+    if publish_to_channel and CHANNEL_ID:
+        try:
+            await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url)
+            sent += 1
+        except Exception as e:
+            logger.error(f"Failed to send to channel {CHANNEL_ID}: {e}")
 
     return sent
 

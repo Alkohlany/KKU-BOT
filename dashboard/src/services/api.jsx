@@ -140,7 +140,7 @@ const api = {
   getNews: () => api.get('/news'),
   addNews: (data) => api.post('/news', data),
   addNewsWithFile: (formData) => api.postFormData('/news/upload', formData),
-  publishNews: (id) => api.post(`/news/${id}/publish`),
+  publishNews: (id, payload = {}) => api.post(`/news/${id}/publish`, payload),
   deleteNews: (id) => api.delete(`/news/${id}`),
 
   getQuestions: () => api.get('/questions'),

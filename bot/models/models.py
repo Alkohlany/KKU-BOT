@@ -72,6 +72,7 @@ class News(Base):
     is_published = Column(Boolean, default=False)
     published_at = Column(DateTime)
     created_by = Column(BigInteger)
+    publish_to_channel = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
@@ -104,6 +105,7 @@ class ScheduledPost(Base):
     is_published = Column(Boolean, default=False)
     published_at = Column(DateTime)
     created_by = Column(BigInteger)
+    publish_to_channel = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
