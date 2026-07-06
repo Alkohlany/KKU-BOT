@@ -45,9 +45,7 @@ async def update_group_post(group_id: int):
         today = Hijri.today()
         arabic_year = to_arabic_numerals(today.year)
         text = f"📂 محدث خطط التخصصات {arabic_year}هـ\n"
-        text += f"({group.title})\n"
-        text += f"تاريخ التحديث: {to_arabic_numerals(today.day)}/{to_arabic_numerals(today.month)}/{arabic_year}هـ\n\n"
-
+        text += f"{group.title}\n"
         for plan in all_plans:
             if plan.channel_message_id:
                 plan_link = f"https://t.me/{channel_username}/{plan.channel_message_id}"
