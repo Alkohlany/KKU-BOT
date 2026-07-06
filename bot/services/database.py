@@ -31,6 +31,8 @@ async def init_db():
         await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES study_plan_groups(id)"))
         await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS publish_to_channel BOOLEAN DEFAULT FALSE"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS publish_to_channel BOOLEAN DEFAULT FALSE"))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
