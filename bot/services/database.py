@@ -229,6 +229,12 @@ async def is_banned(telegram_id: int) -> bool:
         return result.scalar_one_or_none() is not None
 
 
+async def get_all_banned():
+    async with async_session() as session:
+        result = await session.execute(select(BannedUser))
+        return list(result.scalars().all())
+
+
 async def log_activity(action: str, details: str = None, performed_by: int = None):
     async with async_session() as session:
         log = ActivityLog(action=action, details=details, performed_by=performed_by)

@@ -1,12 +1,7 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy import update
-from sqlalchemy import select
-from bot.services.database import add_question, get_all_questions, search_question, delete_question, increment_question_usage, async_session, update_question as db_update_question
-from bot.models.models import Question
-import cloudinary.uploader
-from bot.services.cloud_storage import upload_raw
+from bot.services.database import add_question, get_all_questions, search_question, delete_question, increment_question_usage, update_question as db_update_question
 
 router = APIRouter()
 
@@ -18,15 +13,6 @@ class QuestionCreate(BaseModel):
     file_url: Optional[str] = None
     file_type: Optional[str] = None
     as_document: bool = False
-
-
-def detect_file_type(filename: str) -> str:
-    ext = filename.lower().split('.')[-1] if '.' in filename else ''
-    if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-        return 'photo'
-    if ext in ('mp4', 'avi', 'mov', 'mkv'):
-        return 'video'
-    return 'document'
 
 
 @router.get("/")
@@ -59,37 +45,6 @@ async def create_question(data: QuestionCreate):
             "as_document": q.as_document}
 
 
-@router.post("/upload")
-async def create_question_with_file(
-    question: str = Form(...),
-    answer: str = Form(...),
-    category: Optional[str] = Form(None),
-    keywords: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),
-    as_document: bool = Form(False),
-):
-    file_url = None
-    file_type = None
-    if file:
-        content = await file.read()
-        file_type = detect_file_type(file.filename)
-        if file_type in ('image', 'photo'):
-            result = cloudinary.uploader.upload(content, folder="kku-bot/questions", resource_type="image")
-            file_url = result["secure_url"]
-        elif file_type == 'video':
-            result = cloudinary.uploader.upload(content, folder="kku-bot/questions", resource_type="video")
-            file_url = result["secure_url"]
-        else:
-            file_url = upload_raw(content, filename=file.filename, folder="kku-bot/questions")
-
-    q = await add_question(question=question, answer=answer, category=category, keywords=keywords,
-                           file_url=file_url, file_type=file_type, as_document=as_document)
-    return {"id": q.id, "question": q.question, "answer": q.answer,
-            "category": q.category, "keywords": q.keywords,
-            "file_url": q.file_url, "file_type": q.file_type,
-            "as_document": q.as_document}
-
-
 @router.put("/{question_id}")
 async def update_question_endpoint(question_id: int, data: QuestionCreate):
     q = await db_update_question(
@@ -108,51 +63,6 @@ async def update_question_endpoint(question_id: int, data: QuestionCreate):
             "category": q.category, "keywords": q.keywords,
             "file_url": q.file_url, "file_type": q.file_type,
             "as_document": q.as_document}
-
-
-@router.put("/upload/{question_id}")
-async def update_question_with_file(
-    question_id: int,
-    question: str = Form(None),
-    answer: str = Form(None),
-    category: Optional[str] = Form(None),
-    keywords: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),
-    as_document: bool = Form(False),
-):
-    async with async_session() as session:
-        stmt = select(Question).where(Question.id == question_id)
-        result = await session.execute(stmt)
-        q = result.scalar_one_or_none()
-        if not q:
-            raise HTTPException(status_code=404, detail="Question not found")
-        if question is not None:
-            q.question = question
-        if answer is not None:
-            q.answer = answer
-        if category is not None:
-            q.category = category
-        if keywords is not None:
-            q.keywords = keywords
-        if as_document is not None:
-            q.as_document = as_document
-        if file:
-            content = await file.read()
-            file_type = detect_file_type(file.filename)
-            if file_type in ('image', 'photo'):
-                result = cloudinary.uploader.upload(content, folder="kku-bot/questions", resource_type="image")
-                q.file_url = result["secure_url"]
-            elif file_type == 'video':
-                result = cloudinary.uploader.upload(content, folder="kku-bot/questions", resource_type="video")
-                q.file_url = result["secure_url"]
-            else:
-                q.file_url = upload_raw(content, filename=file.filename, folder="kku-bot/questions")
-            q.file_type = file_type
-        await session.commit()
-        return {"id": q.id, "question": q.question, "answer": q.answer,
-                "category": q.category, "keywords": q.keywords,
-                "file_url": q.file_url, "file_type": q.file_type,
-                "as_document": q.as_document}
 
 
 @router.get("/search/{text}")
