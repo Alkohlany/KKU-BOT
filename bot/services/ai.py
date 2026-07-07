@@ -1,41 +1,41 @@
 import logging
 import time as _time
-from bot.config import NVIDIA_API_KEY
 
 logger = logging.getLogger(__name__)
 
-NVIDIA_NIM_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-DEFAULT_MODELS = [
-    "deepseek-ai/deepseek-v4-flash",
-    "qwen/qwen3.5-122b-a10b",
-    "nvidia/nemotron-3-super-120b-a12b",
-]
+API_URL = "https://opencode.ai/zen/v1/chat/completions"
+API_KEY = "sk-O60vp4JsXJpojOhgWKtExSmBvRk3TEbRVYPiujwribvlsEPUgtaNvGg3ulR8j6Ko"
+MODEL = "deepseek-v4-flash-free"
 MAX_RETRIES = 3
 
 
-def _call_model(prompt: str, model: str) -> str:
+def _call_model(prompt: str) -> str:
     import httpx
 
     last_err = None
     for attempt in range(MAX_RETRIES):
         try:
             response = httpx.post(
-                NVIDIA_NIM_URL,
+                API_URL,
                 headers={
-                    "Authorization": f"Bearer {NVIDIA_API_KEY}",
+                    "Authorization": f"Bearer {API_KEY}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": model,
+                    "model": MODEL,
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 300,
+                    "max_tokens": 1500,
                     "temperature": 0.3,
+                    "extra_body": {
+                        "thinking": {"type": "enabled"},
+                        "reasoning_effort": "max",
+                    },
                 },
-                timeout=httpx.Timeout(30.0, read=30.0),
+                timeout=httpx.Timeout(45.0, read=45.0),
             )
 
             if response.status_code == 503:
-                logger.warning(f"Model {model} overloaded (503), retry {attempt+1}/{MAX_RETRIES}")
+                logger.warning(f"API overloaded (503), retry {attempt+1}/{MAX_RETRIES}")
                 _time.sleep(2 * (attempt + 1))
                 continue
 
@@ -53,7 +53,7 @@ def _call_model(prompt: str, model: str) -> str:
 
             return content
         except httpx.TimeoutException:
-            logger.warning(f"Model {model} timeout, retry {attempt+1}/{MAX_RETRIES}")
+            logger.warning(f"API timeout, retry {attempt+1}/{MAX_RETRIES}")
             _time.sleep(2 * (attempt + 1))
             last_err = RuntimeError(f"Timeout after {MAX_RETRIES} attempts")
             continue
@@ -61,7 +61,7 @@ def _call_model(prompt: str, model: str) -> str:
             last_err = e
             break
 
-    raise last_err or RuntimeError(f"Model {model} failed after {MAX_RETRIES} retries")
+    raise last_err or RuntimeError(f"API failed after {MAX_RETRIES} retries")
 
 
 BLOCKED_WORDS = {
@@ -97,9 +97,6 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
     if not text or not text.strip():
         return []
 
-    if not NVIDIA_API_KEY:
-        raise RuntimeError("NVIDIA_API_KEY is not configured")
-
     total = max_keywords + max_questions
 
     prompt = f"""أنت طالب سعودي في قروب تيليجرام.
@@ -110,22 +107,17 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
 
 الرد خمس أسطر فقط، كل سطر كلمة أو سؤال."""
 
-    last_error = None
-    for model in DEFAULT_MODELS:
-        try:
-            content = _call_model(prompt, model)
-            raw_lines = content.strip().split("\n")
-            cleaned = []
-            seen = set()
-            for line in raw_lines:
-                item = _clean_item(line)
-                if item and _is_valid(item) and item not in seen:
-                    seen.add(item)
-                    cleaned.append(item)
-            return cleaned[:total]
-        except Exception as e:
-            last_error = e
-            logger.warning(f"AI model {model} failed: {e}")
-            continue
-
-    raise RuntimeError(f"All AI models failed. Last error: {last_error}")
+    try:
+        content = _call_model(prompt)
+        raw_lines = content.strip().split("\n")
+        cleaned = []
+        seen = set()
+        for line in raw_lines:
+            item = _clean_item(line)
+            if item and _is_valid(item) and item not in seen:
+                seen.add(item)
+                cleaned.append(item)
+        return cleaned[:total]
+    except Exception as e:
+        logger.error(f"AI failed: {e}")
+        raise RuntimeError(f"AI analysis failed: {e}")
