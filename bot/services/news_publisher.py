@@ -2,6 +2,9 @@ import logging
 from telegram import Bot
 from bot.services.database import get_all_groups
 from bot.config import BOT_TOKEN, CHANNEL_ID
+from bot.services.cloud_storage import download_raw
+import asyncio
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +34,42 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     return sent
 
 
+async def _send_file(chat_id: str, url: str, caption: str) -> bool:
+    """Try sending URL directly first, then download-and-upload as fallback."""
+    try:
+        await bot.send_document(chat_id=chat_id, document=url, caption=caption)
+        return True
+    except Exception as e:
+        logger.warning(f"send_document URL failed for {chat_id}: {e}")
+
+    file_bytes = await asyncio.to_thread(download_raw, url)
+    if file_bytes is None:
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.get(url, timeout=30)
+                if resp.status_code == 200:
+                    file_bytes = resp.content
+            except Exception as e2:
+                logger.warning(f"httpx download failed for {chat_id}: {e2}")
+
+    if file_bytes:
+        try:
+            filename = url.split("/")[-1].split("?")[0] or "file"
+            await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption)
+            return True
+        except Exception as e3:
+            logger.warning(f"send_document bytes failed for {chat_id}: {e3}")
+
+    return False
+
+
 async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, as_document: bool = False) -> bool:
     try:
         if as_document:
             url = image_url or file_url
             if url:
-                try:
-                    await bot.send_document(chat_id=chat_id, document=url, caption=text)
+                if await _send_file(chat_id, url, text):
                     return True
-                except Exception as e:
-                    logger.warning(f"send_document failed for {chat_id}: {e}")
 
         if image_url and not as_document:
             try:
@@ -50,11 +79,8 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                 logger.warning(f"send_photo failed for {chat_id}: {e}")
 
         if file_url:
-            try:
-                await bot.send_document(chat_id=chat_id, document=file_url, caption=text)
+            if await _send_file(chat_id, file_url, text):
                 return True
-            except Exception as e:
-                logger.warning(f"send_document failed for {chat_id}: {e}")
 
         await bot.send_message(chat_id=chat_id, text=text)
         return True
