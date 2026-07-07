@@ -1,4 +1,5 @@
 import logging
+from telegram import Bot
 from bot.services.database import get_all_groups
 from bot.config import BOT_TOKEN, CHANNEL_ID
 from bot.services.cloud_storage import download_raw
@@ -8,21 +9,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-MIME_TYPES = {
-    'pdf': 'application/pdf',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'mp4': 'video/mp4',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'txt': 'text/plain',
-    'zip': 'application/zip',
-}
+bot = Bot(token=BOT_TOKEN)
 
 
 async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, publish_to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None):
@@ -48,143 +35,71 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     return sent
 
 
-async def _send_document(chat_id: str, file_path: str, caption: str, filename: str = None) -> bool:
-    if not os.path.exists(file_path):
-        logger.warning(f"File not found: {file_path}")
-        return False
-
-    if not filename:
-        filename = os.path.basename(file_path)
-
-    ext = filename.lower().split('.')[-1] if '.' in filename else ''
-    content_type = MIME_TYPES.get(ext, 'application/octet-stream')
-
-    async with httpx.AsyncClient() as client:
-        with open(file_path, 'rb') as f:
-            files = {'document': (filename, f, content_type)}
-            data = {'chat_id': chat_id, 'caption': caption}
-            resp = await client.post(
-                f'https://api.telegram.org/bot{BOT_TOKEN}/sendDocument',
-                data=data,
-                files=files,
-                timeout=120
-            )
-        result = resp.json()
-        if result.get('ok'):
+async def _send_file(chat_id: str, url: str, caption: str, original_filename: str = None) -> bool:
+    if os.path.exists(url):
+        try:
+            filename = original_filename or os.path.basename(url)
+            with open(url, 'rb') as f:
+                await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption)
             return True
-        else:
-            logger.warning(f"Telegram sendDocument failed: {result.get('description', 'unknown')}")
+        except Exception as e:
+            logger.warning(f"send_document local file failed for {chat_id}: {e}")
             return False
 
-
-async def _send_document_with_thumbnail(chat_id: str, file_path: str, caption: str, thumbnail_path: str, filename: str = None) -> bool:
-    if not os.path.exists(file_path):
-        return False
-
-    if not filename:
-        filename = os.path.basename(file_path)
-
-    ext = filename.lower().split('.')[-1] if '.' in filename else ''
-    content_type = MIME_TYPES.get(ext, 'application/octet-stream')
-
-    async with httpx.AsyncClient() as client:
-        with open(file_path, 'rb') as doc_f:
-            if thumbnail_path and os.path.exists(thumbnail_path):
-                with open(thumbnail_path, 'rb') as thumb_f:
-                    files = {
-                        'document': (filename, doc_f, content_type),
-                        'thumb': ('thumb.jpg', thumb_f, 'image/jpeg')
-                    }
-            else:
-                files = {'document': (filename, doc_f, content_type)}
-
-            data = {'chat_id': chat_id, 'caption': caption}
-            resp = await client.post(
-                f'https://api.telegram.org/bot{BOT_TOKEN}/sendDocument',
-                data=data,
-                files=files,
-                timeout=120
-            )
-        result = resp.json()
-        if result.get('ok'):
+    if not original_filename:
+        try:
+            await bot.send_document(chat_id=chat_id, document=url, caption=caption)
             return True
-        else:
-            logger.warning(f"Telegram sendDocument failed: {result.get('description', 'unknown')}")
-            return False
+        except Exception as e:
+            logger.warning(f"send_document URL failed for {chat_id}: {e}")
 
+    file_bytes = await asyncio.to_thread(download_raw, url)
+    if file_bytes is None:
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.get(url, timeout=30)
+                if resp.status_code == 200:
+                    file_bytes = resp.content
+            except Exception as e2:
+                logger.warning(f"httpx download failed for {chat_id}: {e2}")
 
-async def _send_photo(chat_id: str, photo_path: str, caption: str) -> bool:
-    if not os.path.exists(photo_path):
-        return False
+    if file_bytes:
+        try:
+            filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
+            await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption)
+            return True
+        except Exception as e3:
+            logger.warning(f"send_document bytes failed for {chat_id}: {e3}")
 
-    async with httpx.AsyncClient() as client:
-        with open(photo_path, 'rb') as f:
-            files = {'photo': ('photo.jpg', f, 'image/jpeg')}
-            data = {'chat_id': chat_id, 'caption': caption}
-            resp = await client.post(
-                f'https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto',
-                data=data,
-                files=files,
-                timeout=60
-            )
-        result = resp.json()
-        return result.get('ok', False)
-
-
-async def _send_url(chat_id: str, url: str, caption: str, filename: str = None) -> bool:
-    async with httpx.AsyncClient() as client:
-        data = {'chat_id': chat_id, 'document': url, 'caption': caption}
-        if filename:
-            data['filename'] = filename
-        resp = await client.post(
-            f'https://api.telegram.org/bot{BOT_TOKEN}/sendDocument',
-            data=data,
-            timeout=60
-        )
-        result = resp.json()
-        return result.get('ok', False)
+    return False
 
 
 async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> bool:
     try:
         if as_document:
             if file_url:
-                if await _send_document_with_thumbnail(chat_id, file_url, text, thumbnail_url, file_name):
+                if await _send_file(chat_id, file_url, text, original_filename=file_name):
                     return True
             if image_url:
-                if os.path.exists(image_url):
-                    if await _send_document(chat_id, image_url, text, file_name):
-                        return True
-                elif await _send_url(chat_id, image_url, text, file_name):
+                if await _send_file(chat_id, image_url, text, original_filename=file_name):
                     return True
 
         if image_url and not as_document:
-            if os.path.exists(image_url):
-                if await _send_photo(chat_id, image_url, text):
-                    return True
-            else:
-                async with httpx.AsyncClient() as client:
-                    data = {'chat_id': chat_id, 'photo': image_url, 'caption': text}
-                    resp = await client.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto', data=data, timeout=60)
-                    if resp.json().get('ok'):
-                        return True
+            try:
+                await bot.send_photo(chat_id=chat_id, photo=image_url, caption=text)
+                return True
+            except Exception as e:
+                logger.warning(f"send_photo failed for {chat_id}: {e}")
 
         if file_url:
-            if await _send_document_with_thumbnail(chat_id, file_url, text, thumbnail_url, file_name):
-                return True
-            if await _send_url(chat_id, file_url, text, file_name):
+            if await _send_file(chat_id, file_url, text, original_filename=file_name):
                 return True
 
         if image_url:
-            if os.path.exists(image_url):
-                if await _send_document(chat_id, image_url, text, file_name):
-                    return True
-            elif await _send_url(chat_id, image_url, text, file_name):
+            if await _send_file(chat_id, image_url, text, original_filename=file_name):
                 return True
 
-        async with httpx.AsyncClient() as client:
-            data = {'chat_id': chat_id, 'text': text}
-            await client.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage', data=data, timeout=30)
+        await bot.send_message(chat_id=chat_id, text=text)
         return True
     except Exception as e:
         logger.error(f"All send methods failed for {chat_id}: {e}")
