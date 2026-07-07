@@ -138,7 +138,7 @@ async def create_news_with_file(
     content: str = Form(...),
     file: Optional[UploadFile] = File(None),
     publish_to_channel: bool = Form(False),
-    publish_to_groups: bool = Form(True),
+    to_groups: bool = Form(True),
     as_document: bool = Form(False),
     selected_keywords: str = Form("[]"),
     selected_questions: str = Form("[]"),
@@ -169,7 +169,7 @@ async def create_news_with_file(
                     thumbnail_url = generate_pdf_thumbnail(file_url)
 
         n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                            publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups, as_document=as_document)
+                            publish_to_channel=publish_to_channel, publish_to_groups=to_groups, as_document=as_document)
 
         import json
         try:
@@ -203,7 +203,7 @@ async def create_news_with_file(
 
         text = f"📰 {title}\n\n{content}"
         sent, channel_message_id = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,
-                                        to_channel=publish_to_channel, to_groups=publish_to_groups,
+                                        to_channel=publish_to_channel, to_groups=to_groups,
                                         as_document=as_document,
                                         file_name=file.filename if file and file.filename else None,
                                         thumbnail_url=thumbnail_url)
