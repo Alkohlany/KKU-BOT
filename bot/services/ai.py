@@ -1,4 +1,3 @@
-import httpx
 import logging
 from bot.config import OPENROUTER_API_KEY
 
@@ -14,6 +13,8 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
 
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY is not configured")
+
+    import httpx
 
     prompt = f"""اقرأ النص التالي واستخرج منه:
 1. {max_keywords} كلمات مفتاحية أساسية تدل على موضوع النص (كلمة واحدة فقط لكل كلمة مفتاحية)
@@ -40,7 +41,7 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
     )
 
     if response.status_code != 200:
-        raise RuntimeError(f"OpenRouter API error {response.status_code}: {response.text}")
+        raise RuntimeError(f"OpenRouter API error {response.status_code}: {response.text[:200]}")
 
     data = response.json()
     choices = data.get("choices", [])
