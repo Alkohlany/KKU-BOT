@@ -1,15 +1,14 @@
 import httpx
-import os
-import mimetypes
 import asyncio
 import logging
+from telegram import Bot
 from bot.services.database import get_all_groups
 from bot.config import BOT_TOKEN, CHANNEL_ID
 from bot.services.cloud_storage import download_raw
 
 logger = logging.getLogger(__name__)
 
-UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "uploads"))
+bot = Bot(token=BOT_TOKEN)
 
 
 async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, publish_to_channel: bool = False, as_document: bool = False):
@@ -35,163 +34,54 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     return sent
 
 
+async def _send_file_via_url(chat_id: str, url: str, caption: str, send_func) -> bool:
+    try:
+        await send_func(chat_id=chat_id, document=url, caption=caption)
+        return True
+    except Exception as e:
+        logger.warning(f"send via URL failed for {chat_id}: {e}")
+        file_bytes = await asyncio.to_thread(download_raw, url)
+        if file_bytes is None:
+            async with httpx.AsyncClient() as client:
+                try:
+                    resp = await client.get(url, timeout=30)
+                    if resp.status_code == 200:
+                        file_bytes = resp.content
+                except Exception as e2:
+                    logger.warning(f"httpx download also failed: {e2}")
+        if file_bytes:
+            try:
+                filename = url.split("/")[-1].split("?")[0] or "file"
+                await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption)
+                return True
+            except Exception as e3:
+                logger.warning(f"send via bytes also failed: {e3}")
+        return False
+
+
 async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, as_document: bool = False) -> bool:
-    async with httpx.AsyncClient() as client:
-        sent_ok = False
-        
+    try:
         if as_document and (image_url or file_url):
             url = image_url or file_url
-            filepath = _resolve_file(url)
-            if filepath and os.path.exists(filepath):
-                content_type = mimetypes.guess_type(filepath)[0] or "application/octet-stream"
-                try:
-                    with open(filepath, "rb") as f:
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                            data={"chat_id": chat_id, "caption": text},
-                            files={"document": (os.path.basename(filepath), f, content_type)},
-                            timeout=30
-                        )
-                        sent_ok = resp.status_code == 200
-                except Exception as e:
-                    logger.error(f"Error sending document to {chat_id}: {e}")
-            elif url.startswith("http"):
-                try:
-                    file_bytes = await asyncio.to_thread(download_raw, url)
-                    if file_bytes is None:
-                        file_resp = await client.get(url, timeout=30)
-                        if file_resp.status_code != 200:
-                            logger.error(f"Failed to download file from {url}: {file_resp.status_code}")
-                        else:
-                            file_bytes = file_resp.content
-                    if file_bytes:
-                        filename = url.split("/")[-1].split("?")[0] or "document"
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                            data={"chat_id": chat_id, "caption": text},
-                            files={"document": (filename, file_bytes, "application/octet-stream")},
-                            timeout=30
-                        )
-                        if resp.status_code != 200:
-                            logger.error(f"sendDocument failed for {chat_id}: {resp.text}")
-                        sent_ok = resp.status_code == 200
-                    if not sent_ok:
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                            json={"chat_id": chat_id, "text": text},
-                            timeout=30
-                        )
-                        if resp.status_code != 200:
-                            logger.error(f"sendMessage fallback failed for {chat_id}: {resp.text}")
-                        sent_ok = resp.status_code == 200
-                except Exception as e:
-                    logger.error(f"Error sending document to {chat_id}: {e}")
-                    try:
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                            json={"chat_id": chat_id, "text": text},
-                            timeout=30
-                        )
-                        sent_ok = resp.status_code == 200
-                    except Exception as e2:
-                        logger.error(f"Error sending text fallback to {chat_id}: {e2}")
-            return sent_ok
-        
+            if await _send_file_via_url(chat_id, url, text, bot.send_document):
+                return True
+
         if image_url:
-            filepath = _resolve_file(image_url)
-            if filepath and os.path.exists(filepath):
-                content_type = mimetypes.guess_type(filepath)[0] or "image/jpeg"
-                try:
-                    with open(filepath, "rb") as f:
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-                            data={"chat_id": chat_id, "caption": text},
-                            files={"photo": (os.path.basename(filepath), f, content_type)},
-                            timeout=30
-                        )
-                        sent_ok = resp.status_code == 200
-                        if not sent_ok:
-                            logger.error(f"sendPhoto failed for {chat_id}: {resp.text}")
-                except Exception as e:
-                    logger.error(f"Error sending photo to {chat_id}: {e}")
-            elif image_url.startswith("http"):
-                try:
-                    file_resp = await client.get(image_url, timeout=30)
-                    if file_resp.status_code != 200:
-                        logger.error(f"Failed to download image from {image_url}: {file_resp.status_code}")
-                    else:
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-                            data={"chat_id": chat_id, "caption": text},
-                            files={"photo": ("image", file_resp.content, file_resp.headers.get("content-type", "image/jpeg"))},
-                            timeout=30
-                        )
-                        if resp.status_code != 200:
-                            logger.error(f"sendPhoto failed for {chat_id}: {resp.text}")
-                        sent_ok = resp.status_code == 200
-                except Exception as e:
-                    logger.error(f"Error sending photo to {chat_id}: {e}")
-
-        if file_url and not sent_ok:
-            filepath = _resolve_file(file_url)
-            if filepath and os.path.exists(filepath):
-                content_type = mimetypes.guess_type(filepath)[0] or "application/octet-stream"
-                try:
-                    with open(filepath, "rb") as f:
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                            data={"chat_id": chat_id, "caption": text},
-                            files={"document": (os.path.basename(filepath), f, content_type)},
-                            timeout=30
-                        )
-                        if resp.status_code != 200:
-                            logger.error(f"sendDocument failed for {chat_id}: {resp.text}")
-                        sent_ok = resp.status_code == 200
-                except Exception as e:
-                    logger.error(f"Error sending document to {chat_id}: {e}")
-            elif file_url.startswith("http"):
-                try:
-                    file_bytes = await asyncio.to_thread(download_raw, url=file_url)
-                    if file_bytes is None:
-                        file_resp = await client.get(file_url, timeout=30)
-                        if file_resp.status_code != 200:
-                            logger.error(f"Failed to download file from {file_url}: {file_resp.status_code}")
-                        else:
-                            file_bytes = file_resp.content
-                    if file_bytes:
-                        filename = file_url.split("/")[-1].split("?")[0] or "document"
-                        resp = await client.post(
-                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                            data={"chat_id": chat_id, "caption": text},
-                            files={"document": (filename, file_bytes, "application/octet-stream")},
-                            timeout=30
-                        )
-                        if resp.status_code != 200:
-                            logger.error(f"sendDocument failed for {chat_id}: {resp.text}")
-                        sent_ok = resp.status_code == 200
-                except Exception as e:
-                    logger.error(f"Error sending document to {chat_id}: {e}")
-
-        if not sent_ok:
             try:
-                resp = await client.post(
-                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                    json={"chat_id": chat_id, "text": text},
-                    timeout=30
-                )
-                if resp.status_code != 200:
-                    logger.error(f"sendMessage failed for {chat_id}: {resp.text}")
-                sent_ok = resp.status_code == 200
+                await bot.send_photo(chat_id=chat_id, photo=image_url, caption=text)
+                return True
             except Exception as e:
-                logger.error(f"Error sending message to {chat_id}: {e}")
-        
-        return sent_ok
+                logger.warning(f"send_photo failed: {e}")
+                if file_url:
+                    if await _send_file_via_url(chat_id, file_url, text, bot.send_document):
+                        return True
 
+        if file_url:
+            if await _send_file_via_url(chat_id, file_url, text, bot.send_document):
+                return True
 
-def _resolve_file(url: str) -> str | None:
-    if not url:
-        return None
-    if url.startswith("/"):
-        filename = os.path.basename(url)
-        return os.path.join(UPLOAD_DIR, filename)
-    return None
+        await bot.send_message(chat_id=chat_id, text=text)
+        return True
+    except Exception as e:
+        logger.error(f"All send methods failed for {chat_id}: {e}")
+        return False
