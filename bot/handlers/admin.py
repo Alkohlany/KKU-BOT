@@ -318,7 +318,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 keywords = items
             except Exception as e:
                 logger.error(f"AI generation error: {e}")
-                await update.message.reply_text("❌ فشل في تحليل المحتوى آليًا. يرجى كتابة الكلمات المفتاحية يدويًا.")
+                await update.message.reply_text(f"❌ فشل في تحليل المحتوى آليًا. الرجاء كتابة الكلمات المفتاحية يدويًا.\n({e})")
                 return
 
         if not keywords:
