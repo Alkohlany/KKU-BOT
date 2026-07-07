@@ -145,6 +145,7 @@ const api = {
   addNewsWithFile: (formData) => api.postFormData('/news/upload', formData),
   publishNews: (id, payload = {}) => api.post(`/news/${id}/publish`, payload),
   deleteNews: (id) => api.delete(`/news/${id}`),
+  analyzeNews: (data) => api.post('/news/analyze', data),
 
   getQuestions: () => api.get('/questions'),
   addQuestion: (data) => api.post('/questions', data),

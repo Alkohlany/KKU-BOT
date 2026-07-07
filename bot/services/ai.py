@@ -105,7 +105,7 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
 
 "{text}"
 
-الرد خمس أسطر فقط، كل سطر كلمة أو سؤال."""
+ الرد خمس أسطر فقط، كل سطر كلمة أو سؤال."""
 
     try:
         content = _call_model(prompt)
@@ -120,4 +120,64 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
         return cleaned[:total]
     except Exception as e:
         logger.error(f"AI failed: {e}")
+        raise RuntimeError(f"AI analysis failed: {e}")
+
+
+def generate_news_analysis(title: str, content: str) -> dict:
+    prompt = f"""أنت خبير في تحليل المحتوى الإعلامي. حلل خبر الجامعة التالي وأعطني:
+
+1. خمس كلمات مفتاحية مرتبطة بالخبر
+2. خمس أسئلة محتملة قد يسألها الطلاب والقراء
+
+عنوان الخبر: {title}
+محتوى الخبر: {content}
+
+أجب بالتنسيق التالي بالضبط (بدون أي نص إضافي):
+
+ كلمات مفتاحية:
+1. [كلمة1]
+2. [كلمة2]
+3. [كلمة3]
+4. [كلمة4]
+5. [كلمة5]
+
+أسئلة:
+1. [سؤال1]
+2. [سؤال2]
+3. [سؤال3]
+4. [سؤال4]
+5. [سؤال5]"""
+
+    try:
+        content = _call_model(prompt)
+        keywords = []
+        questions = []
+
+        lines = content.strip().split("\n")
+        section = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            if "كلمات مفتاحية" in line.lower() or "keywords" in line.lower():
+                section = "keywords"
+                continue
+            elif "أسئلة" in line.lower() or "questions" in line.lower():
+                section = "questions"
+                continue
+
+            item = _clean_item(line)
+            if not item or not _is_valid(item):
+                continue
+
+            if section == "keywords" and len(keywords) < 5:
+                keywords.append(item)
+            elif section == "questions" and len(questions) < 5:
+                questions.append(item)
+
+        return {"keywords": keywords, "questions": questions}
+    except Exception as e:
+        logger.error(f"AI news analysis failed: {e}")
         raise RuntimeError(f"AI analysis failed: {e}")

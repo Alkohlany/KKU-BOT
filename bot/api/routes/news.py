@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from bot.services.database import async_session, add_news, get_all_news, publish_news, get_all_groups, delete_news
+from bot.services.database import async_session, add_news, get_all_news, publish_news, get_all_groups, delete_news, add_auto_response, add_question
 from bot.services.news_publisher import publish_to_groups
 from bot.services.cloud_storage import upload_image
 from bot.models.models import News
@@ -64,6 +64,11 @@ class NewsCreate(BaseModel):
     file_id: Optional[str] = None
 
 
+class NewsAnalyze(BaseModel):
+    title: str
+    content: str
+
+
 class PublishPayload(BaseModel):
     publish_to_channel: bool = False
     as_document: bool = False
@@ -93,6 +98,16 @@ async def get_news():
     ]
 
 
+@router.post("/analyze")
+async def analyze_news(data: NewsAnalyze):
+    try:
+        from bot.services.ai import generate_news_analysis
+        result = generate_news_analysis(data.title, data.content)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"فشل تحليل المحتوى: {str(e)}")
+
+
 @router.post("/")
 async def create_news(data: NewsCreate):
     n = await add_news(title=data.title, content=data.content,
@@ -114,6 +129,8 @@ async def create_news_with_file(
     file: Optional[UploadFile] = File(None),
     publish_to_channel: bool = Form(False),
     as_document: bool = Form(False),
+    selected_keywords: str = Form("[]"),
+    selected_questions: str = Form("[]"),
 ):
     try:
         image_url = None
@@ -142,6 +159,24 @@ async def create_news_with_file(
 
         n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
                             publish_to_channel=publish_to_channel, as_document=as_document)
+
+        import json
+        try:
+            keywords = json.loads(selected_keywords) if selected_keywords else []
+        except:
+            keywords = []
+        try:
+            questions = json.loads(selected_questions) if selected_questions else []
+        except:
+            questions = []
+
+        for kw in keywords:
+            if kw and kw.strip():
+                await add_auto_response(keyword=kw.strip(), response=f"رد تلقائي لكلمة: {kw}", created_by=None, news_id=n.id)
+
+        for q in questions:
+            if q and q.strip():
+                await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
 
         text = f"📰 {title}\n\n{content}"
         sent = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,

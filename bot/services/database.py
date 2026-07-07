@@ -53,6 +53,8 @@ async def init_db():
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_chat_id BIGINT"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_tg_id VARCHAR(200)"))
+        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
+        await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
@@ -133,9 +135,9 @@ async def remove_group(chat_id: int):
         await session.commit()
 
 
-async def add_auto_response(keyword: str, response: str, created_by: int, file_url: str = None, file_type: str = None, as_document: bool = False) -> AutoResponse:
+async def add_auto_response(keyword: str, response: str, created_by: int, file_url: str = None, file_type: str = None, as_document: bool = False, news_id: int = None) -> AutoResponse:
     async with async_session() as session:
-        ar = AutoResponse(keyword=keyword, response=response, created_by=created_by, file_url=file_url, file_type=file_type, as_document=as_document)
+        ar = AutoResponse(keyword=keyword, response=response, created_by=created_by, file_url=file_url, file_type=file_type, as_document=as_document, news_id=news_id)
         session.add(ar)
         await session.commit()
         await session.refresh(ar)
@@ -263,9 +265,9 @@ async def delete_news(news_id):
 
 
 # ==================== Questions ====================
-async def add_question(question, answer, category=None, keywords=None, file_url=None, file_type=None, as_document=False):
+async def add_question(question, answer, category=None, keywords=None, file_url=None, file_type=None, as_document=False, news_id=None):
     async with async_session() as session:
-        q = Question(question=question, answer=answer, category=category, keywords=keywords, file_url=file_url, file_type=file_type, as_document=as_document)
+        q = Question(question=question, answer=answer, category=category, keywords=keywords, file_url=file_url, file_type=file_type, as_document=as_document, news_id=news_id)
         session.add(q)
         await session.commit()
         await session.refresh(q)

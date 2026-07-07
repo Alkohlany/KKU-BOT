@@ -43,6 +43,7 @@ class AutoResponse(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
     source_chat_id = Column(BigInteger, nullable=True)
     source_message_id = Column(Integer, nullable=True)
+    news_id = Column(Integer, ForeignKey("news.id"), nullable=True)
 
 
 class BannedUser(Base):
@@ -99,6 +100,7 @@ class Question(Base):
     usage_count = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
+    news_id = Column(Integer, ForeignKey("news.id"), nullable=True)
 
 
 class ScheduledPost(Base):

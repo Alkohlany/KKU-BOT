@@ -19,6 +19,12 @@ export default function News() {
   const [publishing, setPublishing] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [publishProgress, setPublishProgress] = useState(null);
+  const [aiKeywords, setAiKeywords] = useState([]);
+  const [aiQuestions, setAiQuestions] = useState([]);
+  const [selectedKeywords, setSelectedKeywords] = useState([]);
+  const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [generating, setGenerating] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
   useEffect(() => {
     loadNews();
@@ -39,6 +45,43 @@ export default function News() {
     (n) => n.title?.includes(search) || n.content?.includes(search)
   );
 
+  const handleGenerateAI = async () => {
+    if (!form.title || !form.content) {
+      showToast('يرجى ملء العنوان والمحتوى أولاً', 'error');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const result = await api.analyzeNews({ title: form.title, content: form.content });
+      setAiKeywords(result.keywords || []);
+      setAiQuestions(result.questions || []);
+      setSelectedKeywords([]);
+      setSelectedQuestions([]);
+      setShowAiPanel(true);
+    } catch (err) {
+      console.error('Failed to generate AI content:', err);
+      showToast('فشل توليد المحتوى بالذكاء الاصطناعي', 'error');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const toggleKeyword = (kw) => {
+    setSelectedKeywords(prev =>
+      prev.includes(kw)
+        ? prev.filter(k => k !== kw)
+        : [...prev, kw]
+    );
+  };
+
+  const toggleQuestion = (q) => {
+    setSelectedQuestions(prev =>
+      prev.includes(q)
+        ? prev.filter(item => item !== q)
+        : [...prev, q]
+    );
+  };
+
   const handleSave = async () => {
     if (!form.title || !form.content) return;
     setSaving(true);
@@ -52,6 +95,8 @@ export default function News() {
         formData.append('file', uploadFile);
         formData.append('as_document', form.as_document);
         formData.append('publish_to_channel', form.publish_to_channel || false);
+        formData.append('selected_keywords', JSON.stringify(selectedKeywords));
+        formData.append('selected_questions', JSON.stringify(selectedQuestions));
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
         });
@@ -62,6 +107,11 @@ export default function News() {
       setForm({ title: '', content: '', as_document: false, publish_to_channel: false });
       setUploadFile(null);
       setShowModal(false);
+      setShowAiPanel(false);
+      setAiKeywords([]);
+      setAiQuestions([]);
+      setSelectedKeywords([]);
+      setSelectedQuestions([]);
       showToast('تم إضافة ونشر الخبر بنجاح', 'success');
     } catch (err) {
       console.error('Failed to save news:', err);
@@ -341,6 +391,74 @@ export default function News() {
                   style={{ minHeight: 150 }}
                 />
               </div>
+              {form.title && form.content && !showAiPanel && (
+                <div className="form-group">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleGenerateAI}
+                    disabled={generating}
+                    style={{ width: '100%' }}
+                  >
+                    {generating ? (
+                      <span>جاري التوليد...</span>
+                    ) : (
+                      <span>توليد كلمات مفتاحية وأسئلة بالذكاء الاصطناعي</span>
+                    )}
+                  </button>
+                </div>
+              )}
+              {showAiPanel && (
+                <div className="form-group" style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, border: '1px solid var(--gray-200)' }}>
+                  <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الكلمات المفتاحية المقترحة</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                    {aiKeywords.map((kw, i) => (
+                      <span
+                        key={i}
+                        onClick={() => toggleKeyword(kw)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 20,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          background: selectedKeywords.includes(kw) ? 'var(--primary)' : 'var(--gray-200)',
+                          color: selectedKeywords.includes(kw) ? 'white' : 'var(--gray-700)',
+                          transition: 'all 0.2s',
+                          border: 'none',
+                        }}
+                      >
+                        {kw}
+                      </span>
+                    ))}
+                    {aiKeywords.length === 0 && (
+                      <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد كلمات مفتاحية</span>
+                    )}
+                  </div>
+                  <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الأسئلة المقترحة</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {aiQuestions.map((q, i) => (
+                      <span
+                        key={i}
+                        onClick={() => toggleQuestion(q)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 20,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                          background: selectedQuestions.includes(q) ? 'var(--primary)' : 'var(--gray-200)',
+                          color: selectedQuestions.includes(q) ? 'white' : 'var(--gray-700)',
+                          transition: 'all 0.2s',
+                          border: 'none',
+                        }}
+                      >
+                        {q}
+                      </span>
+                    ))}
+                    {aiQuestions.length === 0 && (
+                      <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد أسئلة مقترحة</span>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="form-group">
                 <label>الملف المرفق (اختياري)</label>
                 <input
