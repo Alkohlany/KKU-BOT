@@ -42,6 +42,38 @@ def _call_model(prompt: str, model: str) -> str:
     return content
 
 
+BLOCKED_WORDS = {
+    "تسجيل", "موعد", "نقل", "جامعة", "كلية", "طالب", "عام", "دليل",
+    "قروب", "قناة", "رابط", "تيليجرام", "واتساب", "الملك", "خالد",
+    "السعودية", "سنة", "1447", "القواعد", "مهمة", "استخرج", "النصوص",
+    "إذا", "النص", "قصير", "أعد", "أضف", "كلمات", "عامة",
+    "مثل", "ركّز", "التفاصيل", "المحددة", "فقط", "مثال",
+    "الرد", "النتيجة", "السؤال", "الإجابة", "شرح", "عنوان",
+}
+
+
+def _clean_item(item: str) -> str:
+    item = item.strip().strip("- •*")
+    item = item.strip()
+    if item.startswith(("1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.")):
+        item = item.split(".", 1)[1].strip()
+    return item
+
+
+def _is_valid(item: str) -> bool:
+    if not item or len(item) < 2:
+        return False
+    if len(item) > 100:
+        return False
+    item_lower = item.lower()
+    for blocked in BLOCKED_WORDS:
+        if blocked in item_lower:
+            return False
+    if item.endswith((":", "؟", "?", "!")):
+        pass
+    return True
+
+
 def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questions: int = 5) -> list[str]:
     if not text or not text.strip():
         return []
@@ -49,38 +81,29 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
     if not NVIDIA_API_KEY:
         raise RuntimeError("NVIDIA_API_KEY is not configured")
 
-    prompt = f"""حلل النص التالي واستخرج منه كلمات مفتاحية وأسئلة باللهجة السعودية.
+    total = max_keywords + max_questions
 
-النص:
-{text}
+    prompt = f"""أنت طالب سعودي في قروب تيليجرام.
 
----
+حلل هذا النص وأعطني كلمات مفتاحية وأسئلة باللهجة السعودية:
 
-القواعد مهمة جداً:
-1. استخرج الكلمات والأسئلة من النص فقط، لا تخترع شيء
-2. إذا النص قصير أو عام، أعد fewer من 5 (قد يكون 2 أو 3 فقط)
-3. لا ت添加 كلمات عامة مثل: تسجيل، موعد، نقل، جامعة، كلية، طالب
-4. ركّز على التفاصيل المحددة في النص فقط
+"{text}"
 
-مثال على نص قصير ورد صحيح:
-النص: "مواعيد التسجيل من 1 إلى 5 شوال"
-الرد:
-مواعيد التسجيل
-1 إلى 5 شوال
-متى يبدا التسجيل؟
-متى ينتهي التسجيل؟
-
-أعد كل سطر في سطر واحد بدون ترقيم أو عناوين."""
-
+الرد خمس أسطر فقط، كل سطر كلمة أو سؤال."""
 
     last_error = None
     for model in DEFAULT_MODELS:
         try:
             content = _call_model(prompt, model)
-            result = content.strip().split("\n")
-            items = [line.strip("- ").strip() for line in result if line.strip()]
-            if items:
-                return items
+            raw_lines = content.strip().split("\n")
+            cleaned = []
+            seen = set()
+            for line in raw_lines:
+                item = _clean_item(line)
+                if item and _is_valid(item) and item not in seen:
+                    seen.add(item)
+                    cleaned.append(item)
+            return cleaned[:total]
         except Exception as e:
             last_error = e
             logger.warning(f"AI model {model} failed: {e}")
