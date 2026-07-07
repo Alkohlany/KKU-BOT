@@ -34,36 +34,37 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     return sent
 
 
-async def _send_file_via_url(chat_id: str, url: str, caption: str, send_func, original_filename: str = None) -> bool:
-    try:
-        await send_func(chat_id=chat_id, document=url, caption=caption)
-        return True
-    except Exception as e:
-        logger.warning(f"send via URL failed for {chat_id}: {e}")
-        file_bytes = await asyncio.to_thread(download_raw, url)
-        if file_bytes is None:
-            async with httpx.AsyncClient() as client:
-                try:
-                    resp = await client.get(url, timeout=30)
-                    if resp.status_code == 200:
-                        file_bytes = resp.content
-                except Exception as e2:
-                    logger.warning(f"httpx download also failed: {e2}")
-        if file_bytes:
+async def _send_file_via_url(chat_id: str, url: str, caption: str, send_func, original_filename: str = None, force_bytes: bool = False) -> bool:
+    if not force_bytes:
+        try:
+            await send_func(chat_id=chat_id, document=url, caption=caption)
+            return True
+        except Exception as e:
+            logger.warning(f"send via URL failed for {chat_id}: {e}")
+    file_bytes = await asyncio.to_thread(download_raw, url)
+    if file_bytes is None:
+        async with httpx.AsyncClient() as client:
             try:
-                filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
-                await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption)
-                return True
-            except Exception as e3:
-                logger.warning(f"send via bytes also failed: {e3}")
-        return False
+                resp = await client.get(url, timeout=30)
+                if resp.status_code == 200:
+                    file_bytes = resp.content
+            except Exception as e2:
+                logger.warning(f"httpx download also failed: {e2}")
+    if file_bytes:
+        try:
+            filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
+            await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption)
+            return True
+        except Exception as e3:
+            logger.warning(f"send via bytes also failed: {e3}")
+    return False
 
 
 async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_name: str = None, as_document: bool = False) -> bool:
     try:
         if as_document and (image_url or file_url):
             url = image_url or file_url
-            if await _send_file_via_url(chat_id, url, text, bot.send_document, original_filename=file_name):
+            if await _send_file_via_url(chat_id, url, text, bot.send_document, original_filename=file_name, force_bytes=True):
                 return True
 
         if image_url:
