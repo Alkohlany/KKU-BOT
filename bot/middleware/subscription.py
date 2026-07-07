@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+ANONYMOUS_ADMIN_ID = 1087968824
 RATE_LIMIT = timedelta(seconds=5)
 
 _last_api: dict[int, datetime] = {}
@@ -22,7 +23,7 @@ def _ch_link_keyboard():
 
 
 async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    if not CHANNEL_ID:
+    if not CHANNEL_ID or user_id == ANONYMOUS_ADMIN_ID:
         return True
 
     now = datetime.utcnow()
@@ -32,9 +33,7 @@ async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) 
         return _last_result.get(user_id, True)
 
     try:
-        logger.info(f"Checking subscription: user={user_id} channel={CHANNEL_ID}")
         member = await context.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        logger.info(f"Subscription result: user={user_id} status={member.status}")
         is_subscribed = member.status in ("member", "administrator", "creator")
         _last_api[user_id] = now
         _last_result[user_id] = is_subscribed
@@ -49,6 +48,8 @@ async def subscription_required(update: Update, context: ContextTypes.DEFAULT_TY
     user = update.effective_user
     if not user:
         return False
+    if user.id == ANONYMOUS_ADMIN_ID:
+        return True
 
     if await is_banned(user.id):
         await update.message.reply_text("❌ أنت محظور من استخدام البوت.")
@@ -73,6 +74,8 @@ async def group_subscription_check(update: Update, context: ContextTypes.DEFAULT
     if update.effective_chat.type not in ("group", "supergroup"):
         return
     if update.effective_user.id == context.bot.id:
+        return
+    if update.effective_user.id == ANONYMOUS_ADMIN_ID:
         return
     try:
         member = await update.effective_chat.get_member(update.effective_user.id)
