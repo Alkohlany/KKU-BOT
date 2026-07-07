@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=BOT_TOKEN)
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, publish_to_channel: bool = False, as_document: bool = False):
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, publish_to_channel: bool = False, as_document: bool = False, file_name: str = None):
     groups = await get_all_groups()
     sent = 0
 
@@ -19,14 +19,14 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
         if not group.is_active:
             continue
         try:
-            if await _send_to_chat(str(group.chat_id), text, image_url, file_url, as_document):
+            if await _send_to_chat(str(group.chat_id), text, image_url, file_url, as_document, file_name):
                 sent += 1
         except Exception as e:
             logger.error(f"Failed to send to group {group.chat_id}: {e}")
 
     if publish_to_channel and CHANNEL_ID:
         try:
-            if await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url, as_document):
+            if await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url, as_document, file_name):
                 sent += 1
         except Exception as e:
             logger.error(f"Failed to send to channel {CHANNEL_ID}: {e}")
@@ -34,7 +34,7 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     return sent
 
 
-async def _send_file(chat_id: str, url: str, caption: str) -> bool:
+async def _send_file(chat_id: str, url: str, caption: str, original_filename: str = None) -> bool:
     """Try sending URL directly first, then download-and-upload as fallback."""
     try:
         await bot.send_document(chat_id=chat_id, document=url, caption=caption)
@@ -54,7 +54,7 @@ async def _send_file(chat_id: str, url: str, caption: str) -> bool:
 
     if file_bytes:
         try:
-            filename = url.split("/")[-1].split("?")[0] or "file"
+            filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
             await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption)
             return True
         except Exception as e3:
@@ -63,12 +63,12 @@ async def _send_file(chat_id: str, url: str, caption: str) -> bool:
     return False
 
 
-async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, as_document: bool = False) -> bool:
+async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, as_document: bool = False, file_name: str = None) -> bool:
     try:
         if as_document:
             url = image_url or file_url
             if url:
-                if await _send_file(chat_id, url, text):
+                if await _send_file(chat_id, url, text, original_filename=file_name):
                     return True
 
         if image_url and not as_document:
@@ -79,7 +79,7 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                 logger.warning(f"send_photo failed for {chat_id}: {e}")
 
         if file_url:
-            if await _send_file(chat_id, file_url, text):
+            if await _send_file(chat_id, file_url, text, original_filename=file_name):
                 return True
 
         await bot.send_message(chat_id=chat_id, text=text)
