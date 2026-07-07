@@ -85,6 +85,7 @@ class News(Base):
     publish_to_groups = Column(Boolean, default=True)
     channel_message_id = Column(Integer, nullable=True)
     as_document = Column(Boolean, default=False)
+    group_message_ids = Column(Text, nullable=True)  # JSON string: {"chat_id": message_id, ...}
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 

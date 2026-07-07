@@ -57,6 +57,7 @@ async def init_db():
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS publish_to_groups BOOLEAN DEFAULT TRUE"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
@@ -278,7 +279,7 @@ async def get_news_by_id(news_id: int):
         result = await session.execute(select(News).where(News.id == news_id))
         return result.scalar_one_or_none()
 
-async def update_news(news_id, title=None, content=None, image_url=None, file_url=None, publish_to_channel=None, publish_to_groups=None, as_document=None, channel_message_id=None):
+async def update_news(news_id, title=None, content=None, image_url=None, file_url=None, publish_to_channel=None, publish_to_groups=None, as_document=None, channel_message_id=None, group_message_ids=None):
     async with async_session() as session:
         stmt = select(News).where(News.id == news_id)
         result = await session.execute(stmt)
@@ -301,6 +302,8 @@ async def update_news(news_id, title=None, content=None, image_url=None, file_ur
             news.as_document = as_document
         if channel_message_id is not None:
             news.channel_message_id = channel_message_id
+        if group_message_ids is not None:
+            news.group_message_ids = group_message_ids
         await session.commit()
         await session.refresh(news)
         return news

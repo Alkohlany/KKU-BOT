@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, get_all_groups, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
-from bot.services.news_publisher import publish_to_groups, delete_from_channel
+from bot.services.news_publisher import publish_to_groups, delete_from_channel, edit_published_messages
 from bot.services.cloud_storage import upload_image
 from bot.models.models import News
 from bot.config import BOT_TOKEN, CHANNEL_ID
@@ -202,15 +202,16 @@ async def create_news_with_file(
                 await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
 
         text = f"📰 {title}\n\n{content}"
-        sent, channel_message_id = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,
+        sent, channel_message_id, group_message_ids = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,
                                         to_channel=publish_to_channel, to_groups=to_groups,
                                         as_document=as_document,
                                         file_name=file.filename if file and file.filename else None,
                                         thumbnail_url=thumbnail_url)
         await publish_news(n.id)
-        if channel_message_id:
+        import json
+        if channel_message_id or group_message_ids:
             from bot.services.database import update_news
-            await update_news(n.id, channel_message_id=channel_message_id)
+            await update_news(n.id, channel_message_id=channel_message_id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)
 
         return {"id": n.id, "title": n.title, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
@@ -235,15 +236,16 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         should_publish_to_groups = payload.publish_to_groups if payload else news.publish_to_groups
         as_document = payload.as_document if payload else news.as_document
         text = f"📰 {news.title}\n\n{news.content}"
-        sent, channel_message_id = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
+        sent, channel_message_id, group_message_ids = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         to_channel=publish_to_channel, to_groups=should_publish_to_groups,
                                         as_document=as_document,
                                         file_name=news.file_name, thumbnail_url=news.thumbnail_url)
 
         await publish_news(news_id)
-        if channel_message_id:
+        import json
+        if channel_message_id or group_message_ids:
             from bot.services.database import update_news
-            await update_news(news_id, channel_message_id=channel_message_id)
+            await update_news(news_id, channel_message_id=channel_message_id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)
         return {"status": "published", "sent": sent, "failed": 0}
 
 
@@ -255,17 +257,47 @@ async def delete_news_endpoint(news_id: int):
 
 @router.put("/{news_id}")
 async def edit_news(news_id: int, data: NewsCreate):
-    n = await update_news(news_id, title=data.title, content=data.content,
+    import json
+    n = await get_news_by_id(news_id)
+    if not n:
+        raise HTTPException(status_code=404, detail="News not found")
+    
+    # Update the news in database
+    updated = await update_news(news_id, title=data.title, content=data.content,
                           image_url=data.image_url, file_url=data.file_url,
                           publish_to_channel=data.publish_to_channel,
                           publish_to_groups=data.publish_to_groups,
                           as_document=data.as_document)
-    if not n:
-        raise HTTPException(status_code=404, detail="News not found")
-    return {"id": n.id, "title": n.title, "content": n.content,
-            "imageUrl": n.image_url, "fileUrl": n.file_url,
-            "publishToChannel": n.publish_to_channel, "publishToGroups": n.publish_to_groups,
-            "asDocument": n.as_document, "channelMessageId": n.channel_message_id}
+    
+    # Edit published messages in groups and channel
+    edited_count = 0
+    failed_count = 0
+    
+    # Parse group_message_ids
+    group_message_ids = {}
+    if n.group_message_ids:
+        try:
+            group_message_ids = json.loads(n.group_message_ids)
+        except:
+            pass
+    
+    if group_message_ids or n.channel_message_id:
+        text = f"📰 {data.title}\n\n{data.content}"
+        edited_count, failed_count = await edit_published_messages(
+            text=text,
+            group_message_ids=group_message_ids,
+            channel_message_id=n.channel_message_id,
+            image_url=data.image_url or n.image_url,
+            file_url=data.file_url or n.file_url,
+            as_document=data.as_document,
+            file_name=n.file_name
+        )
+    
+    return {"id": updated.id, "title": updated.title, "content": updated.content,
+            "imageUrl": updated.image_url, "fileUrl": updated.file_url,
+            "publishToChannel": updated.publish_to_channel, "publishToGroups": updated.publish_to_groups,
+            "asDocument": updated.as_document, "channelMessageId": updated.channel_message_id,
+            "editedMessages": edited_count, "failedMessages": failed_count}
 
 
 @router.delete("/{news_id}/channel")
