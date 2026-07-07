@@ -53,14 +53,22 @@ def download_raw(file_url: str) -> bytes | None:
         full_public_id = path_after[slash_idx + 1:]
 
         api_url = f"https://api.cloudinary.com/v1_1/kcjltbov/{resource_type}/download"
-        resp = requests.get(
-            api_url,
-            params={"public_id": full_public_id, "type": "upload"},
-            auth=("437369531767286", "GGV9VGXQac0LIJmDMfBkNwbLd9k"),
-            timeout=90
-        )
-        if resp.status_code == 200:
-            return resp.content
+        # Try full public_id first, then strip extension for image/video URLs
+        candidates = [full_public_id]
+        if resource_type in ("image", "video"):
+            root, _ = os.path.splitext(full_public_id)
+            if root != full_public_id:
+                candidates.append(root)
+
+        for pid in candidates:
+            resp = requests.get(
+                api_url,
+                params={"public_id": pid, "type": "upload"},
+                auth=("437369531767286", "GGV9VGXQac0LIJmDMfBkNwbLd9k"),
+                timeout=90
+            )
+            if resp.status_code == 200:
+                return resp.content
         return None
     except Exception as e:
         print(f"Cloudinary download_raw exception: {e}")
