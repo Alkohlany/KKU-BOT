@@ -16,10 +16,7 @@ def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
     return result["secure_url"]
 
 
-def upload_raw(file_bytes: bytes, filename: str, folder: str = "kku-bot") -> str:
-    import re
-    safe_name = re.sub(r'[^\w\s\u0600-\u06FF.\-]', '', filename)
-    safe_name = safe_name.strip().replace(' ', '_')
+def upload_raw(file_bytes: bytes, filename: str = "", folder: str = "kku-bot") -> str:
     result = cloudinary.uploader.upload(
         file_bytes,
         folder=folder,
@@ -29,8 +26,8 @@ def upload_raw(file_bytes: bytes, filename: str, folder: str = "kku-bot") -> str
 
 
 def download_raw(file_url: str) -> bytes | None:
-    import cloudinary.api
     import urllib.parse
+    import requests
     try:
         path = urllib.parse.urlparse(file_url).path
         parts = path.split("/raw/upload/")
@@ -41,12 +38,14 @@ def download_raw(file_url: str) -> bytes | None:
         if slash_idx == -1:
             return None
         full_public_id = path_after[slash_idx + 1:]
-        ext_idx = full_public_id.rfind(".")
-        public_id = full_public_id[:ext_idx] if ext_idx != -1 else full_public_id
 
-        resource = cloudinary.api.resource(public_id, resource_type="raw")
-        import requests
-        resp = requests.get(resource["secure_url"], timeout=90)
+        api_url = "https://api.cloudinary.com/v1_1/kcjltbov/raw/download"
+        resp = requests.get(
+            api_url,
+            params={"public_id": full_public_id, "type": "upload"},
+            auth=("437369531767286", "GGV9VGXQac0LIJmDMfBkNwbLd9k"),
+            timeout=90
+        )
         if resp.status_code == 200:
             return resp.content
         return None

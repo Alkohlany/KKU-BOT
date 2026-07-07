@@ -320,15 +320,14 @@ async def publish_group_plans(group_id: int):
                             else:
                                 last_status = file_resp.status_code
                                 print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
-                                if last_status == 401 and dl_attempt == 2:
-                                    pdf_content = await asyncio.to_thread(download_raw, plan.file_url)
-                                    if pdf_content:
-                                        break
                         except Exception as e:
                             last_status = 0
                             print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
                         if dl_attempt < 2:
                             await asyncio.sleep(2)
+
+                    if not pdf_content:
+                        pdf_content = await asyncio.to_thread(download_raw, plan.file_url)
 
                     if not pdf_content:
                         failed_plans.append(plan.title)
@@ -437,15 +436,14 @@ async def publish_single_plan(plan_id: int):
                     else:
                         last_status = file_resp.status_code
                         print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
-                        if last_status == 401 and dl_attempt == 2:
-                            pdf_content = await asyncio.to_thread(download_raw, plan.file_url)
-                            if pdf_content:
-                                break
                 except Exception as e:
                     last_status = 0
                     print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
                 if dl_attempt < 2:
                     await asyncio.sleep(2)
+
+            if not pdf_content:
+                pdf_content = await asyncio.to_thread(download_raw, plan.file_url)
 
             if not pdf_content:
                 return {"error": f"فشل تحميل الملف من Cloudinary (status: {last_status})"}
