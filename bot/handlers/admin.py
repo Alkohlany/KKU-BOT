@@ -7,7 +7,7 @@ from bot.services.database import (
     get_auto_responses_by_source, remove_auto_responses_by_source,
     add_auto_response, get_all_auto_responses, remove_auto_response,
     add_question, get_all_questions, delete_question,
-    get_all_news, delete_news,
+    get_all_news, get_news_by_id, delete_news,
     ban_user, get_all_banned, is_banned,
     get_all_groups, log_activity, async_session
 )
@@ -62,29 +62,64 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # ==================== الردود التلقائية ====================
     if text.startswith("اضافه رد") or text.startswith("أضف رد") or text.startswith("اضف رد"):
+        try:
+            await update.message.delete()
+        except: pass
+        
         keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").replace("اضف رد", "").strip()
         
         if not keywords_part:
             await send_admin_message(context, user.id,
                 "❌ الطريقة الصحيحة:\n"
-                "اضافه رد [كلمة] [رقم المنشور]\n\n"
-                "💡 يمكنك أيضاً الرد على رسالة وإرسال:\n"
-                "اضافه رد [كلمة]",
-            )
+                "اضافه رد [كلمة مفتاحية]\n\n"
+                "💡 البوت يعرض لك قائمة المنشورات لتختار منها")
             return
 
-        parts = keywords_part.split(None, 1)
-        if len(parts) < 2:
-            await send_admin_message(context, user.id, "❌ يجب كتابة الكلمة ورقم المنشور\n\nمثال: اضافه رد تسجيل 5")
+        # Check if user is in the middle of selecting a news post
+        if 'pending_keyword' in context.user_data:
+            await send_admin_message(context, user.id, "❌ أكمل اختيار المنشور أولاً أو اكتب 'إلغاء' للبدء من جديد")
             return
 
-        keyword = parts[0]
+        keyword = keywords_part.strip()
+        
+        # Fetch all news posts
+        news_list = await get_all_news()
+        if not news_list:
+            await send_admin_message(context, user.id, "❌ لا توجد منشورات متاحة. أضف منشوراً أولاً")
+            return
+
+        # Store keyword in user_data for the next step
+        context.user_data['pending_keyword'] = keyword
+        
+        # Show list of news posts
+        news_text = "📰 **اختر المنشور بالرد على هذه الرسالة بالرقم:**\n\n"
+        for n in news_list[:10]:
+            status = "✅" if n.is_published else "📝"
+            news_text += f"{status} `{n.id}` - {n.title[:40]}\n"
+        
+        if len(news_list) > 10:
+            news_text += f"\n... و {len(news_list) - 10} منشور آخر"
+        
+        news_text += "\n\n💡 أرسل رقم المنشور المطلوب"
+        
+        await send_admin_message(context, user.id, news_text)
+        return
+
+    # Handle news selection for adding response
+    if 'pending_keyword' in context.user_data and text.isdigit():
         try:
-            news_id = int(parts[1])
-        except ValueError:
-            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح لرقم المنشور")
+            await update.message.delete()
+        except: pass
+        
+        keyword = context.user_data.pop('pending_keyword')
+        news_id = int(text)
+        
+        # Verify news exists
+        news = await get_news_by_id(news_id)
+        if not news:
+            await send_admin_message(context, user.id, f"❌ المنشور رقم {news_id} غير موجود")
             return
-
+        
         try:
             await add_auto_response(
                 keyword=keyword,
@@ -92,10 +127,20 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 created_by=user.id,
                 news_id=news_id
             )
-            await send_admin_message(context, user.id, f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📰 المنشور: {news_id}")
+            await send_admin_message(context, user.id, f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📰 المنشور: {news_id} - {news.title[:30]}")
             await log_activity("add_response", f"Keyword: {keyword}, News: {news_id}", user.id)
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل إضافة الرد: {str(e)}")
+        return
+
+    # Handle cancel for pending keyword
+    if text.strip() == "إلغاء" and 'pending_keyword' in context.user_data:
+        try:
+            await update.message.delete()
+        except: pass
+        context.user_data.pop('pending_keyword')
+        await send_admin_message(context, user.id, "✅ تم الإلغاء")
+        return
 
     elif text.startswith("احذف رد") or text.startswith("احذف الرد"):
         try:
@@ -558,30 +603,60 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not keywords_part:
             await send_admin_message(context, user.id,
                 "❌ الطريقة الصحيحة:\n"
-                "اضافه رد [كلمات مفتاحية بفواصل] [رقم المنشور]\n\n"
+                "اضافه رد [كلمات مفتاحية بفواصل]\n\n"
+                "💡 البوت يعرض لك قائمة المنشورات لتختار منها\n"
                 "💡 مثال:\n"
-                "اضافه رد تسجيل,القبول 5\n\n"
-                "💡 يمكنك أيضاً الرد على رسالة تحتوي على المنشور")
+                "اضافه رد تسجيل,القبول")
             return
-        
-        # Parse keywords and news_id
-        parts = keywords_part.rsplit(None, 1)
-        if len(parts) < 2:
-            await send_admin_message(context, user.id, "❌ يجب كتابة الكلمات ورقم المنشور\n\nمثال: اضافه رد تسجيل,القبول 5")
+
+        # Check if user is in the middle of selecting a news post
+        if 'pending_keywords' in context.user_data:
+            await send_admin_message(context, user.id, "❌ أكمل اختيار المنشور أولاً أو اكتب 'إلغاء' للبدء من جديد")
             return
-        
-        keywords_text = parts[0]
-        try:
-            news_id = int(parts[1])
-        except ValueError:
-            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح لرقم المنشور")
-            return
-        
+
         # Split keywords by comma
-        keywords = [k.strip() for k in keywords_text.replace("،", ",").split(",") if k.strip()]
+        keywords = [k.strip() for k in keywords_part.replace("،", ",").split(",") if k.strip()]
         
         if not keywords:
             await send_admin_message(context, user.id, "❌ يجب كتابة كلمة مفتاحية واحدة على الأقل")
+            return
+
+        # Fetch all news posts
+        news_list = await get_all_news()
+        if not news_list:
+            await send_admin_message(context, user.id, "❌ لا توجد منشورات متاحة. أضف منشوراً أولاً")
+            return
+
+        # Store keywords in user_data for the next step
+        context.user_data['pending_keywords'] = keywords
+        
+        # Show list of news posts
+        news_text = "📰 **اختر المنشور بالرد على هذه الرسالة بالرقم:**\n\n"
+        for n in news_list[:10]:
+            status = "✅" if n.is_published else "📝"
+            news_text += f"{status} `{n.id}` - {n.title[:40]}\n"
+        
+        if len(news_list) > 10:
+            news_text += f"\n... و {len(news_list) - 10} منشور آخر"
+        
+        news_text += "\n\n💡 أرسل رقم المنشور المطلوب"
+        
+        await send_admin_message(context, user.id, news_text)
+        return
+
+    # Handle news selection for adding response (reply handler)
+    if 'pending_keywords' in context.user_data and text.isdigit():
+        try:
+            await update.message.delete()
+        except: pass
+        
+        keywords = context.user_data.pop('pending_keywords')
+        news_id = int(text)
+        
+        # Verify news exists
+        news = await get_news_by_id(news_id)
+        if not news:
+            await send_admin_message(context, user.id, f"❌ المنشور رقم {news_id} غير موجود")
             return
         
         # Create auto-responses with news_id
@@ -599,7 +674,19 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 logger.error(f"Could not create auto response for keyword '{keyword}': {e}")
         
         if created_count > 0:
-            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}\n📰 المنشور: {news_id}")
+            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}\n📰 المنشور: {news_id} - {news.title[:30]}")
+        else:
+            await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
+        return
+
+    # Handle cancel for pending keywords (reply handler)
+    if text.strip() == "إلغاء" and 'pending_keywords' in context.user_data:
+        try:
+            await update.message.delete()
+        except: pass
+        context.user_data.pop('pending_keywords')
+        await send_admin_message(context, user.id, "✅ تم الإلغاء")
+        return
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
 
