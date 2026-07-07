@@ -23,6 +23,8 @@ export default function StudyPlans() {
   const [editingGroup, setEditingGroup] = useState(null);
   const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
   const [deletingGroupId, setDeletingGroupId] = useState(null);
+  const [showDeletePlanModal, setShowDeletePlanModal] = useState(false);
+  const [deletingPlanId, setDeletingPlanId] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   useEffect(() => {
@@ -158,14 +160,8 @@ export default function StudyPlans() {
   };
 
   const handleDeletePlan = async (id) => {
-    const ok = await confirm('هل أنت متأكد من حذف هذه الخطة؟');
-    if (!ok) return;
-    try {
-      await api.deleteStudyPlan(id);
-      setPlans(plans.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error('Failed to delete study plan:', err);
-    }
+    setDeletingPlanId(id);
+    setShowDeletePlanModal(true);
   };
 
   const handleDeleteGroup = async (id) => {
@@ -194,6 +190,30 @@ export default function StudyPlans() {
       setPlans(plans.filter((p) => p.group_id !== id));
       if (activeGroup?.id === id) backToGroups();
       showToast('تم حذف المجموعة نهائياً', 'success');
+    } catch (err) {
+      showToast('حدث خطأ أثناء الحذف', 'error');
+    }
+  };
+
+  const handlePlanResetPublish = async (id) => {
+    setShowDeletePlanModal(false);
+    try {
+      await api.deleteStudyPlan(id, 'reset');
+      showToast('تم حذف الخطة من القناة بنجاح', 'success');
+      await loadData();
+    } catch (err) {
+      showToast('حدث خطأ أثناء حذف الخطة من القناة', 'error');
+    }
+  };
+
+const handlePlanPermanentDelete = async (id) => {
+    setShowDeletePlanModal(false);
+    const ok = await confirm('هل أنت متأكد من الحذف النهائي؟ سيتم حذف الخطة نهائياً.');
+    if (!ok) return;
+    try {
+      await api.deleteStudyPlan(id, 'permanent');
+      setPlans(plans.filter((p) => p.id !== id));
+      showToast('تم حذف الخطة نهائياً', 'success');
     } catch (err) {
       showToast('حدث خطأ أثناء الحذف', 'error');
     }
@@ -672,6 +692,43 @@ export default function StudyPlans() {
               </button>
               <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 8, textAlign: 'center' }}>
                 حذف المجموعة وجميع الخطط التابعة لها نهائياً
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Plan Options Modal */}
+      {showDeletePlanModal && (
+        <div className="modal-overlay" onClick={() => setShowDeletePlanModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>خيارات حذف الخطة</h3>
+              <button className="modal-close" onClick={() => setShowDeletePlanModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 14, color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 16 }}>
+                ماذا تريد أن تفعل بهذه الخطة؟
+              </p>
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', marginBottom: 10, justifyContent: 'center' }}
+                onClick={() => handlePlanResetPublish(deletingPlanId)}
+              >
+                حذف من القناة فقط
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 16, textAlign: 'center' }}>
+                حذف منشور الخطة من القناة مع الاحتفاظ بها كمسودة
+              </p>
+              <button
+                className="btn btn-danger"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => handlePlanPermanentDelete(deletingPlanId)}
+              >
+                حذف نهائي
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 8, textAlign: 'center' }}>
+                حذف الخطة بشكل نهائي
               </p>
             </div>
           </div>

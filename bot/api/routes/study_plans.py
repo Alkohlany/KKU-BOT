@@ -516,16 +516,44 @@ async def update_study_plan(
 
 
 @router.delete("/{plan_id}")
-async def delete_study_plan_endpoint(plan_id: int):
-    async with async_session() as session:
-        stmt = select(StudyPlan).where(StudyPlan.id == plan_id)
-        result = await session.execute(stmt)
-        plan = result.scalar_one_or_none()
-        group_id = plan.group_id if plan else None
+async def delete_study_plan_endpoint(plan_id: int, mode: str = "permanent"):
+    if mode == "reset":
+        async with async_session() as session:
+            stmt = select(StudyPlan).where(StudyPlan.id == plan_id)
+            result = await session.execute(stmt)
+            plan = result.scalar_one_or_none()
+            if not plan:
+                return {"error": "الخطة غير موجودة"}
+            
+            group_id = plan.group_id
 
-    await delete_study_plan(plan_id)
+            if plan.channel_message_id:
+                async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+                    try:
+                        await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
+                            timeout=30
+                        )
+                    except Exception:
+                        pass
+                plan.channel_message_id = None
+                await session.commit()
 
-    if group_id:
-        await update_group_post(group_id)
+            if group_id:
+                await update_group_post(group_id)
 
-    return {"status": "deleted"}
+            return {"message": "تم حذف الخطة من القناة", "mode": "reset"}
+    else:
+        async with async_session() as session:
+            stmt = select(StudyPlan).where(StudyPlan.id == plan_id)
+            result = await session.execute(stmt)
+            plan = result.scalar_one_or_none()
+            group_id = plan.group_id if plan else None
+
+        await delete_study_plan(plan_id)
+
+        if group_id:
+            await update_group_post(group_id)
+
+        return {"status": "deleted", "mode": "permanent"}

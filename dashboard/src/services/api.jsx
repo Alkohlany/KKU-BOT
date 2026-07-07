@@ -158,7 +158,7 @@ const api = {
   getStudyPlans: () => api.get('/study-plans'),
   addStudyPlan: (data) => api.post('/study-plans', data),
   addStudyPlanWithFile: (formData) => api.postFormData('/study-plans/upload', formData),
-  deleteStudyPlan: (id) => api.delete(`/study-plans/${id}`),
+  deleteStudyPlan: (id, mode = 'permanent') => api.delete(`/study-plans/${id}?mode=${mode}`),
 
   getStudyPlanGroups: () => api.get('/study-plans/groups'),
   getStudyPlanGroup: (id) => api.get(`/study-plans/groups/${id}`),
