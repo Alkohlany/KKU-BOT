@@ -5,6 +5,7 @@ from sqlalchemy import update
 from sqlalchemy import select
 from bot.services.database import add_question, get_all_questions, search_question, delete_question, increment_question_usage, async_session, update_question as db_update_question
 from bot.models.models import Question
+import cloudinary.uploader
 from bot.services.cloud_storage import upload_raw
 
 router = APIRouter()
@@ -71,8 +72,15 @@ async def create_question_with_file(
     file_type = None
     if file:
         content = await file.read()
-        file_url = upload_raw(content, filename=file.filename, folder="kku-bot/questions")
         file_type = detect_file_type(file.filename)
+        if file_type in ('image', 'photo'):
+            result = cloudinary.uploader.upload(content, folder="kku-bot/questions", resource_type="image")
+            file_url = result["secure_url"]
+        elif file_type == 'video':
+            result = cloudinary.uploader.upload(content, folder="kku-bot/questions", resource_type="video")
+            file_url = result["secure_url"]
+        else:
+            file_url = upload_raw(content, filename=file.filename, folder="kku-bot/questions")
 
     q = await add_question(question=question, answer=answer, category=category, keywords=keywords,
                            file_url=file_url, file_type=file_type, as_document=as_document)
@@ -126,12 +134,20 @@ async def update_question_with_file(
             q.category = category
         if keywords is not None:
             q.keywords = keywords
-        if as_document:
+        if as_document is not None:
             q.as_document = as_document
         if file:
             content = await file.read()
-            q.file_url = upload_raw(content, filename=file.filename, folder="kku-bot/questions")
-            q.file_type = detect_file_type(file.filename)
+            file_type = detect_file_type(file.filename)
+            if file_type in ('image', 'photo'):
+                result = cloudinary.uploader.upload(content, folder="kku-bot/questions", resource_type="image")
+                q.file_url = result["secure_url"]
+            elif file_type == 'video':
+                result = cloudinary.uploader.upload(content, folder="kku-bot/questions", resource_type="video")
+                q.file_url = result["secure_url"]
+            else:
+                q.file_url = upload_raw(content, filename=file.filename, folder="kku-bot/questions")
+            q.file_type = file_type
         await session.commit()
         return {"id": q.id, "question": q.question, "answer": q.answer,
                 "category": q.category, "keywords": q.keywords,

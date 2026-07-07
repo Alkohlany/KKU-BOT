@@ -6,6 +6,7 @@ from sqlalchemy import select, delete
 from bot.services.database import get_db
 from bot.api.auth import get_current_user
 from bot.models.models import AutoResponse
+import cloudinary.uploader
 from bot.services.cloud_storage import upload_raw
 from bot.services.database import add_auto_response, update_auto_response
 
@@ -85,8 +86,15 @@ async def upload_custom_response(
     file_type = None
     if file:
         content = await file.read()
-        file_url = upload_raw(content, filename=file.filename, folder="kku-bot/responses")
         file_type = detect_file_type(file.filename)
+        if file_type in ('image', 'photo'):
+            result = cloudinary.uploader.upload(content, folder="kku-bot/responses", resource_type="image")
+            file_url = result["secure_url"]
+        elif file_type == 'video':
+            result = cloudinary.uploader.upload(content, folder="kku-bot/responses", resource_type="video")
+            file_url = result["secure_url"]
+        else:
+            file_url = upload_raw(content, filename=file.filename, folder="kku-bot/responses")
 
     ar = AutoResponse(keyword=keyword, response=response, created_by=0, file_url=file_url, file_type=file_type, as_document=as_document)
     db.add(ar)
@@ -135,12 +143,20 @@ async def upload_update_custom_response(
         ar.keyword = keyword
     if response is not None:
         ar.response = response
-    if as_document:
+    if as_document is not None:
         ar.as_document = as_document
     if file:
         content = await file.read()
-        ar.file_url = upload_raw(content, filename=file.filename, folder="kku-bot/responses")
-        ar.file_type = detect_file_type(file.filename)
+        file_type = detect_file_type(file.filename)
+        if file_type in ('image', 'photo'):
+            result = cloudinary.uploader.upload(content, folder="kku-bot/responses", resource_type="image")
+            ar.file_url = result["secure_url"]
+        elif file_type == 'video':
+            result = cloudinary.uploader.upload(content, folder="kku-bot/responses", resource_type="video")
+            ar.file_url = result["secure_url"]
+        else:
+            ar.file_url = upload_raw(content, filename=file.filename, folder="kku-bot/responses")
+        ar.file_type = file_type
 
     await db.commit()
     return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "file_url": ar.file_url, "file_type": ar.file_type, "as_document": ar.as_document}
