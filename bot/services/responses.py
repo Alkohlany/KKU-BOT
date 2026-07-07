@@ -1,9 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage
-from bot.middleware.subscription import check_subscription
 from bot.services.responses_system import DEFAULT_RESPONSES
-from bot.config import CHANNEL_LINK
 import logging
 import unicodedata
 from difflib import SequenceMatcher
