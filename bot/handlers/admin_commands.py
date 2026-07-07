@@ -27,31 +27,31 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = """⚙️ **اوامر الادمن**
 
 **📋 الردود التلقائية:**
-/رد اضف \[كلمة\] \[رد\] - إضافة رد جديد
-/رد احذف \[رقم\] - حذف رد
-/رد قائمة - عرض جميع الردود
-/رد بحث \[كلمة\] - البحث في الردود
+/r add \[كلمة\] \[رد\] - إضافة رد جديد
+/r del \[رقم\] - حذف رد
+/r list - عرض جميع الردود
+/r search \[كلمة\] - البحث في الردود
 
 **❓ الاسئلة الشائعة:**
-/سؤال اضف - إضافة سؤال (بالرد على رسالة)
-/سؤال احذف \[رقم\] - حذف سؤال
-/سؤال قائمة - عرض الاسئلة
-/سؤال بحث \[كلمة\] - البحث في الاسئلة
+/q add \[قسم\] - إضافة سؤال (بالرد على رسالة)
+/q del \[رقم\] - حذف سؤال
+/q list - عرض الاسئلة
+/q search \[كلمة\] - البحث في الاسئلة
 
 **📰 الاخبار:**
-/خبر اضافه - إضافة خبر (بالرد على رسالة)
-/خبر قائمة - عرض الاخبار
-/خبر حذف \[رقم\] - حذف خبر
+/n add - إضافة خبر
+/n list - عرض الاخبار
+/n del \[رقم\] - حذف خبر
 
 **👤 إدارة المستخدمين:**
-/حظر \[رقم\] \[سبب\] - حظر مستخدم
-/الغاء\_حظر \[رقم\] - رفع الحظر
-/قائمة\_الحظر - قائمة المحظورين
+/ban \[رقم\] \[سبب\] - حظر مستخدم
+/unban \[رقم\] - رفع الحظر
+/banned - قائمة المحظورين
 
 **📊 عام:**
-/احصائيات - إحصائيات البوت
-/قروبات - قائمة القروبات
-/اذاعة \[رسالة\] - إرسال للجميع"""
+/stats - إحصائيات البوت
+/groups - قائمة القروبات
+/broadcast \[رسالة\] - إرسال للجميع"""
 
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
@@ -69,24 +69,24 @@ async def response_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sub_command = context.args[0].lower()
     context.args = context.args[1:]
 
-    if sub_command == "اضف":
+    if sub_command in ["add", "اضف"]:
         if update.message.reply_to_message:
             await response_add_reply(update, context)
         else:
             await response_add(update, context)
-    elif sub_command == "احذف":
+    elif sub_command in ["del", "احذف"]:
         await response_delete(update, context)
-    elif sub_command == "قائمة":
+    elif sub_command in ["list", "قائمة"]:
         await response_list(update, context)
-    elif sub_command == "بحث":
+    elif sub_command in ["search", "بحث"]:
         await response_search(update, context)
     else:
         await update.message.reply_text(
             "❌ اوامر الردود:\n"
-            "/رد اضف \[كلمة\] \[رد\] - إضافة رد\n"
-            "/رد احذف \[رقم\] - حذف رد\n"
-            "/رد قائمة - عرض الردود\n"
-            "/رد بحث \[كلمة\] - البحث في الردود",
+            "/r add \[كلمة\] \[رد\] - إضافة رد\n"
+            "/r del \[رقم\] - حذف رد\n"
+            "/r list - عرض الردود\n"
+            "/r search \[كلمة\] - البحث في الردود",
             parse_mode=ParseMode.MARKDOWN
         )
 
@@ -104,21 +104,21 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sub_command = context.args[0].lower()
     context.args = context.args[1:]
 
-    if sub_command == "اضف":
+    if sub_command in ["add", "اضف"]:
         await question_add(update, context)
-    elif sub_command == "احذف":
+    elif sub_command in ["del", "احذف"]:
         await question_delete(update, context)
-    elif sub_command == "قائمة":
+    elif sub_command in ["list", "قائمة"]:
         await question_list(update, context)
-    elif sub_command == "بحث":
+    elif sub_command in ["search", "بحث"]:
         await question_search(update, context)
     else:
         await update.message.reply_text(
             "❌ اوامر الاسئلة:\n"
-            "/سؤال اضف \[قسم\] - إضافة سؤال (بالرد على رسالة)\n"
-            "/سؤال احذف \[رقم\] - حذف سؤال\n"
-            "/سؤال قائمة - عرض الاسئلة\n"
-            "/سؤال بحث \[كلمة\] - البحث في الاسئلة",
+            "/q add \[قسم\] - إضافة سؤال (بالرد على رسالة)\n"
+            "/q del \[رقم\] - حذف سؤال\n"
+            "/q list - عرض الاسئلة\n"
+            "/q search \[كلمة\] - البحث في الاسئلة",
             parse_mode=ParseMode.MARKDOWN
         )
 
@@ -171,18 +171,18 @@ async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sub_command = context.args[0].lower()
     context.args = context.args[1:]
 
-    if sub_command in ["اضافه", "اضافة", "add"]:
+    if sub_command in ["add", "اضافه", "اضافة"]:
         await news_add(update, context)
-    elif sub_command in ["حذف", "delete"]:
+    elif sub_command in ["del", "حذف", "delete"]:
         await news_delete(update, context)
-    elif sub_command in ["قائمة", "list"]:
+    elif sub_command in ["list", "قائمة"]:
         await news_list(update, context)
     else:
         await update.message.reply_text(
             "❌ اوامر الاخبار:\n"
-            "/خبر اضافه - إضافة خبر\n"
-            "/خبر حذف \[رقم\] - حذف خبر\n"
-            "/خبر قائمة - عرض الاخبار",
+            "/n add - إضافة خبر\n"
+            "/n del \[رقم\] - حذف خبر\n"
+            "/n list - عرض الاخبار",
             parse_mode=ParseMode.MARKDOWN
         )
 
@@ -390,14 +390,14 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def get_admin_handlers():
     return [
-        CommandHandler("ادمن", admin_command),
-        CommandHandler("رد", response_handler),
-        CommandHandler("سؤال", question_handler),
-        CommandHandler("خبر", news_handler),
-        CommandHandler("احصائيات", stats_command),
-        CommandHandler("قروبات", groups_command),
-        CommandHandler("اذاعة", broadcast_command),
-        CommandHandler("حظر", ban_command),
-        CommandHandler("الغاء_حظر", unban_command),
-        CommandHandler("قائمة_الحظر", banned_list),
+        CommandHandler("admin", admin_command),
+        CommandHandler("r", response_handler),
+        CommandHandler("q", question_handler),
+        CommandHandler("n", news_handler),
+        CommandHandler("stats", stats_command),
+        CommandHandler("groups", groups_command),
+        CommandHandler("broadcast", broadcast_command),
+        CommandHandler("ban", ban_command),
+        CommandHandler("unban", unban_command),
+        CommandHandler("banned", banned_list),
     ]
