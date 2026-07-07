@@ -298,8 +298,13 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         file_url = None
         file_type = None
 
-        # Parse keywords
+        if not response_text and not (replied.photo or replied.video or replied.document or replied.voice or replied.audio):
+            await update.message.reply_text("❌ يجب أن تحتوي الرسالة المُشار إليها على نص أو مرفق")
+            return
+
+        # Parse keywords - support Arabic comma (،) too
         if keywords_part:
+            keywords_part = keywords_part.replace("،", ",")
             keywords = [k.strip() for k in keywords_part.split(",") if k.strip()]
         else:
             # AI auto-generate keywords and questions

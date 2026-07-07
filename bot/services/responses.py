@@ -97,26 +97,29 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         best_match = find_best_match(text, custom_responses)
         if best_match:
             try:
+                if not best_match.response and not best_match.file_url:
+                    return
                 if best_match.file_url:
+                    caption = best_match.response or None
                     if best_match.as_document:
                         await update.message.reply_document(
                             document=best_match.file_url,
-                            caption=best_match.response
+                            caption=caption
                         )
                     elif best_match.file_type == 'photo':
                         await update.message.reply_photo(
                             photo=best_match.file_url,
-                            caption=best_match.response
+                            caption=caption
                         )
                     elif best_match.file_type == 'video':
                         await update.message.reply_video(
                             video=best_match.file_url,
-                            caption=best_match.response
+                            caption=caption
                         )
                     else:
                         await update.message.reply_document(
                             document=best_match.file_url,
-                            caption=best_match.response
+                            caption=caption
                         )
                 else:
                     await update.message.reply_text(best_match.response)
