@@ -5,7 +5,8 @@ logger = logging.getLogger(__name__)
 
 NVIDIA_NIM_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 DEFAULT_MODELS = [
-    "meta/llama-3.2-1b-instruct",
+    "meta/llama-3.1-8b-instruct",
+    "nvidia/nemotron-mini-4b-instruct",
 ]
 
 
