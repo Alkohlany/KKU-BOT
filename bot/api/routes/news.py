@@ -170,12 +170,24 @@ async def create_news_with_file(
         except:
             questions = []
 
+        def is_valid_item(item: str) -> bool:
+            if not item or not item.strip():
+                return False
+            item = item.strip()
+            if len(item) < 2:
+                return False
+            if item.startswith('#') or item.startswith('http') or item.startswith('t.me'):
+                return False
+            if 't.me/' in item or 'http' in item.lower():
+                return False
+            return True
+
         for kw in keywords:
-            if kw and kw.strip():
+            if is_valid_item(kw):
                 await add_auto_response(keyword=kw.strip(), response=f"رد تلقائي لكلمة: {kw}", created_by=None, news_id=n.id)
 
         for q in questions:
-            if q and q.strip():
+            if is_valid_item(q):
                 await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
 
         text = f"📰 {title}\n\n{content}"

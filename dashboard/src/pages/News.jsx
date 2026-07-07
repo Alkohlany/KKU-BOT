@@ -409,7 +409,17 @@ export default function News() {
               )}
               {showAiPanel && (
                 <div className="form-group" style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, border: '1px solid var(--gray-200)' }}>
-                  <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الكلمات المفتاحية المقترحة</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <label style={{ fontWeight: 600, margin: 0 }}>الكلمات المفتاحية المقترحة</label>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleGenerateAI}
+                      disabled={generating}
+                      style={{ fontSize: 12, padding: '4px 12px' }}
+                    >
+                      {generating ? 'جاري التوليد...' : 'إعادة التوليد'}
+                    </button>
+                  </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                     {aiKeywords.map((kw, i) => (
                       <span
