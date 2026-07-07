@@ -153,12 +153,23 @@ export default function News() {
         formData.append('title', editForm.title);
         formData.append('content', editForm.content);
         formData.append('as_document', editForm.as_document);
+        formData.append('publish_to_channel', editForm.publish_to_channel);
+        formData.append('publish_to_groups', editForm.publish_to_groups);
         formData.append('file', editUploadFile);
         await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {});
       } else {
         await api.put(`/news/${editItem.id}`, editForm);
       }
-      setNews(news.map(n => n.id === editItem.id ? { ...n, title: editForm.title, content: editForm.content, as_document: editForm.as_document } : n));
+      setNews(news.map(n => n.id === editItem.id ? { 
+        ...n, 
+        title: editForm.title, 
+        content: editForm.content, 
+        as_document: editForm.as_document,
+        publish_to_channel: editForm.publish_to_channel,
+        publishToChannel: editForm.publish_to_channel,
+        publish_to_groups: editForm.publish_to_groups,
+        publishToGroups: editForm.publish_to_groups,
+      } : n));
       setShowEditModal(false);
       setEditItem(null);
       setEditUploadFile(null);
@@ -274,7 +285,13 @@ export default function News() {
 
   const openEditModal = (item) => {
     setEditItem(item);
-    setEditForm({ title: item.title, content: item.content, as_document: item.as_document || false });
+    setEditForm({ 
+      title: item.title, 
+      content: item.content, 
+      as_document: item.as_document || false,
+      publish_to_channel: item.publish_to_channel || item.publishToChannel || false,
+      publish_to_groups: item.publish_to_groups || item.publishToGroups !== false,
+    });
     setEditUploadFile(null);
     setShowEditModal(true);
   };
@@ -709,6 +726,28 @@ export default function News() {
                     style={{ width: 18, height: 18 }}
                   />
                   إرسال كملف
+                </label>
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.publish_to_channel}
+                    onChange={(e) => setEditForm({ ...editForm, publish_to_channel: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  النشر على القناة الرسمية
+                </label>
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.publish_to_groups}
+                    onChange={(e) => setEditForm({ ...editForm, publish_to_groups: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  النشر على القروبات
                 </label>
               </div>
             </div>
