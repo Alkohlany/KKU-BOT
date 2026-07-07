@@ -87,7 +87,12 @@ async def create_news_with_file(
         ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
         if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
             img_data = await file.read()
-            image_url = upload_image(img_data, folder="kku-bot/news")
+            url = upload_image(img_data, folder="kku-bot/news")
+            file_type = detect_file_type(file.filename)
+            if as_document:
+                file_url = url
+            else:
+                image_url = url
         else:
             file_data = await file.read()
             file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
