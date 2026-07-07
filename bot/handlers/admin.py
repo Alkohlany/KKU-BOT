@@ -61,8 +61,8 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     # ==================== الردود التلقائية ====================
-    if text.startswith("اضافه رد") or text.startswith("أضف رد"):
-        keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").strip()
+    if text.startswith("اضافه رد") or text.startswith("أضف رد") or text.startswith("اضف رد"):
+        keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").replace("اضف رد", "").strip()
         
         if not keywords_part:
             await send_admin_message(context, user.id,
@@ -521,8 +521,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل في تثبيت الرسالة: {e}")
 
-    elif text.startswith("اضافه رد") or text.startswith("اضف رد") or text.startswith("ضف رد"):
-        keywords_part = text.replace("اضافه رد", "").replace("اضف رد", "").replace("ضف رد", "").strip()
+    elif text.startswith("اضافه رد") or text.startswith("أضف رد") or text.startswith("اضف رد") or text.startswith("ضف رد"):
+        keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").replace("اضف رد", "").replace("ضف رد", "").strip()
         replied = update.message.reply_to_message
         response_text = replied.text or replied.caption or ""
         file_url = None
