@@ -93,11 +93,14 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     
     custom_responses = await get_all_auto_responses()
+    logger.info(f"AUTO_RESPONSE: text='{text}' custom_count={len(custom_responses)}")
     if custom_responses:
         best_match = find_best_match(text, custom_responses)
         if best_match:
+            logger.info(f"AUTO_RESPONSE: matched keyword='{best_match.keyword}' response_len={len(best_match.response or '')}")
             try:
                 if not best_match.response and not best_match.file_url:
+                    logger.info("AUTO_RESPONSE: skipped - empty response and no file")
                     return
                 if best_match.file_url:
                     caption = best_match.response or None
@@ -123,9 +126,14 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                         )
                 else:
                     await update.message.reply_text(best_match.response)
+                logger.info("AUTO_RESPONSE: sent successfully")
             except Exception as e:
-                logger.warning(f"Could not send auto response: {e}")
+                logger.warning(f"AUTO_RESPONSE: send error: {e}")
             return
+        else:
+            logger.info(f"AUTO_RESPONSE: no match found for '{text}'")
+    else:
+        logger.info("AUTO_RESPONSE: no custom responses in DB")
     
     normalized_text = normalize_arabic(text.lower().strip())
     for keyword, response in DEFAULT_RESPONSES.items():
