@@ -34,8 +34,17 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     return sent
 
 
+async def _download_file_from_telegram(file_id: str) -> bytes | None:
+    try:
+        file_info = await bot.get_file(file_id)
+        file_bytes = await bot.download_file(file_info.file_path)
+        return file_bytes
+    except Exception as e:
+        logger.warning(f"Failed to download file from Telegram: {e}")
+        return None
+
+
 async def _send_file(chat_id: str, url: str, caption: str, original_filename: str = None) -> bool:
-    """Try sending URL directly first, then download-and-upload as fallback."""
     if not original_filename:
         try:
             await bot.send_document(chat_id=chat_id, document=url, caption=caption)
@@ -68,8 +77,11 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
     try:
         if as_document:
             if file_id:
-                await bot.send_document(chat_id=chat_id, document=file_id, caption=text)
-                return True
+                file_bytes = await _download_file_from_telegram(file_id)
+                if file_bytes:
+                    filename = file_name or "file"
+                    await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=text)
+                    return True
             url = image_url or file_url
             if url:
                 if await _send_file(chat_id, url, text, original_filename=file_name):
@@ -83,8 +95,11 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                 logger.warning(f"send_photo failed for {chat_id}: {e}")
 
         if file_id:
-            await bot.send_document(chat_id=chat_id, document=file_id, caption=text)
-            return True
+            file_bytes = await _download_file_from_telegram(file_id)
+            if file_bytes:
+                filename = file_name or "file"
+                await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=text)
+                return True
 
         if file_url:
             if await _send_file(chat_id, file_url, text, original_filename=file_name):
