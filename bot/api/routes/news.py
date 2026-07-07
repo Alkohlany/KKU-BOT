@@ -223,7 +223,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         publish_to_channel = payload.publish_to_channel if payload else news.publish_to_channel
         should_publish_to_groups = payload.publish_to_groups if payload else news.publish_to_groups
         as_document = payload.as_document if payload else news.as_document
-        text = f"📰 {news.title}\n\n{news.content}"
+        text = f"{news.title}\n\n{news.content}"
         sent, channel_message_id, group_message_ids = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         to_channel=publish_to_channel, to_groups=should_publish_to_groups,
                                         as_document=as_document,
@@ -270,7 +270,7 @@ async def edit_news(news_id: int, data: NewsCreate):
             pass
     
     if group_message_ids or n.channel_message_id:
-        text = f"📰 {data.title}\n\n{data.content}"
+        text = f"{data.title}\n\n{data.content}"
         edited_count, failed_count = await edit_published_messages(
             text=text,
             group_message_ids=group_message_ids,
@@ -326,10 +326,19 @@ async def relink_news(news_id: int, data: RelinkPayload):
 
 
 @router.post("/enhance")
-async def enhance_content(data: NewsAnalyze):
+async def enhance_content_endpoint(
+    title: str = Form(""),
+    content: str = Form(""),
+    file: Optional[UploadFile] = File(None),
+):
     try:
         from bot.services.ai import enhance_content
-        result = enhance_content(data.title, data.content)
+        image_bytes = None
+        mime_type = None
+        if file:
+            image_bytes = await file.read()
+            mime_type = file.content_type or "image/jpeg"
+        result = enhance_content(title, content, image_bytes=image_bytes, mime_type=mime_type)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"فشل تحسين المحتوى: {str(e)}")

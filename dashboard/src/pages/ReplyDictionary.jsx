@@ -270,7 +270,7 @@ export default function ReplyDictionary() {
                 )}
                 {getNewsTitle(item.news_id) && (
                   <p style={{ fontSize: 12, color: 'var(--gray-500)', margin: 0 }}>
-                    📰 {getNewsTitle(item.news_id)}
+                   {getNewsTitle(item.news_id)}
                   </p>
                 )}
               </div>

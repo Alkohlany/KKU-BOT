@@ -1,11 +1,12 @@
 import logging
 import time as _time
+import base64
 
 logger = logging.getLogger(__name__)
 
 API_URL = "https://opencode.ai/zen/v1/chat/completions"
 API_KEY = "sk-O60vp4JsXJpojOhgWKtExSmBvRk3TEbRVYPiujwribvlsEPUgtaNvGg3ulR8j6Ko"
-MODEL = "deepseek-v4-flash-free"
+MODEL = "mimo-v2.5-free"
 MAX_RETRIES = 3
 
 
@@ -24,14 +25,78 @@ def _call_model(prompt: str) -> str:
                 json={
                     "model": MODEL,
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 1500,
-                    "temperature": 0.3,
+                    "max_tokens": 3000,
                     "extra_body": {
                         "thinking": {"type": "enabled"},
                         "reasoning_effort": "max",
                     },
                 },
-                timeout=httpx.Timeout(45.0, read=45.0),
+                timeout=httpx.Timeout(90.0, read=90.0),
+            )
+
+            if response.status_code == 503:
+                logger.warning(f"API overloaded (503), retry {attempt+1}/{MAX_RETRIES}")
+                _time.sleep(2 * (attempt + 1))
+                continue
+
+            if response.status_code != 200:
+                raise RuntimeError(f"API error {response.status_code}: {response.text[:200]}")
+
+            data = response.json()
+            choices = data.get("choices", [])
+            if not choices:
+                raise RuntimeError("no choices returned")
+
+            content = choices[0].get("message", {}).get("content", "")
+            if not content:
+                raise RuntimeError("empty content returned")
+
+            return content
+        except httpx.TimeoutException:
+            logger.warning(f"API timeout, retry {attempt+1}/{MAX_RETRIES}")
+            _time.sleep(2 * (attempt + 1))
+            last_err = RuntimeError(f"Timeout after {MAX_RETRIES} attempts")
+            continue
+        except Exception as e:
+            last_err = e
+            break
+
+    raise last_err or RuntimeError(f"API failed after {MAX_RETRIES} retries")
+
+
+def _call_model_with_image(prompt: str, image_bytes: bytes, mime_type: str = "image/jpeg") -> str:
+    import httpx
+
+    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    image_url = f"data:{mime_type};base64,{image_b64}"
+
+    last_err = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = httpx.post(
+                API_URL,
+                headers={
+                    "Authorization": f"Bearer {API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": MODEL,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {"type": "image_url", "image_url": {"url": image_url}},
+                            ],
+                        }
+                    ],
+                    "max_tokens": 4000,
+                    "extra_body": {
+                        "thinking": {"type": "enabled"},
+                        "reasoning_effort": "max",
+                    },
+                },
+                timeout=httpx.Timeout(120.0, read=120.0),
             )
 
             if response.status_code == 503:
@@ -191,17 +256,69 @@ def generate_news_analysis(title: str, content: str) -> dict:
         raise RuntimeError(f"AI analysis failed: {e}")
 
 
-def enhance_content(title: str, content: str) -> dict:
-    """Enhance publication content using AI"""
-    prompt = f"""أنت كاتب محتوى محترف في جامعة الملك خالد. مهمتك تحسين محتوى المنشور ليكون أكثر وضوح وجمالاً.
+def enhance_content(title: str, content: str, image_bytes: bytes = None, mime_type: str = None) -> dict:
+    """Enhance publication content using AI with optional image analysis"""
+    has_image = image_bytes and len(image_bytes) > 0
 
-⚠️ تعليمات مهمة:
-- حسّن المحتوى وأجعله أكثر احترافية
-- احتفظ بالمعلومات الأساسية
-- أضف تكوين جميل إذا لزم الأمر
-- اجعل النص سهل القراءة
+    if has_image:
+        prompt = f"""أنت كاتب محتوى محترف جداً في جامعة الملك خالد. مهمتك تحسين محتوى المنشور ليكون احترافي وجميل وشامل.
+
+⚠️ التحسين يتكون من 3 مراحل:
+
+📌 المرحلة 1 - تحليل الصورة:
+- حلل الصورة المرفقة وافهم محتواها بالتفصيل
+- استخرج النصوص والمعلومات من الصورة إن وُجدت
+- حدد العناصر البصرية (صور، رسوم، تصميمات)
+- اكتب وصف دقيق للصورة
+
+📌 المرحلة 2 - تحسين المحتوى النصي:
+- حسّن العنوان لي يكون جذاباً وواضحاً
+- حسّن المحتوى وأجعله أكثر احترافية وتشويقاً
+- احتفظ بالمعلومات الأساسية وأضف معلومات من الصورة
+- اجعل النص سهل القراءة والفهم
 - لا تغير المعنى الأساسي
-- إذا كان فيه روابط، احتفظ بها كما هي
+
+📌 المرحلة 3 - التنسيق والعرض:
+- اجعل المحتوى مناسباً للنشر في تيليجرام
+- أضف رموز تعبيرية مناسبة إذا لزم الأمر
+- تأكد أن النص متناسق ومتسق
+
+📌 تعليمات مهمة:
+- لا تذكر أنك تحلل صورة، فقط حسّن المحتوى
+- إذا كانت الصورة تحتوي معلومات مهمة أضفها للمحتوى
+- احتفظ بالروابط كما هي
+- المحتوى النهائي يجب أن يكون جاهزاً للنشر مباشرة
+
+عنوان المنشور: {title}
+محتوى المنشور الحالي: {content}
+
+أرجع المحتوى المحسّن فقط (بدون أي شرح أو تعليق):"""
+    else:
+        prompt = f"""أنت كاتب محتوى محترف جداً في جامعة الملك خالد. مهمتك تحسين محتوى المنشور ليكون احترافي وجميل وشامل.
+
+⚠️ التحسين يتكون من 3 مراحل:
+
+📌 المرحلة 1 - تحليل المحتوى:
+- اقرأ المحتوى الحالي وافهمه بالتفصيل
+- حدد النقاط الأساسية والمعلومات المهمة
+- حدد نقاط القوة والضعف في المحتوى الحالي
+
+📌 المرحلة 2 - تحسين المحتوى النصي:
+- حسّن العنوان لي يكون جذاباً وواضحاً
+- حسّن المحتوى وأجعله أكثر احترافية وتشويقاً
+- احتفظ بالمعلومات الأساسية و,arrangeها بشكل منطقي
+- اجعل النص سهل القراءة والفهم
+- لا تغير المعنى الأساسي
+
+📌 المرحلة 3 - التنسيق والعرض:
+- اجعل المحتوى مناسباً للنشر في تيليجرام
+- أضف رموز تعبيرية مناسبة إذا لزم الأمر
+- تأكد أن النص متناسق ومتسق
+
+📌 تعليمات مهمة:
+- لا تذكر أي تعليمات سابقة، فقط حسّن المحتوى
+- احتفظ بالروابط كما هي
+- المحتوى النهائي يجب أن يكون جاهزاً للنشر مباشرة
 
 عنوان المنشور: {title}
 محتوى المنشور الحالي: {content}
@@ -209,7 +326,10 @@ def enhance_content(title: str, content: str) -> dict:
 أرجع المحتوى المحسّن فقط (بدون أي شرح أو تعليق):"""
 
     try:
-        enhanced = _call_model(prompt)
+        if has_image:
+            enhanced = _call_model_with_image(prompt, image_bytes, mime_type)
+        else:
+            enhanced = _call_model(prompt)
         return {"enhanced_content": enhanced.strip()}
     except Exception as e:
         logger.error(f"AI enhance failed: {e}")

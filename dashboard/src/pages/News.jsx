@@ -59,9 +59,17 @@ export default function News() {
     }
     setEnhancingContent(true);
     try {
-      const result = await api.post('/news/enhance', { content: form.content, title: form.title });
+      const formData = new FormData();
+      formData.append('title', form.title || '');
+      formData.append('content', form.content);
+      if (uploadFile) {
+        formData.append('file', uploadFile);
+      }
+      const result = await api.post('/news/enhance', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       setForm({ ...form, content: result.enhanced_content || result.content || form.content });
-      showToast('تم تحسين المحتوى بنجاح', 'success');
+      showToast('تم تحسين المحتوى بنجاح' + (uploadFile ? ' مع تحليل الصورة' : ''), 'success');
     } catch (err) {
       console.error('Failed to enhance content:', err);
       showToast('فشل تحسين المحتوى', 'error');
@@ -509,7 +517,7 @@ export default function News() {
                     disabled={enhancingContent || !form.content}
                     style={{ fontSize: 12, padding: '4px 12px' }}
                   >
-                    {enhancingContent ? 'جاري التحسين...' : 'تحسين بالذكاء الاصطناعي'}
+                    {enhancingContent ? 'جاري التحسين...' : uploadFile ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
                   </button>
                 </label>
                 <textarea
