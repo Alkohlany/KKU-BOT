@@ -8,57 +8,22 @@ from bot.services.news_publisher import publish_to_groups
 from bot.services.cloud_storage import upload_image
 from bot.models.models import News
 from bot.config import BOT_TOKEN, CHANNEL_ID
-import httpx
+import os
+import uuid
 
 router = APIRouter()
 
-
-MIME_TYPES = {
-    'pdf': 'application/pdf',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'mp4': 'video/mp4',
-    'avi': 'video/x-msvideo',
-    'mov': 'video/quicktime',
-    'mkv': 'video/x-matroska',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'txt': 'text/plain',
-    'zip': 'application/zip',
-}
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads', 'news')
 
 
-async def upload_to_telegram(file_data: bytes, filename: str) -> str:
+def save_file_locally(file_data: bytes, filename: str) -> str:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
     ext = filename.lower().split('.')[-1] if '.' in filename else ''
-    content_type = MIME_TYPES.get(ext, 'application/octet-stream')
-    async with httpx.AsyncClient() as client:
-        files = {'document': (filename, file_data, content_type)}
-        resp = await client.post(
-            f'https://api.telegram.org/bot{BOT_TOKEN}/sendDocument',
-            data={'chat_id': CHANNEL_ID},
-            files=files,
-            timeout=120
-        )
-        result = resp.json()
-        if not result.get('ok'):
-            raise Exception(f"Telegram upload failed: {result.get('description', 'unknown')}")
-        message = result['result']
-        doc = message.get('document')
-        if not doc:
-            raise Exception("No document in Telegram response")
-        file_id = doc['file_id']
-        message_id = message['message_id']
-        await client.post(
-            f'https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage',
-            data={'chat_id': CHANNEL_ID, 'message_id': message_id},
-            timeout=30
-        )
-        return file_id
+    safe_name = f"{uuid.uuid4().hex}.{ext}"
+    file_path = os.path.join(UPLOAD_DIR, safe_name)
+    with open(file_path, 'wb') as f:
+        f.write(file_data)
+    return file_path
 
 
 def detect_file_type(filename: str) -> str:
@@ -135,7 +100,6 @@ async def create_news_with_file(
         image_url = None
         file_url = None
         file_type = None
-        file_id = None
 
         if file:
             file_data = await file.read()
@@ -143,10 +107,7 @@ async def create_news_with_file(
             if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
                 file_type = detect_file_type(file.filename)
                 if as_document:
-                    try:
-                        file_id = await upload_to_telegram(file_data, file.filename)
-                    except Exception as e:
-                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة كملف لتيليقرام: {str(e)}")
+                    file_url = save_file_locally(file_data, file.filename)
                 else:
                     try:
                         url = upload_image(file_data, folder="kku-bot/news")
@@ -154,14 +115,11 @@ async def create_news_with_file(
                         raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
                     image_url = url
             else:
-                try:
-                    file_id = await upload_to_telegram(file_data, file.filename)
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=f"فشل رفع الملف لتيليقرام: {str(e)}")
+                file_url = save_file_locally(file_data, file.filename)
                 file_type = detect_file_type(file.filename)
 
         n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                            publish_to_channel=publish_to_channel, as_document=as_document, file_id=file_id)
+                            publish_to_channel=publish_to_channel, as_document=as_document)
         return {"id": n.id, "title": n.title, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id, "published": n.is_published,
                 "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
