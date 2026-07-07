@@ -13,6 +13,7 @@ export default function Questions() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
 
   useEffect(() => {
     loadQuestions();
@@ -46,7 +47,7 @@ export default function Questions() {
           if (form.keywords) formData.append('keywords', form.keywords);
           formData.append('file', form.file);
           formData.append('as_document', form.as_document);
-          const updated = await api.updateQuestionWithFile(editItem.id, formData);
+          const updated = await api.updateQuestionWithFileProgress(editItem.id, formData, setUploadProgress);
           setQuestions(questions.map((q) => q.id === editItem.id ? updated : q));
         } else {
           const payload = { question: form.question, answer: form.answer, category: form.category, keywords: form.keywords, as_document: form.as_document };
@@ -66,7 +67,7 @@ export default function Questions() {
           if (form.keywords) formData.append('keywords', form.keywords);
           formData.append('file', form.file);
           formData.append('as_document', form.as_document);
-          const newItem = await api.addQuestionWithFile(formData);
+          const newItem = await api.addQuestionWithFileProgress(formData, setUploadProgress);
           setQuestions([...questions, newItem]);
         } else {
           const newItem = await api.addQuestion(form);
@@ -80,6 +81,7 @@ export default function Questions() {
       console.error('Failed to save question:', err);
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -347,6 +349,14 @@ export default function Questions() {
                 </small>
               </div>
             </div>
+            {uploadProgress !== null && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ height: 6, background: 'var(--gray-200)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${uploadProgress}%`, background: 'var(--primary)', borderRadius: 3, transition: 'width 0.3s ease' }} />
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--gray-500)', marginTop: 4, textAlign: 'center' }}>{uploadProgress}%</p>
+              </div>
+            )}
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                 {saving ? 'جاري الحفظ...' : (editItem ? 'حفظ التعديلات' : 'إضافة')}

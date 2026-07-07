@@ -13,6 +13,7 @@ export default function Responses() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
 
   useEffect(() => {
     loadAll();
@@ -44,7 +45,7 @@ export default function Responses() {
           formData.append('response', form.response);
           formData.append('file', form.file);
           formData.append('as_document', form.as_document);
-          const updated = await api.updateResponseWithFile(editItem.id, formData);
+          const updated = await api.updateResponseWithFileProgress(editItem.id, formData, setUploadProgress);
           setResponses(responses.map((r) => r.id === editItem.id ? updated : r));
         } else {
           const payload = { keyword: form.keyword, response: form.response, as_document: form.as_document };
@@ -62,7 +63,7 @@ export default function Responses() {
           formData.append('response', form.response);
           formData.append('file', form.file);
           formData.append('as_document', form.as_document);
-          const newItem = await api.addResponseWithFile(formData);
+          const newItem = await api.addResponseWithFileProgress(formData, setUploadProgress);
           setResponses([...responses, newItem]);
         } else {
           const newItem = await api.addResponse(form);
@@ -76,6 +77,7 @@ export default function Responses() {
       console.error('Failed to save response:', err);
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -329,6 +331,14 @@ export default function Responses() {
                 </small>
               </div>
             </div>
+            {uploadProgress !== null && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ height: 6, background: 'var(--gray-200)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${uploadProgress}%`, background: 'var(--primary)', borderRadius: 3, transition: 'width 0.3s ease' }} />
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--gray-500)', marginTop: 4, textAlign: 'center' }}>{uploadProgress}%</p>
+              </div>
+            )}
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                 {saving ? 'جاري الحفظ...' : (editItem ? 'حفظ التعديلات' : 'إضافة')}
