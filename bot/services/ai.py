@@ -1,13 +1,11 @@
 import logging
-from bot.config import OPENROUTER_API_KEY
+from bot.config import NVIDIA_API_KEY
 
 logger = logging.getLogger(__name__)
 
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+NVIDIA_NIM_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 DEFAULT_MODELS = [
-    "openai/gpt-oss-20b:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
+    "meta/llama-3.2-1b-instruct",
 ]
 
 
@@ -15,9 +13,9 @@ def _call_model(prompt: str, model: str) -> str:
     import httpx
 
     response = httpx.post(
-        OPENROUTER_URL,
+        NVIDIA_NIM_URL,
         headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Authorization": f"Bearer {NVIDIA_API_KEY}",
             "Content-Type": "application/json",
         },
         json={
@@ -47,8 +45,8 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
     if not text or not text.strip():
         return []
 
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY is not configured")
+    if not NVIDIA_API_KEY:
+        raise RuntimeError("NVIDIA_API_KEY is not configured")
 
     prompt = f"""
 أنت متخصص في فهم النصوص العربية واستخراج المعلومات المهمة.
