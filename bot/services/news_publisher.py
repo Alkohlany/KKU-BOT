@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=BOT_TOKEN)
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, publish_to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_file_id: str = None):
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, publish_to_channel: bool = False, as_document: bool = False, file_name: str = None):
     groups = await get_all_groups()
     sent = 0
 
@@ -19,14 +19,14 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
         if not group.is_active:
             continue
         try:
-            if await _send_to_chat(str(group.chat_id), text, image_url, file_url, file_id, as_document, file_name, thumbnail_file_id):
+            if await _send_to_chat(str(group.chat_id), text, image_url, file_url, file_id, as_document, file_name):
                 sent += 1
         except Exception as e:
             logger.error(f"Failed to send to group {group.chat_id}: {e}")
 
     if publish_to_channel and CHANNEL_ID:
         try:
-            if await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url, file_id, as_document, file_name, thumbnail_file_id):
+            if await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url, file_id, as_document, file_name):
                 sent += 1
         except Exception as e:
             logger.error(f"Failed to send to channel {CHANNEL_ID}: {e}")
@@ -64,15 +64,11 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
     return False
 
 
-async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_file_id: str = None) -> bool:
+async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None) -> bool:
     try:
         if as_document:
             if file_id:
-                if thumbnail_file_id:
-                    await bot.send_photo(chat_id=chat_id, photo=thumbnail_file_id, caption=text)
-                    await bot.send_document(chat_id=chat_id, document=file_id)
-                else:
-                    await bot.send_document(chat_id=chat_id, document=file_id, caption=text)
+                await bot.send_document(chat_id=chat_id, document=file_id, caption=text)
                 return True
             url = image_url or file_url
             if url:
@@ -87,11 +83,7 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                 logger.warning(f"send_photo failed for {chat_id}: {e}")
 
         if file_id:
-            if thumbnail_file_id:
-                await bot.send_photo(chat_id=chat_id, photo=thumbnail_file_id, caption=text)
-                await bot.send_document(chat_id=chat_id, document=file_id)
-            else:
-                await bot.send_document(chat_id=chat_id, document=file_id, caption=text)
+            await bot.send_document(chat_id=chat_id, document=file_id, caption=text)
             return True
 
         if file_url:
