@@ -28,19 +28,21 @@ def find_best_match(text, responses):
     normalized = normalize_arabic(text.lower().strip())
 
     for response in responses:
-        if response.keyword.lower().strip() == normalized:
+        keyword_normalized = normalize_arabic(response.keyword.lower().strip())
+        if keyword_normalized == normalized:
             return response
 
     for response in responses:
-        keyword = response.keyword.lower().strip()
-        if keyword in normalized or normalized in keyword:
+        keyword_normalized = normalize_arabic(response.keyword.lower().strip())
+        if keyword_normalized in normalized or normalized in keyword_normalized:
             return response
 
     best_match = None
     best_score = 0
     for response in responses:
-        score = fuzzy_match(normalized, response.keyword.lower())
-        if score > best_score and score >= 0.5:
+        keyword_normalized = normalize_arabic(response.keyword.lower().strip())
+        score = SequenceMatcher(None, normalized, keyword_normalized).ratio()
+        if score > best_score and score >= 0.4:
             best_score = score
             best_match = response
 

@@ -549,101 +549,57 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, f"❌ فشل في تثبيت الرسالة: {e}")
 
     elif text.startswith("اضافه رد") or text.startswith("أضف رد") or text.startswith("اضف رد") or text.startswith("ضف رد"):
-        keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").replace("اضف رد", "").replace("ضف رد", "").strip()
-        replied = update.message.reply_to_message
-        response_text = replied.text or replied.caption or ""
-        file_url = None
-        file_type = None
-
-        if not response_text and not (replied.photo or replied.video or replied.document or replied.voice or replied.audio):
-            await send_admin_message(context, user.id, "❌ يجب أن تحتوي الرسالة المُشار إليها على نص أو مرفق")
-            return
-
-        if keywords_part:
-            keywords_part = keywords_part.replace("،", ",")
-            keywords = [k.strip() for k in keywords_part.split(",") if k.strip()]
-        else:
-            if not response_text:
-                await send_admin_message(context, user.id, "❌ الرسالة لا تحتوي على نص لتحليله")
-                return
-            await send_admin_message(context, user.id, "🤖 جاري تحليل المحتوى باستخدام الذكاء الاصطناعي...")
-            try:
-                from bot.services.ai import extract_keywords_and_questions
-                items = extract_keywords_and_questions(response_text)
-                keywords = items
-            except Exception as e:
-                logger.error(f"AI generation error: {e}")
-                await send_admin_message(context, user.id, f"❌ فشل في تحليل المحتوى آليًا. الرجاء كتابة الكلمات المفتاحية يدويًا.\n({e})")
-                return
-
-        if not keywords:
-            await send_admin_message(context, user.id, "❌ لم يتم العثور على كلمات مفتاحية صحيحة")
-            return
-
-        file_tg_id = None
         try:
-            if replied.photo:
-                file_obj = replied.photo[-1]
-                file_type = "photo"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="image")
-                file_url = result["secure_url"]
-            elif replied.video:
-                file_obj = replied.video
-                file_type = "video"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="video")
-                file_url = result["secure_url"]
-            elif replied.document:
-                file_obj = replied.document
-                file_type = detect_file_type(file_obj.file_name or "file.pdf")
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                if file_type in ("photo", "image"):
-                    result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="image")
-                    file_url = result["secure_url"]
-                elif file_type == "video":
-                    result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="video")
-                    file_url = result["secure_url"]
-                else:
-                    file_url = upload_raw(bytes(file_bytes), filename=file_obj.file_name or "file", folder="kku-bot/responses")
-            elif replied.voice or replied.audio:
-                file_obj = replied.voice or replied.audio
-                file_type = "document"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/responses")
-        except Exception as e:
-            logger.warning(f"Could not upload file from replied message: {e}")
-
+            await update.message.delete()
+        except: pass
+        
+        keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").replace("اضف رد", "").replace("ضف رد", "").strip()
+        
+        if not keywords_part:
+            await send_admin_message(context, user.id,
+                "❌ الطريقة الصحيحة:\n"
+                "اضافه رد [كلمات مفتاحية بفواصل] [رقم المنشور]\n\n"
+                "💡 مثال:\n"
+                "اضافه رد تسجيل,القبول 5\n\n"
+                "💡 يمكنك أيضاً الرد على رسالة تحتوي على المنشور")
+            return
+        
+        # Parse keywords and news_id
+        parts = keywords_part.rsplit(None, 1)
+        if len(parts) < 2:
+            await send_admin_message(context, user.id, "❌ يجب كتابة الكلمات ورقم المنشور\n\nمثال: اضافه رد تسجيل,القبول 5")
+            return
+        
+        keywords_text = parts[0]
+        try:
+            news_id = int(parts[1])
+        except ValueError:
+            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح لرقم المنشور")
+            return
+        
+        # Split keywords by comma
+        keywords = [k.strip() for k in keywords_text.replace("،", ",").split(",") if k.strip()]
+        
+        if not keywords:
+            await send_admin_message(context, user.id, "❌ يجب كتابة كلمة مفتاحية واحدة على الأقل")
+            return
+        
+        # Create auto-responses with news_id
         created_count = 0
         for keyword in keywords:
             try:
-                ar = AutoResponse(
+                await add_auto_response(
                     keyword=keyword,
-                    response=response_text,
+                    response="تم الرد عبر المنشور",
                     created_by=user.id,
-                    file_url=file_url,
-                    file_type=file_type,
-                    file_tg_id=file_tg_id,
-                    source_chat_id=chat.id,
-                    source_message_id=replied.message_id,
+                    news_id=news_id
                 )
-                async with async_session() as session:
-                    session.add(ar)
-                    await session.commit()
                 created_count += 1
             except Exception as e:
                 logger.error(f"Could not create auto response for keyword '{keyword}': {e}")
-
+        
         if created_count > 0:
-            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}")
+            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}\n📰 المنشور: {news_id}")
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
 
