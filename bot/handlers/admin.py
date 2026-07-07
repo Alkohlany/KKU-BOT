@@ -478,7 +478,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         target_member = await chat.get_member(target_user_id)
         if target_member.status in [ChatMemberStatus.OWNER]:
-            await update.message.reply_text("❌ لا يمكنك تنفيذ هذا الأمر على مالك القروب")
+            await send_admin_message(context, user.id, "❌ لا يمكنك تنفيذ هذا الأمر على مالك القروب")
             return
     except:
         pass
@@ -486,40 +486,40 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if text in ["حذف", "حذفا", "ازالة", "ازل", "زل", "امسح", "مسح"]:
         try:
             await update.message.reply_to_message.delete()
-            await update.message.reply_text(f"✅ تم حذف رسالة {target_user.first_name}")
+            await send_admin_message(context, user.id, f"✅ تم حذف رسالة {target_user.first_name}")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل في حذف الرسالة: {e}")
+            await send_admin_message(context, user.id, f"❌ فشل في حذف الرسالة: {e}")
 
     elif text in ["حظر", "احظر", "ban"]:
         try:
             await chat.ban_member(target_user_id)
             await update.message.reply_to_message.delete()
-            await update.message.reply_text(f"🚫 تم حظر {target_user.first_name}")
+            await send_admin_message(context, user.id, f"🚫 تم حظر {target_user.first_name}")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل في حظر المستخدم: {e}")
+            await send_admin_message(context, user.id, f"❌ فشل في حظر المستخدم: {e}")
 
     elif text in ["الغاء حظر", "الغي حظر", "unban"]:
         try:
             await chat.unban_member(target_user_id)
-            await update.message.reply_text(f"✅ تم إلغاء حظر {target_user.first_name}")
+            await send_admin_message(context, user.id, f"✅ تم إلغاء حظر {target_user.first_name}")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل في إلغاء الحظر: {e}")
+            await send_admin_message(context, user.id, f"❌ فشل في إلغاء الحظر: {e}")
 
     elif text in ["طرد", "اطرد", "kick"]:
         try:
             await chat.ban_member(target_user_id)
             await chat.unban_member(target_user_id)
             await update.message.reply_to_message.delete()
-            await update.message.reply_text(f"👢 تم طرد {target_user.first_name}")
+            await send_admin_message(context, user.id, f"👢 تم طرد {target_user.first_name}")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل في طرد المستخدم: {e}")
+            await send_admin_message(context, user.id, f"❌ فشل في طرد المستخدم: {e}")
 
     elif text in ["تثبيت", "ثبت", "pin"]:
         try:
             await update.message.reply_to_message.pin()
-            await update.message.reply_text(f"📌 تم تثبيت رسالة {target_user.first_name}")
+            await send_admin_message(context, user.id, f"📌 تم تثبيت رسالة {target_user.first_name}")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل في تثبيت الرسالة: {e}")
+            await send_admin_message(context, user.id, f"❌ فشل في تثبيت الرسالة: {e}")
 
     elif text.startswith("اضافه رد") or text.startswith("اضف رد") or text.startswith("ضف رد"):
         keywords_part = text.replace("اضافه رد", "").replace("اضف رد", "").replace("ضف رد", "").strip()
@@ -529,7 +529,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         file_type = None
 
         if not response_text and not (replied.photo or replied.video or replied.document or replied.voice or replied.audio):
-            await update.message.reply_text("❌ يجب أن تحتوي الرسالة المُشار إليها على نص أو مرفق")
+            await send_admin_message(context, user.id, "❌ يجب أن تحتوي الرسالة المُشار إليها على نص أو مرفق")
             return
 
         if keywords_part:
@@ -537,20 +537,20 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             keywords = [k.strip() for k in keywords_part.split(",") if k.strip()]
         else:
             if not response_text:
-                await update.message.reply_text("❌ الرسالة لا تحتوي على نص لتحليله")
+                await send_admin_message(context, user.id, "❌ الرسالة لا تحتوي على نص لتحليله")
                 return
-            await update.message.reply_text("🤖 جاري تحليل المحتوى باستخدام الذكاء الاصطناعي...")
+            await send_admin_message(context, user.id, "🤖 جاري تحليل المحتوى باستخدام الذكاء الاصطناعي...")
             try:
                 from bot.services.ai import extract_keywords_and_questions
                 items = extract_keywords_and_questions(response_text)
                 keywords = items
             except Exception as e:
                 logger.error(f"AI generation error: {e}")
-                await update.message.reply_text(f"❌ فشل في تحليل المحتوى آليًا. الرجاء كتابة الكلمات المفتاحية يدويًا.\n({e})")
+                await send_admin_message(context, user.id, f"❌ فشل في تحليل المحتوى آليًا. الرجاء كتابة الكلمات المفتاحية يدويًا.\n({e})")
                 return
 
         if not keywords:
-            await update.message.reply_text("❌ لم يتم العثور على كلمات مفتاحية صحيحة")
+            await send_admin_message(context, user.id, "❌ لم يتم العثور على كلمات مفتاحية صحيحة")
             return
 
         file_tg_id = None
@@ -616,20 +616,20 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 logger.error(f"Could not create auto response for keyword '{keyword}': {e}")
 
         if created_count > 0:
-            await update.message.reply_text(f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}")
+            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}")
         else:
-            await update.message.reply_text("❌ فشل في إنشاء الردود التلقائية")
+            await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
 
     elif text.strip() in ["ازاله الرد", "ازالة الرد", "ازل رد"]:
         replied = update.message.reply_to_message
         responses = await get_auto_responses_by_source(chat.id, replied.message_id)
         if not responses:
-            await update.message.reply_text("❌ لا توجد ردود تلقائية مرتبطة بهذه الرسالة")
+            await send_admin_message(context, user.id, "❌ لا توجد ردود تلقائية مرتبطة بهذه الرسالة")
             return
 
         keywords = [r.keyword for r in responses]
         await remove_auto_responses_by_source(chat.id, replied.message_id)
-        await update.message.reply_text(f"✅ تم إزالة {len(responses)} رد تلقائي:\n{', '.join(keywords)}")
+        await send_admin_message(context, user.id, f"✅ تم إزالة {len(responses)} رد تلقائي:\n{', '.join(keywords)}")
 
 
 # ==================== تسجيل الاوامر ====================
