@@ -1,18 +1,19 @@
+import httpx
 import logging
-from bot.config import GEMINI_API_KEY
+from bot.config import OPENROUTER_API_KEY
 
 logger = logging.getLogger(__name__)
+
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_MODEL = "google/gemini-2.0-flash-001:free"
 
 
 def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questions: int = 5) -> list[str]:
     if not text or not text.strip():
         return []
 
-    if not GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-
-    import google.genai as genai
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY is not configured")
 
     prompt = f"""اقرأ النص التالي واستخرج منه:
 1. {max_keywords} كلمات مفتاحية أساسية تدل على موضوع النص (كلمة واحدة فقط لكل كلمة مفتاحية)
@@ -24,14 +25,32 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
 المطلوب: أعد النتيجة كقائمة فقط، كل عنصر في سطر جديد. الكلمات المفتاحية أولاً ثم الأسئلة.
 لاتكتب أي شرح أو مقدمة."""
 
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt,
+    response = httpx.post(
+        OPENROUTER_URL,
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": DEFAULT_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 500,
+        },
+        timeout=30,
     )
 
-    if not response.candidates:
-        raise RuntimeError("Gemini blocked the request (no candidates returned)")
+    if response.status_code != 200:
+        raise RuntimeError(f"OpenRouter API error {response.status_code}: {response.text}")
 
-    result = response.text.strip().split("\n")
+    data = response.json()
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError("OpenRouter returned no choices")
+
+    content = choices[0].get("message", {}).get("content", "")
+    if not content:
+        raise RuntimeError("OpenRouter returned empty content")
+
+    result = content.strip().split("\n")
     items = [line.strip("- ").strip() for line in result if line.strip()]
     return items
