@@ -23,7 +23,7 @@ def _call_model(prompt: str, model: str) -> str:
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 500,
         },
-        timeout=30,
+        timeout=httpx.Timeout(60.0, read=60.0),
     )
 
     if response.status_code != 200:
