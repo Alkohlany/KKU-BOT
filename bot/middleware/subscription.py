@@ -127,22 +127,11 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
 
     is_sub = await _api_check(user.id, context)
     await update_user_subscription(user.id, is_sub)
-    chat_type = update.effective_chat.type
 
-    if is_sub:
-        msg = "✅ تم التحقق من اشتراكك بنجاح"
-        if chat_type not in ("group", "supergroup"):
-            from bot.handlers.start import START_MESSAGE, FEATURES_KEYBOARD
-            await query.edit_message_text(msg)
-            await query.message.reply_text(START_MESSAGE, reply_markup=InlineKeyboardMarkup(FEATURES_KEYBOARD))
-        else:
-            await query.edit_message_text(msg)
-    else:
-        msg = f"❌ أنت غير مشترك في القناة بعد.\n\n🔗 الاشتراك هنا: {CHANNEL_LINK}"
-        if chat_type not in ("group", "supergroup"):
-            await query.edit_message_text(msg, reply_markup=_ch_link_keyboard())
-        else:
-            await query.edit_message_text(msg)
+    try:
+        await query.delete_message()
+    except Exception:
+        pass
 
 
 check_subscription_handler = CallbackQueryHandler(check_subscription_callback, pattern="^check_subscription$")
