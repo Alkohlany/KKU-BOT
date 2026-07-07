@@ -112,7 +112,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         publish_to_channel = payload.publish_to_channel if payload else news.publish_to_channel
         as_document = payload.as_document if payload else news.as_document
         text = f"📰 {news.title}\n\n{news.content}"
-        sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_name=news.file_name,
+        sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url,
                                         publish_to_channel=publish_to_channel, as_document=as_document)
 
         await publish_news(news_id)
