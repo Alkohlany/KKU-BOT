@@ -40,6 +40,8 @@ class AutoResponse(Base):
     file_type = Column(String(50), nullable=True)
     as_document = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
+    source_chat_id = Column(BigInteger, nullable=True)
+    source_message_id = Column(Integer, nullable=True)
 
 
 class BannedUser(Base):

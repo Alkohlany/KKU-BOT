@@ -46,6 +46,8 @@ async def init_db():
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS file_url VARCHAR(500)"))
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
+        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_chat_id BIGINT"))
+        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_message_id INTEGER"))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
@@ -153,6 +155,28 @@ async def remove_auto_response(response_id: int):
     async with async_session() as session:
         await session.execute(
             delete(AutoResponse).where(AutoResponse.id == response_id)
+        )
+        await session.commit()
+
+
+async def get_auto_responses_by_source(chat_id: int, message_id: int) -> list[AutoResponse]:
+    async with async_session() as session:
+        result = await session.execute(
+            select(AutoResponse).where(
+                AutoResponse.source_chat_id == chat_id,
+                AutoResponse.source_message_id == message_id
+            )
+        )
+        return list(result.scalars().all())
+
+
+async def remove_auto_responses_by_source(chat_id: int, message_id: int):
+    async with async_session() as session:
+        await session.execute(
+            delete(AutoResponse).where(
+                AutoResponse.source_chat_id == chat_id,
+                AutoResponse.source_message_id == message_id
+            )
         )
         await session.commit()
 
