@@ -8,7 +8,9 @@ from bot.services.news_publisher import publish_to_groups
 from bot.services.cloud_storage import upload_image, upload_raw
 from bot.models.models import News
 from bot.config import BOT_TOKEN
+import cloudinary.utils
 import httpx
+import time
 
 router = APIRouter()
 
@@ -69,6 +71,22 @@ async def create_news(data: NewsCreate):
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel, "as_document": n.as_document}
+
+
+@router.get("/upload-config")
+async def get_upload_config():
+    config = cloudinary.config()
+    timestamp = int(time.time())
+    folder = "kku-bot/news"
+    params = {"folder": folder, "timestamp": timestamp}
+    signature = cloudinary.utils.api_sign_request(params, config.api_secret)
+    return {
+        "cloud_name": config.cloud_name,
+        "api_key": config.api_key,
+        "signature": signature,
+        "timestamp": timestamp,
+        "folder": folder,
+    }
 
 
 @router.post("/upload")

@@ -46,13 +46,25 @@ export default function News() {
     try {
       let newItem;
       if (uploadFile) {
+        const config = await api.getUploadConfig();
+
         const formData = new FormData();
-        formData.append('title', form.title);
-        formData.append('content', form.content);
         formData.append('file', uploadFile);
-        formData.append('as_document', form.as_document);
-        newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
+        formData.append('api_key', config.api_key);
+        formData.append('timestamp', config.timestamp);
+        formData.append('signature', config.signature);
+        formData.append('folder', config.folder);
+
+        const result = await api.uploadToCloudinary(config.cloud_name, formData, (percent) => {
           setUploadProgress(percent);
+        });
+
+        newItem = await api.addNews({
+          title: form.title,
+          content: form.content,
+          file_url: result.secure_url,
+          file_name: uploadFile.name,
+          as_document: form.as_document,
         });
       } else {
         newItem = await api.addNews(form);
@@ -61,8 +73,10 @@ export default function News() {
       setForm({ title: '', content: '', as_document: false });
       setUploadFile(null);
       setShowModal(false);
+      showToast('تم إضافة الخبر بنجاح', 'success');
     } catch (err) {
       console.error('Failed to save news:', err);
+      showToast('فشل حفظ الخبر', 'error');
     } finally {
       setSaving(false);
       setUploadProgress(null);

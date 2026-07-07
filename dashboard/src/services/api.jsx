@@ -139,6 +139,31 @@ const api = {
     });
   },
 
+  getUploadConfig: () => api.get('/news/upload-config'),
+
+  async uploadToCloudinary(cloudName, formData, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status}`));
+        }
+      });
+      xhr.addEventListener('error', () => reject(new Error('Network error')));
+      xhr.addEventListener('abort', () => reject(new Error('Aborted')));
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`);
+      xhr.send(formData);
+    });
+  },
+
   getNews: () => api.get('/news'),
   addNews: (data) => api.post('/news', data),
   addNewsWithFile: (formData) => api.postFormData('/news/upload', formData),
