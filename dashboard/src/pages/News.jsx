@@ -8,7 +8,7 @@ export default function News() {
   const { showToast } = useToast();
   const [news, setNews] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ title: '', content: '', as_document: false });
+  const [form, setForm] = useState({ title: '', content: '', as_document: false, publish_to_channel: false });
   const [uploadFile, setUploadFile] = useState(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishItem, setPublishItem] = useState(null);
@@ -51,6 +51,7 @@ export default function News() {
         formData.append('content', form.content);
         formData.append('file', uploadFile);
         formData.append('as_document', form.as_document);
+        formData.append('publish_to_channel', form.publish_to_channel);
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
         });
@@ -58,10 +59,10 @@ export default function News() {
         newItem = await api.addNews(form);
       }
       setNews([...news, newItem]);
-      setForm({ title: '', content: '', as_document: false });
+      setForm({ title: '', content: '', as_document: false, publish_to_channel: false });
       setUploadFile(null);
       setShowModal(false);
-      showToast('تم إضافة الخبر بنجاح', 'success');
+      showToast('تم إضافة ونشر الخبر بنجاح', 'success');
     } catch (err) {
       console.error('Failed to save news:', err);
       showToast('فشل حفظ الخبر', 'error');
@@ -367,6 +368,17 @@ export default function News() {
                   عند التفعيل، سيتم إرسال الملف كمرفق قابل للتحميل بدلاً من عرضه مباشرة
                 </small>
               </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.publish_to_channel}
+                    onChange={(e) => setForm({ ...form, publish_to_channel: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  نشر في القناة الرسمية أيضاً
+                </label>
+              </div>
             </div>
             <div className="modal-footer">
               {uploadProgress !== null && (
@@ -389,7 +401,7 @@ export default function News() {
                 </div>
               )}
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? 'جاري الحفظ...' : 'إضافة'}
+                {saving ? 'جاري النشر...' : 'نشر'}
               </button>
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>إلغاء</button>
             </div>

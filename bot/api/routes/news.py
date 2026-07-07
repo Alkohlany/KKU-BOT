@@ -142,8 +142,17 @@ async def create_news_with_file(
 
         n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
                             publish_to_channel=publish_to_channel, as_document=as_document)
+
+        text = f"📰 {title}\n\n{content}"
+        sent = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,
+                                        publish_to_channel=publish_to_channel, as_document=as_document,
+                                        file_name=file.filename if file and file.filename else None,
+                                        thumbnail_url=thumbnail_url)
+        await publish_news(n.id)
+
         return {"id": n.id, "title": n.title, "content": n.content,
-                "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id, "published": n.is_published,
+                "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
+                "published": True, "sent": sent,
                 "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
     except HTTPException:
         raise
