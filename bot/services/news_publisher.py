@@ -66,8 +66,13 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
             url = image_url or file_url
             if await _send_file_via_url(chat_id, url, text, bot.send_document, original_filename=file_name, force_bytes=True):
                 return True
+            try:
+                await bot.send_document(chat_id=chat_id, document=url, caption=text)
+                return True
+            except Exception as e:
+                logger.warning(f"send_document URL fallback also failed: {e}")
 
-        if image_url:
+        if image_url and not as_document:
             try:
                 await bot.send_photo(chat_id=chat_id, photo=image_url, caption=text)
                 return True
