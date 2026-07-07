@@ -105,25 +105,42 @@ async def create_news_with_file(
         if file:
             ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
             if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-                img_data = await file.read()
-                url = upload_image(img_data, folder="kku-bot/news")
+                try:
+                    img_data = await file.read()
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"فشل قراءة الصورة: {str(e)}")
+                try:
+                    url = upload_image(img_data, folder="kku-bot/news")
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
                 file_type = detect_file_type(file.filename)
                 if as_document:
                     file_url = url
                 else:
                     image_url = url
             else:
-                file_data = await file.read()
-                file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
+                try:
+                    file_data = await file.read()
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"فشل قراءة الملف: {str(e)}")
+                try:
+                    file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"فشل رفع الملف لـ Cloudinary: {str(e)}")
                 file_type = detect_file_type(file.filename)
 
-        n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                            publish_to_channel=publish_to_channel, as_document=as_document)
+        try:
+            n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
+                                publish_to_channel=publish_to_channel, as_document=as_document)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"فشل حفظ الخبر في قاعدة البيانات: {str(e)}")
         return {"id": n.id, "title": n.title, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "published": n.is_published,
                 "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"خطأ في رفع الملف: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"خطأ غير متوقع: {str(e)}")
 
 
 @router.post("/{news_id}/publish")

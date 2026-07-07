@@ -20,12 +20,27 @@ def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
 
 
 def upload_raw(file_bytes: bytes, filename: str = "", folder: str = "kku-bot") -> str:
+    import tempfile, os
     try:
-        result = cloudinary.uploader.upload_large(file_bytes, folder=folder, resource_type="auto", timeout=300, chunk_size=6_000_000)
+        suffix = os.path.splitext(filename)[1] if filename else ""
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+            f.write(file_bytes)
+            temp_path = f.name
+    except Exception as e:
+        logger.error(f"Temp file creation failed: {e}", exc_info=True)
+        raise
+
+    try:
+        result = cloudinary.uploader.upload_large(temp_path, folder=folder, chunk_size=6_000_000)
         return result["secure_url"]
     except Exception as e:
-        logger.error(f"upload_raw failed: {e}", exc_info=True)
+        logger.error(f"Cloudinary upload_large failed: {e}", exc_info=True)
         raise
+    finally:
+        try:
+            os.unlink(temp_path)
+        except Exception:
+            pass
 
 
 def download_raw(file_url: str) -> bytes | None:
