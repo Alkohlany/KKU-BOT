@@ -7,9 +7,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-CACHE_SUBSCRIBED = timedelta(minutes=10)
-CACHE_UNSUBSCRIBED = timedelta(minutes=2)
+RATE_LIMIT = timedelta(seconds=5)
 
+_last_api: dict[int, datetime] = {}
+_last_result: dict[int, bool] = {}
 
 _SUB_MSG = "📢 لاستخدام البوت يجب الاشتراك في القناة أولاً\n\n🔗 {link}"
 
@@ -20,29 +21,25 @@ def _ch_link_keyboard():
     ]])
 
 
-async def _api_check(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    now = datetime.utcnow()
+    last = _last_api.get(user_id)
+
+    if last and (now - last) < RATE_LIMIT:
+        return _last_result.get(user_id, True)
+
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        return member.status in ("member", "administrator", "creator")
+        is_subscribed = member.status in ("member", "administrator", "creator")
     except Exception as e:
         if "member list is inaccessible" in str(e).lower() or "chat_admin_required" in str(e):
             logger.warning(f"Cannot check subscription for {user_id}, allowing: {e}")
             return True
         logger.error(f"Subscription check error for {user_id}: {e}")
-        return False
+        is_subscribed = False
 
-
-async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    db_user = await get_user(user_id)
-    now = datetime.utcnow()
-
-    if db_user and db_user.last_check:
-        age = now - db_user.last_check
-        ttl = CACHE_SUBSCRIBED if db_user.is_subscribed else CACHE_UNSUBSCRIBED
-        if age < ttl:
-            return db_user.is_subscribed
-
-    is_subscribed = await _api_check(user_id, context)
+    _last_api[user_id] = now
+    _last_result[user_id] = is_subscribed
     await update_user_subscription(user_id, is_subscribed)
     return is_subscribed
 
@@ -90,26 +87,16 @@ async def group_subscription_check(update: Update, context: ContextTypes.DEFAULT
     if not db_user:
         db_user = await create_user(telegram_id=user.id, username=user.username, first_name=user.first_name)
 
-    now = datetime.utcnow()
-    if db_user.last_check:
-        age = now - db_user.last_check
-        if db_user.is_subscribed and age < CACHE_SUBSCRIBED:
-            return
-        if not db_user.is_subscribed and age < CACHE_UNSUBSCRIBED:
-            return
+    if not await verify_subscription(user.id, context):
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
 
-    if await verify_subscription(user.id, context):
-        return
-
-    try:
-        await update.message.delete()
-    except Exception:
-        pass
-
-    await update.effective_chat.send_message(
-        f"📢 {user.first_name}، {_SUB_MSG.format(link=CHANNEL_LINK)}",
-        reply_markup=_ch_link_keyboard()
-    )
+        await update.effective_chat.send_message(
+            f"📢 {user.first_name}، {_SUB_MSG.format(link=CHANNEL_LINK)}",
+            reply_markup=_ch_link_keyboard()
+        )
 
 
 group_subscription_handler = MessageHandler(
@@ -125,7 +112,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
     if not user:
         return
 
-    is_sub = await _api_check(user.id, context)
+    is_sub = await verify_subscription(user.id, context)
     await update_user_subscription(user.id, is_sub)
 
     try:
