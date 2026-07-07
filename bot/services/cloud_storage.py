@@ -20,7 +20,7 @@ def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
 
 
 def upload_raw(file_bytes: bytes, filename: str = "", folder: str = "kku-bot") -> str:
-    result = cloudinary.uploader.upload(file_bytes, folder=folder, resource_type="raw", timeout=120)
+    result = cloudinary.uploader.upload(file_bytes, folder=folder, resource_type="auto", timeout=120)
     return result["secure_url"]
 
 
