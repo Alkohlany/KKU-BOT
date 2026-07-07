@@ -15,7 +15,7 @@ bot = Bot(token=BOT_TOKEN)
 
 def wrap_links_in_blockquote(text: str) -> str:
     """Wrap URLs in text with <blockquote> tags"""
-    url_pattern = r'(https?://[^\s<]+)'
+    url_pattern = r'(https?://[^\s<]+|t\.me/[^\s<]+|www\.[^\s<]+)'
     def replace_url(match):
         url = match.group(0)
         return f'<blockquote>{url}</blockquote>'
