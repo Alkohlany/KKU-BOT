@@ -127,33 +127,50 @@ async def question_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         return
 
-    if not update.message.reply_to_message:
+    raw_text = update.message.text
+    cmd_variants = ["/q add ", "/q add", "/سؤال اضف ", "/سؤال اضف"]
+    args_text = raw_text
+    for cmd in cmd_variants:
+        if raw_text.startswith(cmd):
+            args_text = raw_text[len(cmd):]
+            break
+
+    args_text = args_text.strip()
+
+    if not args_text:
         await update.message.reply_text(
             "❌ الطريقة الصحيحة:\n"
-            "1. ارسل السؤال كرسالة\n"
-            "2.رد عليها بالإجابة\n"
-            "3.اكتب:\n/سؤال اضف \[قسم\]\n\n"
-            "💡 القسم اختياري (مثال: تسجيل، رسوم، مواد)",
-            parse_mode=ParseMode.MARKDOWN
+            "/q add [سؤال] [كلمات مفتاحية] [رقم المنشور]\n\n"
+            "💡 مثال:\n"
+            "/q add كيف أسجل تسجيل,قوائم 5\n\n"
+            "💡 يمكنك أيضاً استخدام:\n"
+            "اضافه سؤال [سؤال] [كلمات مفتاحية] [رقم المنشور]"
         )
         return
 
-    category = context.args[0] if context.args else "عام"
-    question_text = update.message.reply_to_message.text
-    answer_text = update.message.text.replace('/سؤال اضف', '').replace(category, '').strip()
+    parts = args_text.rsplit(None, 2)
+    if len(parts) < 3:
+        await update.message.reply_text("❌ يجب تحديد: السؤال + كلمات مفتاحية + رقم المنشور")
+        return
 
-    if not answer_text:
-        await update.message.reply_text("❌ يجب كتابة الإجابة بعد الأمر")
+    question_text, keywords, news_id_str = parts[0], parts[1], parts[2]
+
+    try:
+        news_id = int(news_id_str)
+    except ValueError:
+        await update.message.reply_text("❌ رقم المنشور يجب أن يكون رقماً صحيحاً")
         return
 
     try:
         await add_question(
             question=question_text,
-            answer=answer_text,
-            category=category
+            answer="تم الرد عبر المنشور",
+            category="عام",
+            keywords=keywords,
+            news_id=news_id
         )
-        await update.message.reply_text(f"✅ تمت إضافة السؤال\n📁 القسم: {category}")
-        await log_activity("add_question", f"Category: {category}", update.effective_user.id)
+        await update.message.reply_text(f"✅ تمت إضافة السؤال\n🔗 المنشور المرتبط: {news_id}")
+        await log_activity("add_question", f"News ID: {news_id}", update.effective_user.id)
     except Exception as e:
         await update.message.reply_text(f"❌ فشل إضافة السؤال: {str(e)}")
 

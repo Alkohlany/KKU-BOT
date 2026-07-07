@@ -67,7 +67,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if not keywords_part:
             await send_admin_message(context, user.id,
                 "❌ الطريقة الصحيحة:\n"
-                "اضافه رد [كلمة] [رد]\n\n"
+                "اضافه رد [كلمة] [رقم المنشور]\n\n"
                 "💡 يمكنك أيضاً الرد على رسالة وإرسال:\n"
                 "اضافه رد [كلمة]",
             )
@@ -75,20 +75,25 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         parts = keywords_part.split(None, 1)
         if len(parts) < 2:
-            await send_admin_message(context, user.id, "❌ يجب كتابة الكلمة والرد\n\nمثال: اضافه رد تسجيل كيف أسجل")
+            await send_admin_message(context, user.id, "❌ يجب كتابة الكلمة ورقم المنشور\n\nمثال: اضافه رد تسجيل 5")
             return
 
         keyword = parts[0]
-        response_text = parts[1]
+        try:
+            news_id = int(parts[1])
+        except ValueError:
+            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح لرقم المنشور")
+            return
 
         try:
             await add_auto_response(
                 keyword=keyword,
-                response=response_text,
-                created_by=user.id
+                response="تم الرد عبر المنشور",
+                created_by=user.id,
+                news_id=news_id
             )
-            await send_admin_message(context, user.id, f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📝 الرد: {response_text}")
-            await log_activity("add_response", f"Keyword: {keyword}", user.id)
+            await send_admin_message(context, user.id, f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📰 المنشور: {news_id}")
+            await log_activity("add_response", f"Keyword: {keyword}, News: {news_id}", user.id)
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل إضافة الرد: {str(e)}")
 
@@ -118,7 +123,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         text_msg = "📋 **الردود التلقائية:**\n\n"
         for r in responses[:30]:
             status = "✅" if r.is_active else "❌"
-            text_msg += f"{status} `{r.id}` - 🔑 {r.keyword}\n"
+            text_msg += f"{status} `{r.id}` - 🔑 {r.keyword} 📰 منشور: {r.news_id or 'بدون'}\n"
 
         if len(responses) > 30:
             text_msg += f"\n... و {len(responses) - 30} رد آخر"
@@ -141,19 +146,54 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         text_msg = f"🔍 **نتائج البحث لـ:** {query}\n\n"
         for r in results[:10]:
-            text_msg += f"`{r.id}` - 🔑 {r.keyword}\n📝 {r.response[:50]}...\n\n"
+            text_msg += f"`{r.id}` - 🔑 {r.keyword}\n📰 منشور: {r.news_id or 'بدون'}\n\n"
 
         await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     # ==================== الاسئلة الشائعة ====================
     elif text.startswith("اضافه سؤال") or text.startswith("أضف سؤال"):
-        await send_admin_message(context, user.id,
-            "❌ الطريقة الصحيحة:\n"
-            "1. ارسل السؤال كرسالة\n"
-            "2. رد عليها بالإجابة\n"
-            "3. اكتب:\nاضافه سؤال [قسم]\n\n"
-            "💡 القسم اختياري (مثال: تسجيل، رسوم، مواد)"
-        )
+        keywords_part = text.replace("اضافه سؤال", "").replace("أضف سؤال", "").strip()
+        
+        if not keywords_part:
+            await send_admin_message(context, user.id,
+                "❌ الطريقة الصحيحة:\n"
+                "اضافه سؤال [سؤال] [كلمات مفتاحية] [رقم المنشور]\n\n"
+                "💡 مثال:\n"
+                "اضافه سؤال كيف أسجل تسجيل,قوائم 5"
+            )
+            return
+
+        parts = keywords_part.rsplit(None, 1)
+        if len(parts) < 2:
+            await send_admin_message(context, user.id, "❌ يجب كتابة السؤال والكلمات المفتاحية ورقم المنشور")
+            return
+
+        try:
+            news_id = int(parts[1])
+        except ValueError:
+            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح لرقم المنشور")
+            return
+
+        remaining = parts[0].strip()
+        remaining_parts = remaining.rsplit(None, 1)
+        if len(remaining_parts) < 2:
+            await send_admin_message(context, user.id, "❌ يجب كتابة السؤال والكلمات المفتاحية\n\nمثال: اضافه سؤال كيف أسجل تسجيل,قوائم 5")
+            return
+
+        question_text = remaining_parts[0]
+        keywords = remaining_parts[1]
+
+        try:
+            await add_question(
+                question=question_text,
+                answer="تم الرد عبر المنشور",
+                keywords=keywords,
+                news_id=news_id
+            )
+            await send_admin_message(context, user.id, f"✅ تمت إضافة السؤال\n\n💬 السؤال: {question_text}\n🔑 الكلمات: {keywords}\n📰 المنشور: {news_id}")
+            await log_activity("add_question", f"Question: {question_text}, News: {news_id}", user.id)
+        except Exception as e:
+            await send_admin_message(context, user.id, f"❌ فشل إضافة السؤال: {str(e)}")
 
     elif text.startswith("احذف سؤال") or text.startswith("احذف السؤال"):
         id_part = text.replace("احذف سؤال", "").replace("احذف السؤال", "").strip()
@@ -380,13 +420,13 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         help_text = """⚙️ **اوامر الادمن النصية**
 
 **📋 الردود التلقائية:**
-اضافه رد [كلمة] [رد] - إضافة رد جديد
+اضافه رد [كلمة] [رقم المنشور] - إضافة رد جديد
 احذف رد [رقم] - حذف رد
 قائمة الردود - عرض جميع الردود
 بحث في الردود [كلمة] - البحث في الردود
 
 **❓ الاسئلة الشائعة:**
-اضافه سؤال [قسم] - إضافة سؤال (بالرد على رسالة)
+اضافه سؤال [سؤال] [كلمات] [رقم المنشور] - إضافة سؤال
 احذف سؤال [رقم] - حذف سؤال
 قائمة الاسئلة - عرض الاسئلة
 بحث في الاسئلة [كلمة] - البحث في الاسئلة

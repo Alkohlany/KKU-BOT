@@ -14,12 +14,14 @@ router = APIRouter()
 class CustomResponseCreate(BaseModel):
     keyword: str
     response: str
+    news_id: Optional[int] = None
 
 
 class CustomResponseUpdate(BaseModel):
     keyword: Optional[str] = None
     response: Optional[str] = None
     enabled: Optional[bool] = None
+    news_id: Optional[int] = None
 
 
 @router.get("")
@@ -35,6 +37,7 @@ async def get_custom_responses(
             "keyword": r.keyword,
             "response": r.response,
             "enabled": r.is_active,
+            "news_id": r.news_id,
         }
         for r in items
     ]
@@ -47,9 +50,9 @@ async def create_custom_response(
     user: dict = Depends(get_current_user),
 ):
     ar = await add_auto_response(
-        keyword=data.keyword, response=data.response, created_by=0,
+        keyword=data.keyword, response=data.response, created_by=0, news_id=data.news_id,
     )
-    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active}
+    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "news_id": ar.news_id}
 
 
 @router.put("/{response_id}")
@@ -64,10 +67,11 @@ async def update_custom_response(
         keyword=data.keyword,
         response=data.response,
         is_active=data.enabled,
+        news_id=data.news_id,
     )
     if not ar:
         raise HTTPException(status_code=404, detail="Response not found")
-    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active}
+    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "news_id": ar.news_id}
 
 
 @router.delete("")

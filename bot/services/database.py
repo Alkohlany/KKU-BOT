@@ -188,7 +188,7 @@ async def remove_auto_responses_by_source(chat_id: int, message_id: int):
         await session.commit()
 
 
-async def update_auto_response(response_id: int, keyword: str = None, response: str = None, is_active: bool = None, file_url: str = None, file_type: str = None, as_document: bool = None):
+async def update_auto_response(response_id: int, keyword: str = None, response: str = None, is_active: bool = None, file_url: str = None, file_type: str = None, as_document: bool = None, news_id: int = None):
     async with async_session() as session:
         stmt = select(AutoResponse).where(AutoResponse.id == response_id)
         result = await session.execute(stmt)
@@ -207,6 +207,8 @@ async def update_auto_response(response_id: int, keyword: str = None, response: 
             ar.file_type = file_type
         if as_document is not None:
             ar.as_document = as_document
+        if news_id is not None:
+            ar.news_id = news_id
         await session.commit()
         await session.refresh(ar)
         return ar
@@ -268,6 +270,11 @@ async def delete_news(news_id):
     async with async_session() as session:
         await session.execute(delete(News).where(News.id == news_id))
         await session.commit()
+
+async def get_news_by_id(news_id: int):
+    async with async_session() as session:
+        result = await session.execute(select(News).where(News.id == news_id))
+        return result.scalar_one_or_none()
 
 
 # ==================== Questions ====================

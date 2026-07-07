@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
-from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage
+from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage, get_news_by_id
 from bot.services.responses_system import DEFAULT_RESPONSES
 import logging
 import unicodedata
@@ -100,6 +100,18 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         if best_match:
             logger.info(f"AUTO_RESPONSE: matched keyword='{best_match.keyword}' response_len={len(best_match.response or '')} file_tg_id={'yes' if best_match.file_tg_id else 'no'}")
             try:
+                if best_match.news_id:
+                    news_post = await get_news_by_id(best_match.news_id)
+                    if news_post:
+                        content = news_post.content or ""
+                        if news_post.image_url:
+                            await update.message.reply_photo(photo=news_post.image_url, caption=content)
+                        elif news_post.file_url:
+                            await update.message.reply_document(document=news_post.file_url, caption=content)
+                        else:
+                            await update.message.reply_text(content)
+                        logger.info("AUTO_RESPONSE: sent news post")
+                        return
                 if not best_match.response and not best_match.file_tg_id and not best_match.file_url:
                     logger.info("AUTO_RESPONSE: skipped - empty response and no file")
                     return
@@ -148,6 +160,17 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         if question_result:
             await increment_question_usage(question_result.id)
             try:
+                if question_result.news_id:
+                    news_post = await get_news_by_id(question_result.news_id)
+                    if news_post:
+                        content = news_post.content or ""
+                        if news_post.image_url:
+                            await update.message.reply_photo(photo=news_post.image_url, caption=content)
+                        elif news_post.file_url:
+                            await update.message.reply_document(document=news_post.file_url, caption=content)
+                        else:
+                            await update.message.reply_text(content)
+                        return
                 if question_result.file_url:
                     if question_result.as_document:
                         await update.message.reply_document(document=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")

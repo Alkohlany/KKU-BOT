@@ -9,6 +9,7 @@ class QuestionCreate(BaseModel):
     question: str
     answer: str
     keywords: Optional[str] = None
+    news_id: Optional[int] = None
 
 
 @router.get("/")
@@ -20,6 +21,7 @@ async def get_questions():
             "question": q.question,
             "answer": q.answer,
             "keywords": q.keywords,
+            "news_id": q.news_id,
         }
         for q in items
     ]
@@ -28,9 +30,9 @@ async def get_questions():
 @router.post("/")
 async def create_question(data: QuestionCreate):
     q = await add_question(question=data.question, answer=data.answer,
-                           category=None, keywords=data.keywords)
+                           category=None, keywords=data.keywords, news_id=data.news_id)
     return {"id": q.id, "question": q.question, "answer": q.answer,
-            "keywords": q.keywords}
+            "keywords": q.keywords, "news_id": q.news_id}
 
 
 @router.put("/{question_id}")
@@ -41,11 +43,12 @@ async def update_question_endpoint(question_id: int, data: QuestionCreate):
         answer=data.answer,
         category=None,
         keywords=data.keywords,
+        news_id=data.news_id,
     )
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
     return {"id": q.id, "question": q.question, "answer": q.answer,
-            "keywords": q.keywords}
+            "keywords": q.keywords, "news_id": q.news_id}
 
 
 @router.get("/search/{text}")
@@ -53,7 +56,7 @@ async def search_questions(text: str):
     result = await search_question(text)
     if result:
         await increment_question_usage(result.id)
-        return {"question": result.question, "answer": result.answer}
+        return {"question": result.question, "answer": result.answer, "news_id": result.news_id}
     return {"message": "لم أجد جواب على سؤالك، جرب أسئلة ثانية أو اسأل في القروب"}
 
 
