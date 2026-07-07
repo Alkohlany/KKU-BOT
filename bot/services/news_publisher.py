@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=BOT_TOKEN)
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_name: str = None, publish_to_channel: bool = False, as_document: bool = False):
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, publish_to_channel: bool = False, as_document: bool = False):
     groups = await get_all_groups()
     sent = 0
 
