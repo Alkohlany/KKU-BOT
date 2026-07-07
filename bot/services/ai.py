@@ -1,55 +1,73 @@
 import logging
+import time as _time
 from bot.config import NVIDIA_API_KEY
 
 logger = logging.getLogger(__name__)
 
 NVIDIA_NIM_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 DEFAULT_MODELS = [
+    "deepseek-ai/deepseek-v4-flash",
     "qwen/qwen3.5-122b-a10b",
     "nvidia/nemotron-3-super-120b-a12b",
-    "nvidia/llama-3.3-nemotron-super-49b-v1.5",
 ]
+MAX_RETRIES = 3
 
 
 def _call_model(prompt: str, model: str) -> str:
     import httpx
 
-    response = httpx.post(
-        NVIDIA_NIM_URL,
-        headers={
-            "Authorization": f"Bearer {NVIDIA_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 500,
-        },
-        timeout=httpx.Timeout(60.0, read=60.0),
-    )
+    last_err = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = httpx.post(
+                NVIDIA_NIM_URL,
+                headers={
+                    "Authorization": f"Bearer {NVIDIA_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 300,
+                    "temperature": 0.3,
+                },
+                timeout=httpx.Timeout(30.0, read=30.0),
+            )
 
-    if response.status_code != 200:
-        raise RuntimeError(f"API error {response.status_code}: {response.text[:200]}")
+            if response.status_code == 503:
+                logger.warning(f"Model {model} overloaded (503), retry {attempt+1}/{MAX_RETRIES}")
+                _time.sleep(2 * (attempt + 1))
+                continue
 
-    data = response.json()
-    choices = data.get("choices", [])
-    if not choices:
-        raise RuntimeError("no choices returned")
+            if response.status_code != 200:
+                raise RuntimeError(f"API error {response.status_code}: {response.text[:200]}")
 
-    content = choices[0].get("message", {}).get("content", "")
-    if not content:
-        raise RuntimeError("empty content returned")
+            data = response.json()
+            choices = data.get("choices", [])
+            if not choices:
+                raise RuntimeError("no choices returned")
 
-    return content
+            content = choices[0].get("message", {}).get("content", "")
+            if not content:
+                raise RuntimeError("empty content returned")
+
+            return content
+        except httpx.TimeoutException:
+            logger.warning(f"Model {model} timeout, retry {attempt+1}/{MAX_RETRIES}")
+            _time.sleep(2 * (attempt + 1))
+            last_err = RuntimeError(f"Timeout after {MAX_RETRIES} attempts")
+            continue
+        except Exception as e:
+            last_err = e
+            break
+
+    raise last_err or RuntimeError(f"Model {model} failed after {MAX_RETRIES} retries")
 
 
 BLOCKED_WORDS = {
-    "تسجيل", "موعد", "نقل", "جامعة", "كلية", "طالب", "عام", "دليل",
-    "قروب", "قناة", "رابط", "تيليجرام", "واتساب", "الملك", "خالد",
-    "السعودية", "سنة", "1447", "القواعد", "مهمة", "استخرج", "النصوص",
-    "إذا", "النص", "قصير", "أعد", "أضف", "كلمات", "عامة",
-    "مثل", "ركّز", "التفاصيل", "المحددة", "فقط", "مثال",
-    "الرد", "النتيجة", "السؤال", "الإجابة", "شرح", "عنوان",
+    "القواعد", "مهمة", "استخرج", "النصوص", "إذا", "النص",
+    "قصير", "أعد", "أضف", "مثل", "ركّز", "التفاصيل",
+    "المحددة", "مثال", "الرد", "النتيجة", "شرح", "عنوان",
 }
 
 
