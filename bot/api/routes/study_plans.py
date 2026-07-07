@@ -307,6 +307,8 @@ async def publish_group_plans(group_id: int):
                         failed_plans.append(plan.title)
                         continue
 
+                    from bot.services.cloud_storage import download_raw
+
                     pdf_content = None
                     last_status = None
                     for dl_attempt in range(3):
@@ -318,6 +320,10 @@ async def publish_group_plans(group_id: int):
                             else:
                                 last_status = file_resp.status_code
                                 print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
+                                if last_status == 401 and dl_attempt == 2:
+                                    pdf_content = await asyncio.to_thread(download_raw, plan.file_url)
+                                    if pdf_content:
+                                        break
                         except Exception as e:
                             last_status = 0
                             print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
@@ -416,6 +422,9 @@ async def publish_single_plan(plan_id: int):
             g_result = await session.execute(g_stmt)
             group = g_result.scalar_one_or_none()
 
+        import asyncio
+        from bot.services.cloud_storage import download_raw
+
         async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
             pdf_content = None
             last_status = None
@@ -428,11 +437,14 @@ async def publish_single_plan(plan_id: int):
                     else:
                         last_status = file_resp.status_code
                         print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
+                        if last_status == 401 and dl_attempt == 2:
+                            pdf_content = await asyncio.to_thread(download_raw, plan.file_url)
+                            if pdf_content:
+                                break
                 except Exception as e:
                     last_status = 0
                     print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
                 if dl_attempt < 2:
-                    import asyncio
                     await asyncio.sleep(2)
 
             if not pdf_content:
