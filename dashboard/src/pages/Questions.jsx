@@ -9,7 +9,7 @@ export default function Questions() {
   const [questions, setQuestions] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ question: '', answer: '', category: '', keywords: '' });
+  const [form, setForm] = useState({ question: '', answer: '', keywords: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,7 +30,7 @@ export default function Questions() {
   };
 
   const filtered = questions.filter(
-    (q) => q.question?.includes(search) || q.answer?.includes(search) || q.category?.includes(search)
+    (q) => q.question?.includes(search) || q.answer?.includes(search) || q.keywords?.includes(search)
   );
 
   const handleSave = async () => {
@@ -38,14 +38,14 @@ export default function Questions() {
     setSaving(true);
     try {
       if (editItem) {
-        const payload = { question: form.question, answer: form.answer, category: form.category, keywords: form.keywords };
+        const payload = { question: form.question, answer: form.answer, keywords: form.keywords };
         const updated = await api.updateQuestion(editItem.id, payload);
         setQuestions(questions.map((q) => q.id === editItem.id ? updated : q));
       } else {
         const newItem = await api.addQuestion(form);
         setQuestions([...questions, newItem]);
       }
-      setForm({ question: '', answer: '', category: '', keywords: '' });
+      setForm({ question: '', answer: '', keywords: '' });
       setEditItem(null);
       setShowModal(false);
     } catch (err) {
@@ -60,7 +60,6 @@ export default function Questions() {
     setForm({
       question: item.question,
       answer: item.answer,
-      category: item.category || '',
       keywords: item.keywords || '',
     });
     setShowModal(true);
@@ -103,7 +102,7 @@ export default function Questions() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ question: '', answer: '', category: '', keywords: '' }); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ question: '', answer: '', keywords: '' }); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -119,7 +118,6 @@ export default function Questions() {
                 <tr>
                   <th>السؤال</th>
                   <th>الإجابة</th>
-                  <th>الفئة</th>
                   <th>الكلمات المفتاحية</th>
                   <th>إجراءات</th>
                 </tr>
@@ -130,13 +128,6 @@ export default function Questions() {
                     <td><strong>{item.question}</strong></td>
                     <td style={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.answer?.substring(0, 80)}...
-                    </td>
-                    <td>
-                      {item.category ? (
-                        <span className="status-badge active">{item.category}</span>
-                      ) : (
-                        <span style={{ color: 'var(--gray-400)' }}>-</span>
-                      )}
                     </td>
                     <td style={{ maxWidth: 200, fontSize: 13, color: 'var(--gray-500)' }}>
                       {item.keywords || '-'}
@@ -180,9 +171,6 @@ export default function Questions() {
               <div key={item.id} className="mobile-card">
                 <div className="mobile-card-header">
                   <strong>{item.question}</strong>
-                  {item.category && (
-                    <span className="status-badge active">{item.category}</span>
-                  )}
                 </div>
                 <div className="mobile-card-body">
                   <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 8 }}>
@@ -243,15 +231,6 @@ export default function Questions() {
                   value={form.answer}
                   onChange={(e) => setForm({ ...form, answer: e.target.value })}
                   style={{ minHeight: 120 }}
-                />
-              </div>
-              <div className="form-group">
-                <label>الفئة</label>
-                <input
-                  className="form-input"
-                  placeholder="مثال: أكاديمي، تسجيل، معاملات"
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
                 />
               </div>
               <div className="form-group">
