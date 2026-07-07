@@ -36,11 +36,12 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
 
 async def _send_file(chat_id: str, url: str, caption: str, original_filename: str = None) -> bool:
     """Try sending URL directly first, then download-and-upload as fallback."""
-    try:
-        await bot.send_document(chat_id=chat_id, document=url, caption=caption)
-        return True
-    except Exception as e:
-        logger.warning(f"send_document URL failed for {chat_id}: {e}")
+    if not original_filename:
+        try:
+            await bot.send_document(chat_id=chat_id, document=url, caption=caption)
+            return True
+        except Exception as e:
+            logger.warning(f"send_document URL failed for {chat_id}: {e}")
 
     file_bytes = await asyncio.to_thread(download_raw, url)
     if file_bytes is None:
