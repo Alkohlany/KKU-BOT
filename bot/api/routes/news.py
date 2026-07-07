@@ -27,6 +27,7 @@ class NewsCreate(BaseModel):
     content: str
     image_url: Optional[str] = None
     file_url: Optional[str] = None
+    file_name: Optional[str] = None
     publish_to_channel: bool = False
     as_document: bool = False
 
@@ -46,6 +47,7 @@ async def get_news():
             "content": n.content,
             "imageUrl": n.image_url,
             "fileUrl": n.file_url,
+            "fileName": n.file_name,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel,
             "asDocument": n.as_document,
@@ -60,10 +62,12 @@ async def get_news():
 async def create_news(data: NewsCreate):
     n = await add_news(title=data.title, content=data.content,
                          image_url=data.image_url, file_url=data.file_url,
+                         file_name=data.file_name,
                          publish_to_channel=data.publish_to_channel,
                          as_document=data.as_document)
     return {"id": n.id, "title": n.title, "content": n.content,
-            "imageUrl": n.image_url, "fileUrl": n.file_url, "published": n.is_published,
+            "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name,
+            "published": n.is_published,
             "publishToChannel": n.publish_to_channel, "as_document": n.as_document}
 
 
@@ -88,10 +92,10 @@ async def create_news_with_file(
             file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
             file_type = detect_file_type(file.filename)
 
-    n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_type=file_type,
+    n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file else None, file_type=file_type,
                         publish_to_channel=publish_to_channel, as_document=as_document)
     return {"id": n.id, "title": n.title, "content": n.content,
-            "imageUrl": n.image_url, "fileUrl": n.file_url, "published": n.is_published,
+            "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "published": n.is_published,
             "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
 
 
@@ -107,7 +111,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         publish_to_channel = payload.publish_to_channel if payload else news.publish_to_channel
         as_document = payload.as_document if payload else news.as_document
         text = f"📰 {news.title}\n\n{news.content}"
-        sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url,
+        sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_name=news.file_name,
                                         publish_to_channel=publish_to_channel, as_document=as_document)
 
         await publish_news(news_id)

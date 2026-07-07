@@ -72,6 +72,7 @@ class News(Base):
     content = Column(Text, nullable=False)
     image_url = Column(String(500))
     file_url = Column(String(500))
+    file_name = Column(String(255), nullable=True)
     file_type = Column(String(50), nullable=True)
     is_published = Column(Boolean, default=False)
     published_at = Column(DateTime)
