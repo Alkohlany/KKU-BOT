@@ -13,7 +13,7 @@ import httpx
 router = APIRouter()
 
 
-async def upload_to_telegram(file_data: bytes, filename: str) -> str:
+async def upload_to_telegram(file_data: bytes, filename: str) -> tuple[str, str | None]:
     async with httpx.AsyncClient() as client:
         files = {'document': (filename, file_data)}
         resp = await client.post(
@@ -30,13 +30,14 @@ async def upload_to_telegram(file_data: bytes, filename: str) -> str:
         if not doc:
             raise Exception("No document in Telegram response")
         file_id = doc['file_id']
+        thumbnail_file_id = doc['thumbnail']['file_id'] if doc.get('thumbnail') else None
         message_id = message['message_id']
         await client.post(
             f'https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage',
             data={'chat_id': CHANNEL_ID, 'message_id': message_id},
             timeout=30
         )
-        return file_id
+        return file_id, thumbnail_file_id
 
 
 def detect_file_type(filename: str) -> str:
@@ -57,6 +58,7 @@ class NewsCreate(BaseModel):
     publish_to_channel: bool = False
     as_document: bool = False
     file_id: Optional[str] = None
+    thumbnail_file_id: Optional[str] = None
 
 
 class PublishPayload(BaseModel):
@@ -76,6 +78,7 @@ async def get_news():
             "fileUrl": n.file_url,
             "fileName": n.file_name,
             "fileId": n.file_id,
+            "thumbnailFileId": n.thumbnail_file_id,
             "fileType": n.file_type,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel,
@@ -94,9 +97,11 @@ async def create_news(data: NewsCreate):
                          file_name=data.file_name,
                          publish_to_channel=data.publish_to_channel,
                          as_document=data.as_document,
-                         file_id=data.file_id)
+                         file_id=data.file_id,
+                         thumbnail_file_id=data.thumbnail_file_id)
     return {"id": n.id, "title": n.title, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
+            "thumbnailFileId": n.thumbnail_file_id,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel, "as_document": n.as_document}
 
@@ -114,31 +119,36 @@ async def create_news_with_file(
         file_url = None
         file_type = None
         file_id = None
+        thumbnail_file_id = None
 
         if file:
             file_data = await file.read()
             ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
             if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-                try:
-                    url = upload_image(file_data, folder="kku-bot/news")
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
                 file_type = detect_file_type(file.filename)
                 if as_document:
-                    file_url = url
+                    try:
+                        file_id, thumbnail_file_id = await upload_to_telegram(file_data, file.filename)
+                    except Exception as e:
+                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة كملف لتيليقرام: {str(e)}")
                 else:
+                    try:
+                        url = upload_image(file_data, folder="kku-bot/news")
+                    except Exception as e:
+                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
                     image_url = url
             else:
                 try:
-                    file_id = await upload_to_telegram(file_data, file.filename)
+                    file_id, thumbnail_file_id = await upload_to_telegram(file_data, file.filename)
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=f"فشل رفع الملف لتيليقرام: {str(e)}")
                 file_type = detect_file_type(file.filename)
 
         n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                            publish_to_channel=publish_to_channel, as_document=as_document, file_id=file_id)
+                            publish_to_channel=publish_to_channel, as_document=as_document, file_id=file_id, thumbnail_file_id=thumbnail_file_id)
         return {"id": n.id, "title": n.title, "content": n.content,
-                "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id, "published": n.is_published,
+                "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
+                "thumbnailFileId": n.thumbnail_file_id, "published": n.is_published,
                 "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
     except HTTPException:
         raise
@@ -160,7 +170,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         text = f"📰 {news.title}\n\n{news.content}"
         sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         publish_to_channel=publish_to_channel, as_document=as_document,
-                                        file_name=news.file_name)
+                                        file_name=news.file_name, thumbnail_file_id=news.thumbnail_file_id)
 
         await publish_news(news_id)
         return {"status": "published", "sent": sent, "failed": 0}

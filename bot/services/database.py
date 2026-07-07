@@ -49,6 +49,7 @@ async def init_db():
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS file_name VARCHAR(255)"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS file_id VARCHAR(200)"))
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS thumbnail_file_id VARCHAR(200)"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_chat_id BIGINT"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_tg_id VARCHAR(200)"))
@@ -234,11 +235,12 @@ async def log_activity(action: str, details: str = None, performed_by: int = Non
 
 
 # ==================== News ====================
-async def add_news(title, content, image_url=None, file_url=None, file_name=None, file_type=None, created_by=None, publish_to_channel=False, as_document=False, file_id=None):
+async def add_news(title, content, image_url=None, file_url=None, file_name=None, file_type=None, created_by=None, publish_to_channel=False, as_document=False, file_id=None, thumbnail_file_id=None):
     async with async_session() as session:
         news = News(title=title, content=content, image_url=image_url, 
                    file_url=file_url, file_name=file_name, file_type=file_type, created_by=created_by,
-                   publish_to_channel=publish_to_channel, as_document=as_document, file_id=file_id)
+                   publish_to_channel=publish_to_channel, as_document=as_document, file_id=file_id,
+                   thumbnail_file_id=thumbnail_file_id)
         session.add(news)
         await session.commit()
         return news
