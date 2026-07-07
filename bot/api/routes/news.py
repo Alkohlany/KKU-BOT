@@ -185,7 +185,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         text = f"📰 {news.title}\n\n{news.content}"
         sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         publish_to_channel=publish_to_channel, as_document=as_document,
-                                        file_name=news.file_name, thumbnail_file_id=news.thumbnail_file_id)
+                                        file_name=news.file_name)
 
         await publish_news(news_id)
         return {"status": "published", "sent": sent, "failed": 0}
