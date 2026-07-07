@@ -209,7 +209,7 @@ export default function News() {
                       )}
                     </td>
                     <td style={{ fontSize: 13, color: 'var(--gray-500)' }}>
-                      {item.fileUrl || item.imageUrl ? (item.asDocument ? 'كمرفق' : 'عرض مباشر') : '-'}
+                      {item.fileId || item.fileUrl || item.imageUrl ? (item.asDocument ? 'كمرفق' : 'عرض مباشر') : '-'}
                     </td>
                     <td>
                       <span className={`status-badge ${item.published ? 'active' : 'inactive'}`}>
@@ -279,7 +279,7 @@ export default function News() {
                   {item.imageUrl && (
                     <img src={item.imageUrl} alt="" style={{ width: '100%', height: 120, borderRadius: 8, objectFit: 'cover', marginBottom: 8 }} />
                   )}
-                  {!item.imageUrl && item.fileUrl && (
+                  {!item.imageUrl && (item.fileUrl || item.fileId) && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--gray-100)', borderRadius: 8, marginBottom: 8 }}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />

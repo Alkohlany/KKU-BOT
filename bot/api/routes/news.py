@@ -7,12 +7,38 @@ from bot.services.database import async_session, add_news, get_all_news, publish
 from bot.services.news_publisher import publish_to_groups
 from bot.services.cloud_storage import upload_image, upload_raw
 from bot.models.models import News
-from bot.config import BOT_TOKEN
+from bot.config import BOT_TOKEN, CHANNEL_ID
 import cloudinary.utils
 import httpx
 import time
 
 router = APIRouter()
+
+
+async def upload_to_telegram(file_data: bytes, filename: str) -> str:
+    async with httpx.AsyncClient() as client:
+        files = {'document': (filename, file_data)}
+        resp = await client.post(
+            f'https://api.telegram.org/bot{BOT_TOKEN}/sendDocument',
+            data={'chat_id': CHANNEL_ID},
+            files=files,
+            timeout=120
+        )
+        result = resp.json()
+        if not result.get('ok'):
+            raise Exception(f"Telegram upload failed: {result.get('description', 'unknown')}")
+        message = result['result']
+        doc = message.get('document')
+        if not doc:
+            raise Exception("No document in Telegram response")
+        file_id = doc['file_id']
+        message_id = message['message_id']
+        await client.post(
+            f'https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage',
+            data={'chat_id': CHANNEL_ID, 'message_id': message_id},
+            timeout=30
+        )
+        return file_id
 
 
 def detect_file_type(filename: str) -> str:
@@ -32,6 +58,7 @@ class NewsCreate(BaseModel):
     file_name: Optional[str] = None
     publish_to_channel: bool = False
     as_document: bool = False
+    file_id: Optional[str] = None
 
 
 class PublishPayload(BaseModel):
@@ -50,6 +77,8 @@ async def get_news():
             "imageUrl": n.image_url,
             "fileUrl": n.file_url,
             "fileName": n.file_name,
+            "fileId": n.file_id,
+            "fileType": n.file_type,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel,
             "asDocument": n.as_document,
@@ -66,9 +95,10 @@ async def create_news(data: NewsCreate):
                          image_url=data.image_url, file_url=data.file_url,
                          file_name=data.file_name,
                          publish_to_channel=data.publish_to_channel,
-                         as_document=data.as_document)
+                         as_document=data.as_document,
+                         file_id=data.file_id)
     return {"id": n.id, "title": n.title, "content": n.content,
-            "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name,
+            "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel, "as_document": n.as_document}
 
@@ -101,16 +131,14 @@ async def create_news_with_file(
         image_url = None
         file_url = None
         file_type = None
+        file_id = None
 
         if file:
+            file_data = await file.read()
             ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
             if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
                 try:
-                    img_data = await file.read()
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=f"فشل قراءة الصورة: {str(e)}")
-                try:
-                    url = upload_image(img_data, folder="kku-bot/news")
+                    url = upload_image(file_data, folder="kku-bot/news")
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
                 file_type = detect_file_type(file.filename)
@@ -119,23 +147,22 @@ async def create_news_with_file(
                 else:
                     image_url = url
             else:
-                try:
-                    file_data = await file.read()
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=f"فشل قراءة الملف: {str(e)}")
-                try:
-                    file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=f"فشل رفع الملف لـ Cloudinary: {str(e)}")
+                if len(file_data) > 10 * 1024 * 1024:
+                    try:
+                        file_id = await upload_to_telegram(file_data, file.filename)
+                    except Exception as e:
+                        raise HTTPException(status_code=500, detail=f"فشل رفع الملف الكبير لتيليقرام: {str(e)}")
+                else:
+                    try:
+                        file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
+                    except Exception as e:
+                        raise HTTPException(status_code=500, detail=f"فشل رفع الملف لـ Cloudinary: {str(e)}")
                 file_type = detect_file_type(file.filename)
 
-        try:
-            n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                                publish_to_channel=publish_to_channel, as_document=as_document)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"فشل حفظ الخبر في قاعدة البيانات: {str(e)}")
+        n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
+                            publish_to_channel=publish_to_channel, as_document=as_document, file_id=file_id)
         return {"id": n.id, "title": n.title, "content": n.content,
-                "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "published": n.is_published,
+                "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id, "published": n.is_published,
                 "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
     except HTTPException:
         raise
@@ -155,7 +182,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         publish_to_channel = payload.publish_to_channel if payload else news.publish_to_channel
         as_document = payload.as_document if payload else news.as_document
         text = f"📰 {news.title}\n\n{news.content}"
-        sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url,
+        sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         publish_to_channel=publish_to_channel, as_document=as_document,
                                         file_name=news.file_name)
 
