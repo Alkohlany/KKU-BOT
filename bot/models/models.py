@@ -82,6 +82,8 @@ class News(Base):
     published_at = Column(DateTime)
     created_by = Column(BigInteger)
     publish_to_channel = Column(Boolean, default=False)
+    publish_to_groups = Column(Boolean, default=True)
+    channel_message_id = Column(Integer, nullable=True)
     as_document = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 

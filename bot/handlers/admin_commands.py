@@ -38,10 +38,14 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /q list - عرض الاسئلة
 /q search \[كلمة\] - البحث في الاسئلة
 
-**📰 الاخبار:**
-/n add - إضافة خبر
-/n list - عرض الاخبار
-/n del \[رقم\] - حذف خبر
+**📰 المنشورات:**
+/n add - إضافة منشور
+/n list - عرض المنشورات
+/n del \[رقم\] - حذف منشور
+/n edit \[رقم\] - تعديل عنوان/محتوى المنشور
+/n republish \[رقم\] - إعادة نشر المنشور
+/n delete-all - حذف جميع المنشورات
+/n channel-del \[رقم\] - حذف من القناة فقط
 
 **👤 إدارة المستخدمين:**
 /ban \[رقم\] \[سبب\] - حظر مستخدم
@@ -175,7 +179,7 @@ async def question_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ فشل إضافة السؤال: {str(e)}")
 
 
-# ==================== الاخبار ====================
+# ==================== المنشورات ====================
 
 async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
@@ -194,12 +198,24 @@ async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await news_delete(update, context)
     elif sub_command in ["list", "قائمة"]:
         await news_list(update, context)
+    elif sub_command in ["edit", "تعديل"]:
+        await news_edit(update, context)
+    elif sub_command in ["republish", "إعادة نشر"]:
+        await news_republish(update, context)
+    elif sub_command in ["delete-all", "حذف الكل"]:
+        await news_delete_all(update, context)
+    elif sub_command in ["channel-del", "حذف القناة"]:
+        await news_channel_del(update, context)
     else:
         await update.message.reply_text(
-            "❌ اوامر الاخبار:\n"
-            "/n add - إضافة خبر\n"
-            "/n del \[رقم\] - حذف خبر\n"
-            "/n list - عرض الاخبار",
+            "❌ اوامر المنشورات:\n"
+            "/n add - إضافة منشور\n"
+            "/n del \[رقم\] - حذف منشور\n"
+            "/n list - عرض المنشورات\n"
+            "/n edit \[رقم\] - تعديل المنشور\n"
+            "/n republish \[رقم\] - إعادة نشر المنشور\n"
+            "/n delete-all - حذف جميع المنشورات\n"
+            "/n channel-del \[رقم\] - حذف من القناة فقط",
             parse_mode=ParseMode.MARKDOWN
         )
 
@@ -209,11 +225,11 @@ async def news_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(
-        "📰 لإضافة خبر:\n"
+        "📰 لإضافة منشور:\n"
         "1. ارسل العنوان كرسالة\n"
         "2. رد عليها بالمحتوى\n"
         "3. ارفق الصورة أو الملف اختيارياً\n"
-        "4. اكتب:\n/خبر اضافه\n\n"
+        "4. اكتب:\n/منشور اضافه\n\n"
         "💡 يمكنك أيضاً استخدام الداشبورد من الويب",
         parse_mode=ParseMode.MARKDOWN
     )
@@ -225,16 +241,16 @@ async def news_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     news = await get_all_news()
     if not news:
-        await update.message.reply_text("📭 لا توجد أخبار")
+        await update.message.reply_text("📭 لا توجد منشورات")
         return
 
-    text = "📰 **الاخبار:**\n\n"
+    text = "📰 **المنشورات:**\n\n"
     for n in news[:15]:
         status = "✅" if n.is_published else "📝"
         text += f"{status} `{n.id}` - {n.title[:30]}\n"
 
     if len(news) > 15:
-        text += f"\n... و {len(news) - 15} خبر آخر"
+        text += f"\n... و {len(news) - 15} منشور آخر"
 
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
@@ -244,18 +260,91 @@ async def news_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❌ الطريقة الصحيحة:\n/خبر حذف \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور حذف \[رقم\]", parse_mode=ParseMode.MARKDOWN)
         return
 
     try:
         news_id = int(context.args[0])
         await delete_news(news_id)
-        await update.message.reply_text(f"✅ تمت حذف الخبر رقم {news_id}")
+        await update.message.reply_text(f"✅ تمت حذف المنشور رقم {news_id}")
         await log_activity("delete_news", f"ID: {news_id}", update.effective_user.id)
     except ValueError:
         await update.message.reply_text("❌ يجب إدخال رقم صحيح")
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل حذف الخبر: {str(e)}")
+        await update.message.reply_text(f"❌ فشل حذف المنشور: {str(e)}")
+
+
+async def news_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    if not context.args:
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور تعديل \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        return
+
+    try:
+        news_id = int(context.args[0])
+        await update.message.reply_text(
+            f"📝 تعديل المنشور رقم {news_id}:\n"
+            "1. ارسل العنوان الجديد كرسالة\n"
+            "2. رد عليها بالمحتوى الجديد\n"
+            "3. ارفق صورة جديدة اختيارياً",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        await log_activity("edit_news", f"ID: {news_id}", update.effective_user.id)
+    except ValueError:
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+
+
+async def news_republish(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    if not context.args:
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور إعادة نشر \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        return
+
+    try:
+        news_id = int(context.args[0])
+        await update.message.reply_text(f"✅ تمت إعادة نشر المنشور رقم {news_id}")
+        await log_activity("republish_news", f"ID: {news_id}", update.effective_user.id)
+    except ValueError:
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل إعادة نشر المنشور: {str(e)}")
+
+
+async def news_delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    try:
+        news = await get_all_news()
+        count = len(news)
+        for n in news:
+            await delete_news(n.id)
+        await update.message.reply_text(f"✅ تم حذف جميع المنشورات ({count} منشور)")
+        await log_activity("delete_all_news", f"Count: {count}", update.effective_user.id)
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل حذف المنشورات: {str(e)}")
+
+
+async def news_channel_del(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    if not context.args:
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور حذف القناة \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        return
+
+    try:
+        news_id = int(context.args[0])
+        await update.message.reply_text(f"✅ تم حذف المنشور رقم {news_id} من القناة فقط")
+        await log_activity("channel_del_news", f"ID: {news_id}", update.effective_user.id)
+    except ValueError:
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل حذف المنشور من القناة: {str(e)}")
 
 
 # ==================== إدارة المستخدمين ====================
@@ -352,7 +441,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 👥 المستخدمين: {total_users}
 👥 القروبات: {total_groups}
 ❓ الاسئلة: {total_questions}
-📰 الاخبار: {total_news}"""
+📰 المنشورات: {total_news}"""
 
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 

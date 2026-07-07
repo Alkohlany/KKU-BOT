@@ -247,47 +247,47 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
-    # ==================== الاخبار ====================
-    elif text.startswith("اضافه خبر") or text.startswith("أضف خبر") or text == "اضافه خبر":
+    # ==================== المنشورات ====================
+    elif text.startswith("اضافه منشور") or text.startswith("أضف منشور") or text == "اضافه منشور":
         await send_admin_message(context, user.id,
-            "📰 لإضافة خبر:\n"
+            "📰 لإضافة منشور:\n"
             "1. ارسل العنوان كرسالة\n"
             "2. رد عليها بالمحتوى\n"
             "3. ارفق الصورة أو الملف اختيارياً\n"
-            "4. اكتب:\nاضافه خبر\n\n"
+            "4. اكتب:\nاضافه منشور\n\n"
             "💡 يمكنك أيضاً استخدام الداشبورد من الويب"
         )
 
-    elif text.startswith("احذف خبر") or text.startswith("احذف الخبر"):
-        id_part = text.replace("احذف خبر", "").replace("احذف الخبر", "").strip()
+    elif text.startswith("احذف منشور") or text.startswith("احذف المنشور"):
+        id_part = text.replace("احذف منشور", "").replace("احذف المنشور", "").strip()
         
         if not id_part:
-            await send_admin_message(context, user.id, "❌ يجب كتابة رقم الخبر\n\nمثال: احذف خبر 5")
+            await send_admin_message(context, user.id, "❌ يجب كتابة رقم المنشور\n\nمثال: احذف منشور 5")
             return
 
         try:
             news_id = int(id_part)
             await delete_news(news_id)
-            await send_admin_message(context, user.id, f"✅ تمت حذف الخبر رقم {news_id}")
+            await send_admin_message(context, user.id, f"✅ تمت حذف المنشور رقم {news_id}")
             await log_activity("delete_news", f"ID: {news_id}", user.id)
         except ValueError:
             await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح")
         except Exception as e:
-            await send_admin_message(context, user.id, f"❌ فشل حذف الخبر: {str(e)}")
+            await send_admin_message(context, user.id, f"❌ فشل حذف المنشور: {str(e)}")
 
-    elif text in ["قائمة الاخبار", "الاخبار", "عرض الاخبار", "جميع الاخبار", "قائمة الأخبار", "الأخبار", "عرض الأخبار"]:
+    elif text in ["قائمة المنشورات", "المنشورات", "عرض المنشورات", "جميع المنشورات", "قائمة المنشورات", "المنشورات", "عرض المنشورات"]:
         news = await get_all_news()
         if not news:
-            await send_admin_message(context, user.id, "📭 لا توجد أخبار")
+            await send_admin_message(context, user.id, "📭 لا توجد منشورات")
             return
 
-        text_msg = "📰 **الاخبار:**\n\n"
+        text_msg = "📰 **المنشورات:**\n\n"
         for n in news[:15]:
             status = "✅" if n.is_published else "📝"
             text_msg += f"{status} `{n.id}` - {n.title[:30]}\n"
 
         if len(news) > 15:
-            text_msg += f"\n... و {len(news) - 15} خبر آخر"
+            text_msg += f"\n... و {len(news) - 15} منشور آخر"
 
         await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
@@ -374,7 +374,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 👥 المستخدمين: {total_users}
 👥 القروبات: {total_groups}
 ❓ الاسئلة: {total_questions}
-📰 الاخبار: {total_news}"""
+📰 المنشورات: {total_news}"""
 
         await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
@@ -431,10 +431,10 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 قائمة الاسئلة - عرض الاسئلة
 بحث في الاسئلة [كلمة] - البحث في الاسئلة
 
-**📰 الاخبار:**
-اضافه خبر - إضافة خبر
-احذف خبر [رقم] - حذف خبر
-قائمة الاخبار - عرض الاخبار
+**📰 المنشورات:**
+اضافه منشور - إضافة منشور
+احذف منشور [رقم] - حذف منشور
+قائمة المنشورات - عرض المنشورات
 
 **👤 إدارة المستخدمين:**
 حظر [رقم] [سبب] - حظر مستخدم

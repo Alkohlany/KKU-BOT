@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 async def get_news_text():
     news_list = await get_all_news()
     if not news_list:
-        return "لا توجد أخبار حالياً 📭"
+        return "لا توجد منشورات حالياً 📭"
     
-    text = "📰 آخر الأخبار:\n\n"
+    text = "📰 آخر المنشورات:\n\n"
     for news in news_list[:5]:
         text += f"📌 {news.title}\n{news.content}\n\n"
         if news.image_url:
@@ -29,7 +29,7 @@ async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     news_list = await get_all_news()
     if not news_list:
-        await update.message.reply_text("لا توجد أخبار حالياً 📭")
+        await update.message.reply_text("لا توجد منشورات حالياً 📭")
         return
     
     for news in news_list[:5]:

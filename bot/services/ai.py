@@ -189,3 +189,28 @@ def generate_news_analysis(title: str, content: str) -> dict:
     except Exception as e:
         logger.error(f"AI news analysis failed: {e}")
         raise RuntimeError(f"AI analysis failed: {e}")
+
+
+def enhance_content(title: str, content: str) -> dict:
+    """Enhance publication content using AI"""
+    prompt = f"""أنت كاتب محتوى محترف في جامعة الملك خالد. مهمتك تحسين محتوى المنشور ليكون أكثر وضوح وجمالاً.
+
+⚠️ تعليمات مهمة:
+- حسّن المحتوى وأجعله أكثر احترافية
+- احتفظ بالمعلومات الأساسية
+- أضف تكوين جميل إذا لزم الأمر
+- اجعل النص سهل القراءة
+- لا تغير المعنى الأساسي
+- إذا كان فيه روابط، احتفظ بها كما هي
+
+عنوان المنشور: {title}
+محتوى المنشور الحالي: {content}
+
+أرجع المحتوى المحسّن فقط (بدون أي شرح أو تعليق):"""
+
+    try:
+        enhanced = _call_model(prompt)
+        return {"enhanced_content": enhanced.strip()}
+    except Exception as e:
+        logger.error(f"AI enhance failed: {e}")
+        raise RuntimeError(f"AI enhance failed: {e}")

@@ -19,7 +19,7 @@ import './App.css'
 const pageTitles = {
   '/': { title: 'لوحة التحكم', subtitle: 'نظرة عامة على أداء البوت' },
   '/groups': { title: 'إدارة القروبات', subtitle: 'التحكم في قروبات البوت' },
-  '/news': { title: 'الأخبار', subtitle: 'إدارة أخبار البوت' },
+  '/news': { title: 'المنشورات', subtitle: 'إدارة منشورات البوت' },
   '/reply-dictionary': { title: 'قاموس الردود', subtitle: 'إدارة ردود البوت والأسئلة' },
   '/study-plans': { title: 'الخطط الدراسية', subtitle: 'إدارة الخطط الدراسية والمجموعات' },
   '/scheduled-posts': { title: 'النشر المجدول', subtitle: 'إدارة المنشورات المجدولة' },

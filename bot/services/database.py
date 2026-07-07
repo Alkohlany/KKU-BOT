@@ -55,6 +55,8 @@ async def init_db():
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_tg_id VARCHAR(200)"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS publish_to_groups BOOLEAN DEFAULT TRUE"))
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
@@ -245,11 +247,11 @@ async def log_activity(action: str, details: str = None, performed_by: int = Non
 
 
 # ==================== News ====================
-async def add_news(title, content, image_url=None, file_url=None, thumbnail_url=None, file_name=None, file_type=None, created_by=None, publish_to_channel=False, as_document=False, file_id=None):
+async def add_news(title, content, image_url=None, file_url=None, thumbnail_url=None, file_name=None, file_type=None, created_by=None, publish_to_channel=False, publish_to_groups=True, as_document=False, file_id=None):
     async with async_session() as session:
         news = News(title=title, content=content, image_url=image_url, 
                    file_url=file_url, thumbnail_url=thumbnail_url, file_name=file_name, file_type=file_type, created_by=created_by,
-                   publish_to_channel=publish_to_channel, as_document=as_document, file_id=file_id)
+                   publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups, as_document=as_document, file_id=file_id)
         session.add(news)
         await session.commit()
         return news
@@ -274,6 +276,43 @@ async def delete_news(news_id):
 async def get_news_by_id(news_id: int):
     async with async_session() as session:
         result = await session.execute(select(News).where(News.id == news_id))
+        return result.scalar_one_or_none()
+
+async def update_news(news_id, title=None, content=None, image_url=None, file_url=None, publish_to_channel=None, publish_to_groups=None, as_document=None, channel_message_id=None):
+    async with async_session() as session:
+        stmt = select(News).where(News.id == news_id)
+        result = await session.execute(stmt)
+        news = result.scalar_one_or_none()
+        if not news:
+            return None
+        if title is not None:
+            news.title = title
+        if content is not None:
+            news.content = content
+        if image_url is not None:
+            news.image_url = image_url
+        if file_url is not None:
+            news.file_url = file_url
+        if publish_to_channel is not None:
+            news.publish_to_channel = publish_to_channel
+        if publish_to_groups is not None:
+            news.publish_to_groups = publish_to_groups
+        if as_document is not None:
+            news.as_document = as_document
+        if channel_message_id is not None:
+            news.channel_message_id = channel_message_id
+        await session.commit()
+        await session.refresh(news)
+        return news
+
+async def delete_all_news():
+    async with async_session() as session:
+        await session.execute(delete(News))
+        await session.commit()
+
+async def get_news_by_channel_message_id(channel_message_id):
+    async with async_session() as session:
+        result = await session.execute(select(News).where(News.channel_message_id == channel_message_id))
         return result.scalar_one_or_none()
 
 

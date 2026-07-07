@@ -13,7 +13,7 @@ const navItems = [
   {
     section: 'المحتوى',
     items: [
-      { path: '/news', label: 'الأخبار', icon: 'news' },
+      { path: '/news', label: 'المنشورات', icon: 'news' },
       { path: '/scheduled-posts', label: 'النشر المجدول', icon: 'schedule' },
       { path: '/study-plans', label: 'الخطط الدراسية', icon: 'plan' },
     ],

@@ -3,8 +3,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from bot.services.database import async_session, add_news, get_all_news, publish_news, get_all_groups, delete_news, add_auto_response, add_question
-from bot.services.news_publisher import publish_to_groups
+from bot.services.database import async_session, add_news, get_all_news, publish_news, get_all_groups, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
+from bot.services.news_publisher import publish_to_groups, delete_from_channel
 from bot.services.cloud_storage import upload_image
 from bot.models.models import News
 from bot.config import BOT_TOKEN, CHANNEL_ID
@@ -60,6 +60,7 @@ class NewsCreate(BaseModel):
     file_url: Optional[str] = None
     file_name: Optional[str] = None
     publish_to_channel: bool = False
+    publish_to_groups: bool = True
     as_document: bool = False
     file_id: Optional[str] = None
 
@@ -71,7 +72,13 @@ class NewsAnalyze(BaseModel):
 
 class PublishPayload(BaseModel):
     publish_to_channel: bool = False
+    publish_to_groups: bool = True
     as_document: bool = False
+
+
+class RelinkPayload(BaseModel):
+    keywords: list[str] = []
+    questions: list[str] = []
 
 
 @router.get("/")
@@ -90,7 +97,9 @@ async def get_news():
             "fileType": n.file_type,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel,
+            "publishToGroups": n.publish_to_groups,
             "asDocument": n.as_document,
+            "channelMessageId": n.channel_message_id,
             "publishedAt": n.published_at.isoformat() if n.published_at else None,
             "createdAt": n.created_at.isoformat() if n.created_at else None,
         }
@@ -114,6 +123,7 @@ async def create_news(data: NewsCreate):
                          image_url=data.image_url, file_url=data.file_url,
                          file_name=data.file_name,
                          publish_to_channel=data.publish_to_channel,
+                         publish_to_groups=data.publish_to_groups,
                          as_document=data.as_document,
                          file_id=data.file_id)
     return {"id": n.id, "title": n.title, "content": n.content,
@@ -128,6 +138,7 @@ async def create_news_with_file(
     content: str = Form(...),
     file: Optional[UploadFile] = File(None),
     publish_to_channel: bool = Form(False),
+    publish_to_groups: bool = Form(True),
     as_document: bool = Form(False),
     selected_keywords: str = Form("[]"),
     selected_questions: str = Form("[]"),
@@ -158,7 +169,7 @@ async def create_news_with_file(
                     thumbnail_url = generate_pdf_thumbnail(file_url)
 
         n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                            publish_to_channel=publish_to_channel, as_document=as_document)
+                            publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups, as_document=as_document)
 
         import json
         try:
@@ -191,11 +202,15 @@ async def create_news_with_file(
                 await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
 
         text = f"📰 {title}\n\n{content}"
-        sent = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,
-                                        publish_to_channel=publish_to_channel, as_document=as_document,
+        sent, channel_message_id = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,
+                                        publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups,
+                                        as_document=as_document,
                                         file_name=file.filename if file and file.filename else None,
                                         thumbnail_url=thumbnail_url)
         await publish_news(n.id)
+        if channel_message_id:
+            from bot.services.database import update_news
+            await update_news(n.id, channel_message_id=channel_message_id)
 
         return {"id": n.id, "title": n.title, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
@@ -217,13 +232,18 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
             raise HTTPException(status_code=404, detail="News not found")
 
         publish_to_channel = payload.publish_to_channel if payload else news.publish_to_channel
+        publish_to_groups = payload.publish_to_groups if payload else news.publish_to_groups
         as_document = payload.as_document if payload else news.as_document
         text = f"📰 {news.title}\n\n{news.content}"
-        sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
-                                        publish_to_channel=publish_to_channel, as_document=as_document,
+        sent, channel_message_id = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
+                                        publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups,
+                                        as_document=as_document,
                                         file_name=news.file_name, thumbnail_url=news.thumbnail_url)
 
         await publish_news(news_id)
+        if channel_message_id:
+            from bot.services.database import update_news
+            await update_news(news_id, channel_message_id=channel_message_id)
         return {"status": "published", "sent": sent, "failed": 0}
 
 
@@ -231,3 +251,65 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
 async def delete_news_endpoint(news_id: int):
     await delete_news(news_id)
     return {"status": "deleted"}
+
+
+@router.put("/{news_id}")
+async def edit_news(news_id: int, data: NewsCreate):
+    n = await update_news(news_id, title=data.title, content=data.content,
+                          image_url=data.image_url, file_url=data.file_url,
+                          publish_to_channel=data.publish_to_channel,
+                          publish_to_groups=data.publish_to_groups,
+                          as_document=data.as_document)
+    if not n:
+        raise HTTPException(status_code=404, detail="News not found")
+    return {"id": n.id, "title": n.title, "content": n.content,
+            "imageUrl": n.image_url, "fileUrl": n.file_url,
+            "publishToChannel": n.publish_to_channel, "publishToGroups": n.publish_to_groups,
+            "asDocument": n.as_document, "channelMessageId": n.channel_message_id}
+
+
+@router.delete("/{news_id}/channel")
+async def delete_from_channel_endpoint(news_id: int):
+    n = await get_news_by_id(news_id)
+    if not n:
+        raise HTTPException(status_code=404, detail="News not found")
+    if n.channel_message_id:
+        await delete_from_channel(n.channel_message_id)
+        await update_news(news_id, channel_message_id=None)
+    return {"status": "deleted_from_channel"}
+
+
+@router.delete("/")
+async def delete_all_news_endpoint():
+    await delete_all_news()
+    return {"status": "deleted_all"}
+
+
+@router.post("/{news_id}/relink")
+async def relink_news(news_id: int, data: RelinkPayload):
+    n = await get_news_by_id(news_id)
+    if not n:
+        raise HTTPException(status_code=404, detail="News not found")
+    async with async_session() as session:
+        from sqlalchemy import delete as sa_delete
+        from bot.models.models import AutoResponse, Question
+        await session.execute(sa_delete(AutoResponse).where(AutoResponse.news_id == news_id))
+        await session.execute(sa_delete(Question).where(Question.news_id == news_id))
+        await session.commit()
+    for kw in data.keywords:
+        if kw and kw.strip() and len(kw.strip()) >= 2:
+            await add_auto_response(keyword=kw.strip(), response=f"رد تلقائي لكلمة: {kw}", created_by=None, news_id=news_id)
+    for q in data.questions:
+        if q and q.strip() and len(q.strip()) >= 2:
+            await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=news_id)
+    return {"status": "relinked", "keywords": len(data.keywords), "questions": len(data.questions)}
+
+
+@router.post("/enhance")
+async def enhance_content(data: NewsAnalyze):
+    try:
+        from bot.services.ai import enhance_content
+        result = enhance_content(data.title, data.content)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"فشل تحسين المحتوى: {str(e)}")

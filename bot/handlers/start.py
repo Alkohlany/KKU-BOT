@@ -18,13 +18,13 @@ START_MESSAGE = """اهلا بك في بوت ادارة وحماية قروبا�
 🟢 مميزات البوت الجديدة 
 ١- تم اضافة كل الردود الخاصه بالجامعة 
 ٢- تم تضمين كل الاجوبه على أسئلة الطلاب 
-٣- تم اضافة خاصية الاخبار المهمه المتعلقة بالجامعة(اي خبر مهم بينزل في كل القروبات الي فيها البوت ادمن)
+٣- تم اضافة خاصية المنشورات المهمه المتعلقة بالجامعة(اي خبر مهم بينزل في كل القروبات الي فيها البوت ادمن)
 ٤- واهم شي خاصية التعرف على الحسابات المزعجة ( اذا في حساب مزعج او حساب اعلانات بيتم ازالة الحساب من كل القروبات)
 
 اختر الميزة التي تريدها:"""
 
 FEATURES_KEYBOARD = [
-    [InlineKeyboardButton("📰 الأخبار", callback_data="feature_news")],
+    [InlineKeyboardButton("📰 المنشورات", callback_data="feature_news")],
     [InlineKeyboardButton("❓ الأسئلة الشائعة", callback_data="feature_questions")],
     [InlineKeyboardButton("📋 الخطط الدراسية", callback_data="feature_plans")],
     [InlineKeyboardButton("💬 الردود", callback_data="feature_responses")],

@@ -84,6 +84,11 @@ const api = {
   publishNews: (id, payload = {}) => api.post(`/news/${id}/publish`, payload),
   deleteNews: (id) => api.delete(`/news/${id}`),
   analyzeNews: (data) => api.post('/news/analyze', data),
+  editNews: (id, data) => api.put(`/news/${id}`, data),
+  deleteNewsFromChannel: (id) => api.delete(`/news/${id}/channel`),
+  deleteAllNews: () => api.delete('/news'),
+  relinkNews: (id, data) => api.post(`/news/${id}/relink`, data),
+  enhanceContent: (data) => api.post('/news/enhance', data),
 
   getQuestions: () => api.get('/questions'),
   addQuestion: (data) => api.post('/questions', data),
