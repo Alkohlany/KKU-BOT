@@ -51,7 +51,7 @@ export default function News() {
         formData.append('content', form.content);
         formData.append('file', uploadFile);
         formData.append('as_document', form.as_document);
-        formData.append('publish_to_channel', form.publish_to_channel);
+        formData.append('publish_to_channel', form.publish_to_channel || false);
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
         });
