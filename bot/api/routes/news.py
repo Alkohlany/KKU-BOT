@@ -81,6 +81,7 @@ async def create_news_with_file(
 ):
     image_url = None
     file_url = None
+    file_type = None
 
     if file:
         ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
@@ -92,7 +93,7 @@ async def create_news_with_file(
             file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
             file_type = detect_file_type(file.filename)
 
-    n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file else None, file_type=file_type,
+    n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
                         publish_to_channel=publish_to_channel, as_document=as_document)
     return {"id": n.id, "title": n.title, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "published": n.is_published,
