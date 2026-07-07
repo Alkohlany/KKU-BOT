@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, get_all_groups, delete_news
 from bot.services.news_publisher import publish_to_groups
-from bot.services.cloud_storage import upload_image, upload_raw
+from bot.services.cloud_storage import upload_image
 from bot.models.models import News
 from bot.config import BOT_TOKEN, CHANNEL_ID
 import httpx
@@ -129,16 +129,10 @@ async def create_news_with_file(
                 else:
                     image_url = url
             else:
-                if len(file_data) > 10 * 1024 * 1024:
-                    try:
-                        file_id = await upload_to_telegram(file_data, file.filename)
-                    except Exception as e:
-                        raise HTTPException(status_code=500, detail=f"فشل رفع الملف الكبير لتيليقرام: {str(e)}")
-                else:
-                    try:
-                        file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
-                    except Exception as e:
-                        raise HTTPException(status_code=500, detail=f"فشل رفع الملف لـ Cloudinary: {str(e)}")
+                try:
+                    file_id = await upload_to_telegram(file_data, file.filename)
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"فشل رفع الملف لتيليقرام: {str(e)}")
                 file_type = detect_file_type(file.filename)
 
         n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
