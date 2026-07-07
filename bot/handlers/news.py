@@ -36,6 +36,11 @@ async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = f"📰 {news.title}\n\n{news.content}"
         if news.image_url:
             await update.message.reply_photo(photo=news.image_url, caption=text)
+        elif news.file_url:
+            if news.file_type == 'video':
+                await update.message.reply_video(video=news.file_url, caption=text)
+            else:
+                await update.message.reply_document(document=news.file_url, caption=text)
         else:
             await update.message.reply_text(text)
 

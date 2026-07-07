@@ -54,13 +54,22 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                     logger.error(f"Error sending document to {chat_id}: {e}")
             elif url.startswith("http"):
                 try:
+                    file_resp = await client.get(url, timeout=30)
+                    if file_resp.status_code != 200:
+                        logger.error(f"Failed to download file from {url}: {file_resp.status_code}")
+                        return
+                    content_type = file_resp.headers.get("content-type", "application/octet-stream")
+                    filename = url.split("/")[-1].split("?")[0] or "document"
                     resp = await client.post(
                         f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                        json={"chat_id": chat_id, "document": url, "caption": text},
+                        data={"chat_id": chat_id, "caption": text},
+                        files={"document": (filename, file_resp.content, content_type)},
                         timeout=30
                     )
+                    if resp.status_code != 200:
+                        logger.error(f"sendDocument failed for {chat_id}: {resp.text}")
                 except Exception as e:
-                    logger.error(f"Error sending document URL to {chat_id}: {e}")
+                    logger.error(f"Error sending document to {chat_id}: {e}")
             return
         
         if image_url:
@@ -82,14 +91,22 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                     logger.error(f"Error sending photo to {chat_id}: {e}")
             elif image_url.startswith("http"):
                 try:
+                    file_resp = await client.get(image_url, timeout=30)
+                    if file_resp.status_code != 200:
+                        logger.error(f"Failed to download image from {image_url}: {file_resp.status_code}")
+                        return
+                    content_type = file_resp.headers.get("content-type", "image/jpeg")
                     resp = await client.post(
                         f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-                        json={"chat_id": chat_id, "photo": image_url, "caption": text},
+                        data={"chat_id": chat_id, "caption": text},
+                        files={"photo": ("image", file_resp.content, content_type)},
                         timeout=30
                     )
+                    if resp.status_code != 200:
+                        logger.error(f"sendPhoto failed for {chat_id}: {resp.text}")
                     sent_photo = resp.status_code == 200
                 except Exception as e:
-                    logger.error(f"Error sending photo URL to {chat_id}: {e}")
+                    logger.error(f"Error sending photo to {chat_id}: {e}")
 
         if file_url and not sent_photo:
             filepath = _resolve_file(file_url)
@@ -109,13 +126,22 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                     logger.error(f"Error sending document to {chat_id}: {e}")
             elif file_url.startswith("http"):
                 try:
+                    file_resp = await client.get(file_url, timeout=30)
+                    if file_resp.status_code != 200:
+                        logger.error(f"Failed to download file from {file_url}: {file_resp.status_code}")
+                        return
+                    content_type = file_resp.headers.get("content-type", "application/octet-stream")
+                    filename = file_url.split("/")[-1].split("?")[0] or "document"
                     resp = await client.post(
                         f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                        json={"chat_id": chat_id, "document": file_url, "caption": text},
+                        data={"chat_id": chat_id, "caption": text},
+                        files={"document": (filename, file_resp.content, content_type)},
                         timeout=30
                     )
+                    if resp.status_code != 200:
+                        logger.error(f"sendDocument failed for {chat_id}: {resp.text}")
                 except Exception as e:
-                    logger.error(f"Error sending document URL to {chat_id}: {e}")
+                    logger.error(f"Error sending document to {chat_id}: {e}")
 
         if not sent_photo and not file_url:
             try:

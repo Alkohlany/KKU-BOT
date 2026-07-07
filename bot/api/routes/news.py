@@ -13,6 +13,15 @@ import httpx
 router = APIRouter()
 
 
+def detect_file_type(filename: str) -> str:
+    ext = filename.lower().split('.')[-1] if '.' in filename else ''
+    if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+        return 'photo'
+    if ext in ('mp4', 'avi', 'mov', 'mkv'):
+        return 'video'
+    return 'document'
+
+
 class NewsCreate(BaseModel):
     title: str
     content: str
@@ -77,8 +86,9 @@ async def create_news_with_file(
         else:
             file_data = await file.read()
             file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
+            file_type = detect_file_type(file.filename)
 
-    n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url,
+    n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_type=file_type,
                         publish_to_channel=publish_to_channel, as_document=as_document)
     return {"id": n.id, "title": n.title, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "published": n.is_published,
