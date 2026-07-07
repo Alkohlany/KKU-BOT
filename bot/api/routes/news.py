@@ -13,9 +13,31 @@ import httpx
 router = APIRouter()
 
 
+MIME_TYPES = {
+    'pdf': 'application/pdf',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'mp4': 'video/mp4',
+    'avi': 'video/x-msvideo',
+    'mov': 'video/quicktime',
+    'mkv': 'video/x-matroska',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'txt': 'text/plain',
+    'zip': 'application/zip',
+}
+
+
 async def upload_to_telegram(file_data: bytes, filename: str) -> str:
+    ext = filename.lower().split('.')[-1] if '.' in filename else ''
+    content_type = MIME_TYPES.get(ext, 'application/octet-stream')
     async with httpx.AsyncClient() as client:
-        files = {'document': (filename, file_data)}
+        files = {'document': (filename, file_data, content_type)}
         resp = await client.post(
             f'https://api.telegram.org/bot{BOT_TOKEN}/sendDocument',
             data={'chat_id': CHANNEL_ID},
