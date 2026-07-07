@@ -11,10 +11,12 @@ CACHE_SUBSCRIBED = timedelta(minutes=10)
 CACHE_UNSUBSCRIBED = timedelta(minutes=2)
 
 
-def _sub_keyboard():
+_SUB_MSG = "📢 لاستخدام البوت يجب الاشتراك في القناة أولاً\n\n🔗 {link}"
+
+
+def _ch_link_keyboard():
     return InlineKeyboardMarkup([[
-        InlineKeyboardButton("📢 اشترك في القناة", url=CHANNEL_LINK),
-        InlineKeyboardButton("✅ تحقق من الاشتراك", callback_data="check_subscription")
+        InlineKeyboardButton("📢 اشترك في القناة", url=CHANNEL_LINK)
     ]])
 
 
@@ -60,8 +62,8 @@ async def subscription_required(update: Update, context: ContextTypes.DEFAULT_TY
 
     if not await verify_subscription(user.id, context):
         await update.message.reply_text(
-            f"📢 لاستخدام البوت، يجب الاشتراك في القناة أولاً\n\n🔗 الاشتراك هنا: {CHANNEL_LINK}",
-            reply_markup=_sub_keyboard()
+            _SUB_MSG.format(link=CHANNEL_LINK),
+            reply_markup=_ch_link_keyboard()
         )
         return False
     return True
@@ -105,8 +107,8 @@ async def group_subscription_check(update: Update, context: ContextTypes.DEFAULT
         pass
 
     await update.effective_chat.send_message(
-        f"📢 {user.first_name}، لاستخدام البوت يجب الاشتراك في القناة أولاً\n\n🔗 الاشتراك هنا: {CHANNEL_LINK}",
-        reply_markup=_sub_keyboard()
+        f"📢 {user.first_name}، {_SUB_MSG.format(link=CHANNEL_LINK)}",
+        reply_markup=_ch_link_keyboard()
     )
 
 
@@ -138,7 +140,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
     else:
         msg = f"❌ أنت غير مشترك في القناة بعد.\n\n🔗 الاشتراك هنا: {CHANNEL_LINK}"
         if chat_type not in ("group", "supergroup"):
-            await query.edit_message_text(msg, reply_markup=_sub_keyboard())
+            await query.edit_message_text(msg, reply_markup=_ch_link_keyboard())
         else:
             await query.edit_message_text(msg)
 
