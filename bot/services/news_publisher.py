@@ -68,7 +68,10 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
     try:
         if as_document:
             if file_id:
-                await bot.send_document(chat_id=chat_id, document=file_id, caption=text, thumb=thumbnail_file_id)
+                kwargs = {"document": file_id, "caption": text}
+                if thumbnail_file_id:
+                    kwargs["thumb"] = thumbnail_file_id
+                await bot.send_document(chat_id=chat_id, **kwargs)
                 return True
             url = image_url or file_url
             if url:
@@ -83,7 +86,10 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                 logger.warning(f"send_photo failed for {chat_id}: {e}")
 
         if file_id:
-            await bot.send_document(chat_id=chat_id, document=file_id, caption=text, thumb=thumbnail_file_id)
+            kwargs = {"document": file_id, "caption": text}
+            if thumbnail_file_id:
+                kwargs["thumb"] = thumbnail_file_id
+            await bot.send_document(chat_id=chat_id, **kwargs)
             return True
 
         if file_url:
