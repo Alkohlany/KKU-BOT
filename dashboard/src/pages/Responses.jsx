@@ -9,11 +9,10 @@ export default function Responses() {
   const [responses, setResponses] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ keyword: '', response: '', file: null, file_url: '', file_type: '', as_document: false });
+  const [form, setForm] = useState({ keyword: '', response: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(null);
 
   useEffect(() => {
     loadAll();
@@ -39,51 +38,26 @@ export default function Responses() {
     setSaving(true);
     try {
       if (editItem && editItem.id) {
-        if (form.file) {
-          const formData = new FormData();
-          formData.append('keyword', form.keyword);
-          formData.append('response', form.response);
-          formData.append('file', form.file);
-          formData.append('as_document', form.as_document);
-          const updated = await api.updateResponseWithFileProgress(editItem.id, formData, setUploadProgress);
-          setResponses(responses.map((r) => r.id === editItem.id ? updated : r));
-        } else {
-          const payload = { keyword: form.keyword, response: form.response, as_document: form.as_document };
-          if (form.file_url !== editItem.file_url) {
-            payload.file_url = form.file_url || null;
-            payload.file_type = form.file_type || null;
-          }
-          const updated = await api.updateResponse(editItem.id, payload);
-          setResponses(responses.map((r) => r.id === editItem.id ? updated : r));
-        }
+        const payload = { keyword: form.keyword, response: form.response };
+        const updated = await api.updateResponse(editItem.id, payload);
+        setResponses(responses.map((r) => r.id === editItem.id ? updated : r));
       } else {
-        if (form.file) {
-          const formData = new FormData();
-          formData.append('keyword', form.keyword);
-          formData.append('response', form.response);
-          formData.append('file', form.file);
-          formData.append('as_document', form.as_document);
-          const newItem = await api.addResponseWithFileProgress(formData, setUploadProgress);
-          setResponses([...responses, newItem]);
-        } else {
-          const newItem = await api.addResponse(form);
-          setResponses([...responses, newItem]);
-        }
+        const newItem = await api.addResponse(form);
+        setResponses([...responses, newItem]);
       }
-      setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '', as_document: false });
+      setForm({ keyword: '', response: '' });
       setEditItem(null);
       setShowModal(false);
     } catch (err) {
       console.error('Failed to save response:', err);
     } finally {
       setSaving(false);
-      setUploadProgress(null);
     }
   };
 
   const handleEdit = (item) => {
     setEditItem(item);
-    setForm({ keyword: item.keyword, response: item.response || '', file: null, file_url: item.file_url || '', file_type: item.file_type || '', as_document: item.as_document || false });
+    setForm({ keyword: item.keyword, response: item.response || '' });
     setShowModal(true);
   };
 
@@ -157,7 +131,7 @@ export default function Responses() {
                   🗑 حذف الكل ({responses.length})
                 </button>
               )}
-              <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '', as_document: false }); setShowModal(true); }}>
+              <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ keyword: '', response: '' }); setShowModal(true); }}>
                 + إضافة رد جديد
               </button>
             </div>
@@ -170,8 +144,6 @@ export default function Responses() {
                 <tr>
                   <th>الكلمة المفتاحية</th>
                   <th>الرد</th>
-                  <th>المرفق</th>
-                  <th>طريقة الإرسال</th>
                   <th>الحالة</th>
                   <th>إجراءات</th>
                 </tr>
@@ -182,19 +154,6 @@ export default function Responses() {
                     <td><strong>{item.keyword}</strong></td>
                     <td style={{ maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.response}
-                    </td>
-                    <td style={{ fontSize: 13, color: 'var(--gray-500)' }}>
-                      {item.file_url ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                          </svg>
-                          {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
-                        </span>
-                      ) : '-'}
-                    </td>
-                    <td style={{ fontSize: 13, color: 'var(--gray-500)' }}>
-                      {item.file_url ? (item.as_document ? 'كمرفق' : 'عرض مباشر') : '-'}
                     </td>
                     <td>
                       <label className="toggle-switch">
@@ -254,12 +213,6 @@ export default function Responses() {
                 </div>
                 <div className="mobile-card-body">
                   <p>{item.response}</p>
-                  {item.file_url && (
-                    <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>
-                      📎 {item.file_type === 'photo' ? 'صورة' : item.file_type === 'video' ? 'فيديو' : 'ملف'}
-                      {item.as_document ? ' (كمرفق)' : ' (عرض مباشر)'}
-                    </p>
-                  )}
                 </div>
                 <div className="mobile-card-meta">
                   <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(item)}>
@@ -318,48 +271,7 @@ export default function Responses() {
                   style={{ minHeight: 200 }}
                 />
               </div>
-              <div className="form-group">
-                <label>الملف المرفق (اختياري)</label>
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.avi,.mov,.mkv,.pdf,.doc,.docx"
-                  className="form-input"
-                  onChange={(e) => setForm({ ...form, file: e.target.files[0] || null })}
-                />
-                {form.file && (
-                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                    {form.file.name}
-                  </small>
-                )}
-                {editItem && editItem.file_url && !form.file && (
-                  <small style={{ color: 'var(--primary)', marginTop: 4, display: 'block' }}>
-                    📎 يوجد ملف مرفق حالياً
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={form.as_document}
-                    onChange={(e) => setForm({ ...form, as_document: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  إرسال كملف مرفق (بدلاً من العرض المباشر)
-                </label>
-                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12 }}>
-                  عند التفعيل، سيتم إرسال الملف كمرفق قابل للتحميل بدلاً من عرضه مباشرة
-                </small>
-              </div>
             </div>
-            {uploadProgress !== null && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ height: 6, background: 'var(--gray-200)', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${uploadProgress}%`, background: 'var(--primary)', borderRadius: 3, transition: 'width 0.3s ease' }} />
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--gray-500)', marginTop: 4, textAlign: 'center' }}>{uploadProgress}%</p>
-              </div>
-            )}
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                 {saving ? 'جاري الحفظ...' : (editItem ? 'حفظ التعديلات' : 'إضافة')}
