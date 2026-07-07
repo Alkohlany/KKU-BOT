@@ -1,11 +1,15 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
-from telegram.constants import ChatMemberStatus
+from telegram.constants import ChatMemberStatus, ParseMode
 from bot.config import ADMIN_IDS
 from bot.services.cloud_storage import upload_raw
 from bot.services.database import (
     get_auto_responses_by_source, remove_auto_responses_by_source,
-    async_session
+    add_auto_response, get_all_auto_responses, remove_auto_response,
+    add_question, get_all_questions, delete_question,
+    get_all_news, delete_news,
+    ban_user, get_all_banned, is_banned,
+    get_all_groups, log_activity, async_session
 )
 import cloudinary.uploader
 import logging
@@ -22,6 +26,384 @@ def detect_file_type(filename: str) -> str:
         return 'video'
     return 'document'
 
+
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
+
+
+# ==================== اوامر النص المباشر ====================
+
+async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or update.message.reply_to_message:
+        return
+
+    text = update.message.text.strip()
+    user = update.effective_user
+    chat = update.effective_chat
+
+    is_chat_admin = False
+    try:
+        member = await chat.get_member(user.id)
+        is_chat_admin = member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
+    except:
+        pass
+
+    is_bot_admin = user.id in context.bot_data.get('admin_ids', [])
+
+    if not is_chat_admin and not is_bot_admin:
+        return
+
+    # ==================== الردود التلقائية ====================
+    if text.startswith("اضافه رد") or text.startswith("أضف رد"):
+        keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").strip()
+        
+        if not keywords_part:
+            await update.message.reply_text(
+                "❌ الطريقة الصحيحة:\n"
+                "اضافه رد [كلمة] [رد]\n\n"
+                "💡 يمكنك أيضاً الرد على رسالة وإرسال:\n"
+                "اضافه رد [كلمة]",
+            )
+            return
+
+        parts = keywords_part.split(None, 1)
+        if len(parts) < 2:
+            await update.message.reply_text("❌ يجب كتابة الكلمة والرد\n\nمثال: اضافه رد تسجيل كيف أسجل")
+            return
+
+        keyword = parts[0]
+        response_text = parts[1]
+
+        try:
+            await add_auto_response(
+                keyword=keyword,
+                response=response_text,
+                created_by=user.id
+            )
+            await update.message.reply_text(f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📝 الرد: {response_text}")
+            await log_activity("add_response", f"Keyword: {keyword}", user.id)
+        except Exception as e:
+            await update.message.reply_text(f"❌ فشل إضافة الرد: {str(e)}")
+
+    elif text.startswith("احذف رد") or text.startswith("احذف الرد"):
+        id_part = text.replace("احذف رد", "").replace("احذف الرد", "").strip()
+        
+        if not id_part:
+            await update.message.reply_text("❌ يجب كتابة رقم الرد\n\nمثال: احذف رد 5")
+            return
+
+        try:
+            response_id = int(id_part)
+            await remove_auto_response(response_id)
+            await update.message.reply_text(f"✅ تمت حذف الرد رقم {response_id}")
+            await log_activity("delete_response", f"ID: {response_id}", user.id)
+        except ValueError:
+            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        except Exception as e:
+            await update.message.reply_text(f"❌ فشل حذف الرد: {str(e)}")
+
+    elif text in ["قائمة الردود", "الردود", "عرض الردود", "جميع الردود"]:
+        responses = await get_all_auto_responses()
+        if not responses:
+            await update.message.reply_text("📭 لا توجد ردود تلقائية")
+            return
+
+        text_msg = "📋 **الردود التلقائية:**\n\n"
+        for r in responses[:30]:
+            status = "✅" if r.is_active else "❌"
+            text_msg += f"{status} `{r.id}` - 🔑 {r.keyword}\n"
+
+        if len(responses) > 30:
+            text_msg += f"\n... و {len(responses) - 30} رد آخر"
+
+        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+
+    elif text.startswith("بحث في الردود") or text.startswith("بحث رد"):
+        query = text.replace("بحث في الردود", "").replace("بحث رد", "").strip()
+        
+        if not query:
+            await update.message.reply_text("❌ يجب كتابة كلمة البحث\n\nمثال: بحث في الردود تسجيل")
+            return
+
+        responses = await get_all_auto_responses()
+        results = [r for r in responses if query.lower() in r.keyword.lower()]
+
+        if not results:
+            await update.message.reply_text(f"🔍 لا توجد نتائج لـ: {query}")
+            return
+
+        text_msg = f"🔍 **نتائج البحث لـ:** {query}\n\n"
+        for r in results[:10]:
+            text_msg += f"`{r.id}` - 🔑 {r.keyword}\n📝 {r.response[:50]}...\n\n"
+
+        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+
+    # ==================== الاسئلة الشائعة ====================
+    elif text.startswith("اضافه سؤال") or text.startswith("أضف سؤال"):
+        await update.message.reply_text(
+            "❌ الطريقة الصحيحة:\n"
+            "1. ارسل السؤال كرسالة\n"
+            "2. رد عليها بالإجابة\n"
+            "3. اكتب:\nاضافه سؤال [قسم]\n\n"
+            "💡 القسم اختياري (مثال: تسجيل، رسوم، مواد)"
+        )
+
+    elif text.startswith("احذف سؤال") or text.startswith("احذف السؤال"):
+        id_part = text.replace("احذف سؤال", "").replace("احذف السؤال", "").strip()
+        
+        if not id_part:
+            await update.message.reply_text("❌ يجب كتابة رقم السؤال\n\nمثال: احذف سؤال 5")
+            return
+
+        try:
+            question_id = int(id_part)
+            await delete_question(question_id)
+            await update.message.reply_text(f"✅ تمت حذف السؤال رقم {question_id}")
+            await log_activity("delete_question", f"ID: {question_id}", user.id)
+        except ValueError:
+            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        except Exception as e:
+            await update.message.reply_text(f"❌ فشل حذف السؤال: {str(e)}")
+
+    elif text in ["قائمة الاسئلة", "الاسئلة", "عرض الاسئلة", "جميع الاسئلة", "قائمة الأسئلة", "الأسئلة", "عرض الأسئلة"]:
+        questions = await get_all_questions()
+        if not questions:
+            await update.message.reply_text("📭 لا توجد أسئلة شائعة")
+            return
+
+        text_msg = "❓ **الاسئلة الشائعة:**\n\n"
+        for q in questions[:20]:
+            text_msg += f"`{q.id}` - 📁 {q.category or 'عام'}\n💬 {q.question[:40]}...\n\n"
+
+        if len(questions) > 20:
+            text_msg += f"\n... و {len(questions) - 20} سؤال آخر"
+
+        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+
+    elif text.startswith("بحث في الاسئلة") or text.startswith("بحث سؤال") or text.startswith("بحث في الأسئلة"):
+        query = text.replace("بحث في الاسئلة", "").replace("بحث سؤال", "").replace("بحث في الأسئلة", "").strip()
+        
+        if not query:
+            await update.message.reply_text("❌ يجب كتابة كلمة البحث\n\nمثال: بحث في الاسئلة تسجيل")
+            return
+
+        questions = await get_all_questions()
+        results = [q for q in questions if query.lower() in (q.question or '').lower() or query.lower() in (q.keywords or '').lower()]
+
+        if not results:
+            await update.message.reply_text(f"🔍 لا توجد نتائج لـ: {query}")
+            return
+
+        text_msg = f"🔍 **نتائج البحث لـ:** {query}\n\n"
+        for q in results[:10]:
+            text_msg += f"`{q.id}` - 💬 {q.question[:50]}...\n📝 {q.answer[:50]}...\n\n"
+
+        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+
+    # ==================== الاخبار ====================
+    elif text.startswith("اضافه خبر") or text.startswith("أضف خبر") or text == "اضافه خبر":
+        await update.message.reply_text(
+            "📰 لإضافة خبر:\n"
+            "1. ارسل العنوان كرسالة\n"
+            "2. رد عليها بالمحتوى\n"
+            "3. ارفق الصورة أو الملف اختيارياً\n"
+            "4. اكتب:\nاضافه خبر\n\n"
+            "💡 يمكنك أيضاً استخدام الداشبورد من الويب"
+        )
+
+    elif text.startswith("احذف خبر") or text.startswith("احذف الخبر"):
+        id_part = text.replace("احذف خبر", "").replace("احذف الخبر", "").strip()
+        
+        if not id_part:
+            await update.message.reply_text("❌ يجب كتابة رقم الخبر\n\nمثال: احذف خبر 5")
+            return
+
+        try:
+            news_id = int(id_part)
+            await delete_news(news_id)
+            await update.message.reply_text(f"✅ تمت حذف الخبر رقم {news_id}")
+            await log_activity("delete_news", f"ID: {news_id}", user.id)
+        except ValueError:
+            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        except Exception as e:
+            await update.message.reply_text(f"❌ فشل حذف الخبر: {str(e)}")
+
+    elif text in ["قائمة الاخبار", "الاخبار", "عرض الاخبار", "جميع الاخبار", "قائمة الأخبار", "الأخبار", "عرض الأخبار"]:
+        news = await get_all_news()
+        if not news:
+            await update.message.reply_text("📭 لا توجد أخبار")
+            return
+
+        text_msg = "📰 **الاخبار:**\n\n"
+        for n in news[:15]:
+            status = "✅" if n.is_published else "📝"
+            text_msg += f"{status} `{n.id}` - {n.title[:30]}\n"
+
+        if len(news) > 15:
+            text_msg += f"\n... و {len(news) - 15} خبر آخر"
+
+        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+
+    # ==================== إدارة المستخدمين ====================
+    elif text.startswith("حظر"):
+        id_part = text.replace("حظر", "").strip()
+        
+        if not id_part:
+            await update.message.reply_text("❌ يجب كتابة رقم المستخدم\n\nمثال: حظر 12345678 سبب الحظر")
+            return
+
+        parts = id_part.split(None, 1)
+        try:
+            target_id = int(parts[0])
+            reason = parts[1] if len(parts) > 1 else "لا يوجد سبب"
+
+            if await is_banned(target_id):
+                await update.message.reply_text("⚠️ هذا المستخدم محظور بالفعل.")
+                return
+
+            await ban_user(target_id, reason, user.id)
+            await update.message.reply_text(f"🚫 تم حظر المستخدم `{target_id}`\n📋 السبب: {reason}")
+            await log_activity("ban_user", f"User: {target_id}, Reason: {reason}", user.id)
+        except ValueError:
+            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        except Exception as e:
+            await update.message.reply_text(f"❌ فشل الحظر: {str(e)}")
+
+    elif text.startswith("الغاء حظر") or text.startswith("إلغاء حظر"):
+        id_part = text.replace("الغاء حظر", "").replace("إلغاء حظر", "").strip()
+        
+        if not id_part:
+            await update.message.reply_text("❌ يجب كتابة رقم المستخدم\n\nمثال: الغاء حظر 12345678")
+            return
+
+        try:
+            target_id = int(id_part)
+            
+            from sqlalchemy import delete as sql_delete
+            from bot.models.models import BannedUser
+
+            async with async_session() as session:
+                await session.execute(sql_delete(BannedUser).where(BannedUser.telegram_id == target_id))
+                await session.commit()
+
+            await update.message.reply_text(f"✅ تم رفع الحظر عن المستخدم `{target_id}`")
+            await log_activity("unban_user", f"User: {target_id}", user.id)
+        except ValueError:
+            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        except Exception as e:
+            await update.message.reply_text(f"❌ فشل رفع الحظر: {str(e)}")
+
+    elif text in ["قائمة المحظورين", "المحظورين", "عرض المحظورين"]:
+        banned = await get_all_banned()
+        if not banned:
+            await update.message.reply_text("✅ لا يوجد محظورين")
+            return
+
+        text_msg = "🚫 **قائمة المحظورين:**\n\n"
+        for b in banned[:20]:
+            text_msg += f"`{b.telegram_id}` - {b.reason or 'لا يوجد سبب'}\n"
+
+        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+
+    # ==================== عام ====================
+    elif text in ["الاحصائيات", "احصائيات", "الإحصائيات", "إحصائيات", "stats"]:
+        from bot.services.database import async_session
+        from sqlalchemy import select, func
+        from bot.models.models import User, Group, Question, News
+
+        async with async_session() as session:
+            users = await session.execute(select(func.count(User.id)))
+            groups = await session.execute(select(func.count(Group.id)))
+            questions = await session.execute(select(func.count(Question.id)))
+            news = await session.execute(select(func.count(News.id)))
+
+            total_users = users.scalar()
+            total_groups = groups.scalar()
+            total_questions = questions.scalar()
+            total_news = news.scalar()
+
+        text_msg = f"""📊 **إحصائيات البوت:**
+
+👥 المستخدمين: {total_users}
+👥 القروبات: {total_groups}
+❓ الاسئلة: {total_questions}
+📰 الاخبار: {total_news}"""
+
+        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+
+    elif text in ["القروبات", "قروبات", "عرض القروبات", "groups"]:
+        groups = await get_all_groups()
+        if not groups:
+            await update.message.reply_text("📭 لا توجد قروبات مسجلة")
+            return
+
+        text_msg = "👥 **القروبات:**\n\n"
+        for g in groups[:20]:
+            status = "✅" if g.is_active else "❌"
+            text_msg += f"{status} `{g.chat_id}` - {g.title or 'بدون عنوان'}\n"
+
+        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+
+    elif text.startswith("اذاعة") or text.startswith("إذاعة") or text.startswith("broadcast"):
+        message = text.replace("اذاعة", "").replace("إذاعة", "").replace("broadcast", "").strip()
+        
+        if not message:
+            await update.message.reply_text("❌ يجب كتابة الرسالة\n\nمثال: اذاعة مرحبا بالجميع")
+            return
+
+        groups = await get_all_groups()
+        if not groups:
+            await update.message.reply_text("📭 لا توجد قروبات لإرسال الرسالة")
+            return
+
+        sent = 0
+        failed = 0
+
+        for group in groups:
+            try:
+                await context.bot.send_message(chat_id=group.chat_id, text=message)
+                sent += 1
+            except Exception:
+                failed += 1
+
+        await update.message.reply_text(f"✅ تم الإرسال\n📤 نجح: {sent}\n❌ فشل: {failed}")
+        await log_activity("broadcast", f"Sent: {sent}, Failed: {failed}", user.id)
+
+    elif text in ["مساعدة", "المساعدة", "اوامر", "الأوامر", "help", "أوامر الادمن", "اوامر الادمن"]:
+        help_text = """⚙️ **اوامر الادمن النصية**
+
+**📋 الردود التلقائية:**
+اضافه رد [كلمة] [رد] - إضافة رد جديد
+احذف رد [رقم] - حذف رد
+قائمة الردود - عرض جميع الردود
+بحث في الردود [كلمة] - البحث في الردود
+
+**❓ الاسئلة الشائعة:**
+اضافه سؤال [قسم] - إضافة سؤال (بالرد على رسالة)
+احذف سؤال [رقم] - حذف سؤال
+قائمة الاسئلة - عرض الاسئلة
+بحث في الاسئلة [كلمة] - البحث في الاسئلة
+
+**📰 الاخبار:**
+اضافه خبر - إضافة خبر
+احذف خبر [رقم] - حذف خبر
+قائمة الاخبار - عرض الاخبار
+
+**👤 إدارة المستخدمين:**
+حظر [رقم] [سبب] - حظر مستخدم
+الغاء حظر [رقم] - رفع الحظر
+قائمة المحظورين - قائمة المحظورين
+
+**📊 عام:**
+الاحصائيات - إحصائيات البوت
+القروبات - قائمة القروبات
+اذاعة [رسالة] - إرسال للجميع
+مساعدة - عرض هذه الرسالة"""
+
+        await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
+
+
+# ==================== اوامر الرد على الرسائل ====================
 
 async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.reply_to_message:
@@ -92,8 +474,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             await update.message.reply_text(f"❌ فشل في تثبيت الرسالة: {e}")
 
-    elif text.startswith("اضافه رد"):
-        keywords_part = text[len("اضافه رد"):].strip()
+    elif text.startswith("اضافه رد") or text.startswith("أضف رد"):
+        keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").strip()
         replied = update.message.reply_to_message
         response_text = replied.text or replied.caption or ""
         file_url = None
@@ -203,4 +585,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"✅ تم إزالة {len(responses)} رد تلقائي:\n{', '.join(keywords)}")
 
 
+# ==================== تسجيل الاوامر ====================
+
+admin_text = MessageHandler(filters.TEXT & filters.ChatType.GROUPS & ~filters.REPLY, admin_text_handler)
 admin_reply = MessageHandler(filters.REPLY & filters.TEXT & filters.ChatType.GROUPS, admin_reply_handler)

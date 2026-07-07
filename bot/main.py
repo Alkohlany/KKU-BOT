@@ -5,7 +5,7 @@ from bot.config import BOT_TOKEN, ADMIN_IDS
 from bot.services.database import init_db
 from bot.handlers.start import start_handler, feature_handler
 from bot.handlers.help import help_handler
-from bot.handlers.admin import admin_reply
+from bot.handlers.admin import admin_text, admin_reply
 from bot.handlers.admin_commands import get_admin_handlers
 from bot.handlers.news import news_handler
 from bot.handlers.questions import questions_handler
@@ -62,6 +62,7 @@ def main():
     application.add_handler(plans_text_handler)
     application.add_handler(broadcast_handler)
     application.add_handler(responses_handler)
+    application.add_handler(admin_text)
     application.add_handler(admin_reply)
 
     for handler in get_admin_handlers():
