@@ -32,14 +32,16 @@ async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) 
         return _last_result.get(user_id, True)
 
     try:
+        logger.info(f"Checking subscription: user={user_id} channel={CHANNEL_ID}")
         member = await context.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        logger.info(f"Subscription result: user={user_id} status={member.status}")
         is_subscribed = member.status in ("member", "administrator", "creator")
         _last_api[user_id] = now
         _last_result[user_id] = is_subscribed
         await update_user_subscription(user_id, is_subscribed)
         return is_subscribed
     except Exception as e:
-        logger.error(f"Subscription check error for {user_id}: {e}")
+        logger.error(f"Subscription check error for user={user_id} channel={CHANNEL_ID}: {e}")
         return True
 
 
