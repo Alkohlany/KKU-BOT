@@ -14,18 +14,12 @@ router = APIRouter()
 class CustomResponseCreate(BaseModel):
     keyword: str
     response: str
-    file_url: Optional[str] = None
-    file_type: Optional[str] = None
-    as_document: bool = False
 
 
 class CustomResponseUpdate(BaseModel):
     keyword: Optional[str] = None
     response: Optional[str] = None
     enabled: Optional[bool] = None
-    file_url: Optional[str] = None
-    file_type: Optional[str] = None
-    as_document: Optional[bool] = None
 
 
 @router.get("")
@@ -41,9 +35,6 @@ async def get_custom_responses(
             "keyword": r.keyword,
             "response": r.response,
             "enabled": r.is_active,
-            "file_url": r.file_url,
-            "file_type": r.file_type,
-            "as_document": r.as_document,
         }
         for r in items
     ]
@@ -57,9 +48,8 @@ async def create_custom_response(
 ):
     ar = await add_auto_response(
         keyword=data.keyword, response=data.response, created_by=0,
-        file_url=data.file_url, file_type=data.file_type, as_document=data.as_document
     )
-    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "file_url": ar.file_url, "file_type": ar.file_type, "as_document": ar.as_document}
+    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active}
 
 
 @router.put("/{response_id}")
@@ -74,13 +64,10 @@ async def update_custom_response(
         keyword=data.keyword,
         response=data.response,
         is_active=data.enabled,
-        file_url=data.file_url,
-        file_type=data.file_type,
-        as_document=data.as_document,
     )
     if not ar:
         raise HTTPException(status_code=404, detail="Response not found")
-    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "file_url": ar.file_url, "file_type": ar.file_type, "as_document": ar.as_document}
+    return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active}
 
 
 @router.delete("")

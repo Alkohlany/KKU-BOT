@@ -10,9 +10,6 @@ class QuestionCreate(BaseModel):
     answer: str
     category: Optional[str] = None
     keywords: Optional[str] = None
-    file_url: Optional[str] = None
-    file_type: Optional[str] = None
-    as_document: bool = False
 
 
 @router.get("/")
@@ -25,9 +22,6 @@ async def get_questions():
             "answer": q.answer,
             "category": q.category,
             "keywords": q.keywords,
-            "file_url": q.file_url,
-            "file_type": q.file_type,
-            "as_document": q.as_document,
         }
         for q in items
     ]
@@ -36,13 +30,9 @@ async def get_questions():
 @router.post("/")
 async def create_question(data: QuestionCreate):
     q = await add_question(question=data.question, answer=data.answer,
-                           category=data.category, keywords=data.keywords,
-                           file_url=data.file_url, file_type=data.file_type,
-                           as_document=data.as_document)
+                           category=data.category, keywords=data.keywords)
     return {"id": q.id, "question": q.question, "answer": q.answer,
-            "category": q.category, "keywords": q.keywords,
-            "file_url": q.file_url, "file_type": q.file_type,
-            "as_document": q.as_document}
+            "category": q.category, "keywords": q.keywords}
 
 
 @router.put("/{question_id}")
@@ -53,16 +43,11 @@ async def update_question_endpoint(question_id: int, data: QuestionCreate):
         answer=data.answer,
         category=data.category,
         keywords=data.keywords,
-        file_url=data.file_url,
-        file_type=data.file_type,
-        as_document=data.as_document,
     )
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
     return {"id": q.id, "question": q.question, "answer": q.answer,
-            "category": q.category, "keywords": q.keywords,
-            "file_url": q.file_url, "file_type": q.file_type,
-            "as_document": q.as_document}
+            "category": q.category, "keywords": q.keywords}
 
 
 @router.get("/search/{text}")
@@ -70,7 +55,7 @@ async def search_questions(text: str):
     result = await search_question(text)
     if result:
         await increment_question_usage(result.id)
-        return {"question": result.question, "answer": result.answer, "category": result.category, "file_url": result.file_url, "file_type": result.file_type, "as_document": result.as_document}
+        return {"question": result.question, "answer": result.answer, "category": result.category}
     return {"message": "لم أجد جواب على سؤالك، جرب أسئلة ثانية أو اسأل في القروب"}
 
 
