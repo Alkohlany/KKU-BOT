@@ -98,6 +98,9 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await send_admin_message(context, user.id, f"❌ فشل إضافة الرد: {str(e)}")
 
     elif text.startswith("احذف رد") or text.startswith("احذف الرد"):
+        try:
+            await update.message.delete()
+        except: pass
         id_part = text.replace("احذف رد", "").replace("احذف الرد", "").strip()
         
         if not id_part:
@@ -196,6 +199,9 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await send_admin_message(context, user.id, f"❌ فشل إضافة السؤال: {str(e)}")
 
     elif text.startswith("احذف سؤال") or text.startswith("احذف السؤال"):
+        try:
+            await update.message.delete()
+        except: pass
         id_part = text.replace("احذف سؤال", "").replace("احذف السؤال", "").strip()
         
         if not id_part:
@@ -259,6 +265,9 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
     elif text.startswith("احذف منشور") or text.startswith("احذف المنشور"):
+        try:
+            await update.message.delete()
+        except: pass
         id_part = text.replace("احذف منشور", "").replace("احذف المنشور", "").strip()
         
         if not id_part:
@@ -293,6 +302,9 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # ==================== إدارة المستخدمين ====================
     elif text.startswith("حظر"):
+        try:
+            await update.message.delete()
+        except: pass
         id_part = text.replace("حظر", "").strip()
         
         if not id_part:
@@ -317,6 +329,9 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await send_admin_message(context, user.id, f"❌ فشل الحظر: {str(e)}")
 
     elif text.startswith("الغاء حظر") or text.startswith("إلغاء حظر"):
+        try:
+            await update.message.delete()
+        except: pass
         id_part = text.replace("الغاء حظر", "").replace("إلغاء حظر", "").strip()
         
         if not id_part:
@@ -485,12 +500,18 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if text in ["حذف", "حذفا", "ازالة", "ازل", "زل", "امسح", "مسح"]:
         try:
+            await update.message.delete()
+        except: pass
+        try:
             await update.message.reply_to_message.delete()
             await send_admin_message(context, user.id, f"✅ تم حذف رسالة {target_user.first_name}")
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل في حذف الرسالة: {e}")
 
     elif text in ["حظر", "احظر", "ban"]:
+        try:
+            await update.message.delete()
+        except: pass
         try:
             await chat.ban_member(target_user_id)
             await update.message.reply_to_message.delete()
@@ -500,12 +521,18 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif text in ["الغاء حظر", "الغي حظر", "unban"]:
         try:
+            await update.message.delete()
+        except: pass
+        try:
             await chat.unban_member(target_user_id)
             await send_admin_message(context, user.id, f"✅ تم إلغاء حظر {target_user.first_name}")
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل في إلغاء الحظر: {e}")
 
     elif text in ["طرد", "اطرد", "kick"]:
+        try:
+            await update.message.delete()
+        except: pass
         try:
             await chat.ban_member(target_user_id)
             await chat.unban_member(target_user_id)
@@ -621,6 +648,9 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
 
     elif text.strip() in ["ازاله الرد", "ازالة الرد", "ازل رد"]:
+        try:
+            await update.message.delete()
+        except: pass
         replied = update.message.reply_to_message
         responses = await get_auto_responses_by_source(chat.id, replied.message_id)
         if not responses:
