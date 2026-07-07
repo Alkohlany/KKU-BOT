@@ -326,10 +326,12 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         # Upload file if any
+        file_tg_id = None
         try:
             if replied.photo:
                 file_obj = replied.photo[-1]
                 file_type = "photo"
+                file_tg_id = file_obj.file_id
                 tg_file = await file_obj.get_file()
                 file_bytes = await tg_file.download_as_bytearray()
                 result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="image")
@@ -337,6 +339,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             elif replied.video:
                 file_obj = replied.video
                 file_type = "video"
+                file_tg_id = file_obj.file_id
                 tg_file = await file_obj.get_file()
                 file_bytes = await tg_file.download_as_bytearray()
                 result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="video")
@@ -344,6 +347,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             elif replied.document:
                 file_obj = replied.document
                 file_type = detect_file_type(file_obj.file_name or "file.pdf")
+                file_tg_id = file_obj.file_id
                 tg_file = await file_obj.get_file()
                 file_bytes = await tg_file.download_as_bytearray()
                 if file_type in ("photo", "image"):
@@ -357,6 +361,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             elif replied.voice or replied.audio:
                 file_obj = replied.voice or replied.audio
                 file_type = "document"
+                file_tg_id = file_obj.file_id
                 tg_file = await file_obj.get_file()
                 file_bytes = await tg_file.download_as_bytearray()
                 file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/responses")
@@ -372,6 +377,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     created_by=user.id,
                     file_url=file_url,
                     file_type=file_type,
+                    file_tg_id=file_tg_id,
                     source_chat_id=chat.id,
                     source_message_id=replied.message_id,
                 )

@@ -79,6 +79,9 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     """معالجة الردود التلقائية بشكل ذكي"""
     if not update.message or not update.message.text:
         return
+
+    if update.effective_user and update.effective_user.id == context.bot.id:
+        return
     
     text = update.message.text.strip()
     
@@ -97,33 +100,26 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     if custom_responses:
         best_match = find_best_match(text, custom_responses)
         if best_match:
-            logger.info(f"AUTO_RESPONSE: matched keyword='{best_match.keyword}' response_len={len(best_match.response or '')}")
+            logger.info(f"AUTO_RESPONSE: matched keyword='{best_match.keyword}' response_len={len(best_match.response or '')} file_tg_id={'yes' if best_match.file_tg_id else 'no'}")
             try:
-                if not best_match.response and not best_match.file_url:
+                if not best_match.response and not best_match.file_tg_id and not best_match.file_url:
                     logger.info("AUTO_RESPONSE: skipped - empty response and no file")
                     return
-                if best_match.file_url:
-                    caption = best_match.response or None
-                    if best_match.as_document:
-                        await update.message.reply_document(
-                            document=best_match.file_url,
-                            caption=caption
-                        )
-                    elif best_match.file_type == 'photo':
-                        await update.message.reply_photo(
-                            photo=best_match.file_url,
-                            caption=caption
-                        )
+                caption = best_match.response or None
+                if best_match.file_tg_id:
+                    if best_match.file_type == 'photo':
+                        await update.message.reply_photo(photo=best_match.file_tg_id, caption=caption)
                     elif best_match.file_type == 'video':
-                        await update.message.reply_video(
-                            video=best_match.file_url,
-                            caption=caption
-                        )
+                        await update.message.reply_video(video=best_match.file_tg_id, caption=caption)
                     else:
-                        await update.message.reply_document(
-                            document=best_match.file_url,
-                            caption=caption
-                        )
+                        await update.message.reply_document(document=best_match.file_tg_id, caption=caption)
+                elif best_match.file_url:
+                    if best_match.file_type == 'photo':
+                        await update.message.reply_photo(photo=best_match.file_url, caption=caption)
+                    elif best_match.file_type == 'video':
+                        await update.message.reply_video(video=best_match.file_url, caption=caption)
+                    else:
+                        await update.message.reply_document(document=best_match.file_url, caption=caption)
                 else:
                     await update.message.reply_text(best_match.response)
                 logger.info("AUTO_RESPONSE: sent successfully")

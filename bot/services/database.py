@@ -51,6 +51,7 @@ async def init_db():
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS file_id VARCHAR(200)"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_chat_id BIGINT"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_message_id INTEGER"))
+        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_tg_id VARCHAR(200)"))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():

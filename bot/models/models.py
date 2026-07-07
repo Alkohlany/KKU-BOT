@@ -39,6 +39,7 @@ class AutoResponse(Base):
     file_url = Column(String(500), nullable=True)
     file_type = Column(String(50), nullable=True)
     as_document = Column(Boolean, default=False)
+    file_tg_id = Column(String(200), nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
     source_chat_id = Column(BigInteger, nullable=True)
     source_message_id = Column(Integer, nullable=True)
