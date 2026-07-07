@@ -293,20 +293,34 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif text.startswith("اضافه رد"):
         keywords_part = text[len("اضافه رد"):].strip()
-        if not keywords_part:
-            await update.message.reply_text("❌ يرجى كتابة الكلمات المفتاحية بعد الأمر. مثال:\nاضافه رد قانون, قوانين")
-            return
-
-        keywords = [k.strip() for k in keywords_part.split(",") if k.strip()]
-        if not keywords:
-            await update.message.reply_text("❌ لم يتم العثور على كلمات مفتاحية صحيحة")
-            return
-
         replied = update.message.reply_to_message
         response_text = replied.text or replied.caption or ""
         file_url = None
         file_type = None
 
+        # Parse keywords
+        if keywords_part:
+            keywords = [k.strip() for k in keywords_part.split(",") if k.strip()]
+        else:
+            # AI auto-generate keywords and questions
+            if not response_text:
+                await update.message.reply_text("❌ الرسالة لا تحتوي على نص لتحليله")
+                return
+            await update.message.reply_text("🤖 جاري تحليل المحتوى باستخدام الذكاء الاصطناعي...")
+            try:
+                from bot.services.ai import extract_keywords_and_questions
+                items = extract_keywords_and_questions(response_text)
+                keywords = items
+            except Exception as e:
+                logger.error(f"AI generation error: {e}")
+                await update.message.reply_text("❌ فشل في تحليل المحتوى آليًا. يرجى كتابة الكلمات المفتاحية يدويًا.")
+                return
+
+        if not keywords:
+            await update.message.reply_text("❌ لم يتم العثور على كلمات مفتاحية صحيحة")
+            return
+
+        # Upload file if any
         try:
             if replied.photo:
                 file_obj = replied.photo[-1]
@@ -335,7 +349,6 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     file_url = result["secure_url"]
                 else:
                     file_url = upload_raw(bytes(file_bytes), filename=file_obj.file_name or "file", folder="kku-bot/responses")
-                file_type = file_type
             elif replied.voice or replied.audio:
                 file_obj = replied.voice or replied.audio
                 file_type = "document"

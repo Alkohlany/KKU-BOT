@@ -14,3 +14,4 @@ elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
 ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "").split(",") if x]
 
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
