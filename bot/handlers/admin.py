@@ -696,8 +696,6 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
         return
-        else:
-            await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
 
     elif text.strip() in ["ازاله الرد", "ازالة الرد", "ازل رد"]:
         try:
