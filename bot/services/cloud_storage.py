@@ -20,8 +20,12 @@ def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
 
 
 def upload_raw(file_bytes: bytes, filename: str = "", folder: str = "kku-bot") -> str:
-    result = cloudinary.uploader.upload_large(file_bytes, folder=folder, resource_type="auto", timeout=300, chunk_size=6_000_000)
-    return result["secure_url"]
+    try:
+        result = cloudinary.uploader.upload_large(file_bytes, folder=folder, resource_type="auto", timeout=300, chunk_size=6_000_000)
+        return result["secure_url"]
+    except Exception as e:
+        logger.error(f"upload_raw failed: {e}", exc_info=True)
+        raise
 
 
 def download_raw(file_url: str) -> bytes | None:
