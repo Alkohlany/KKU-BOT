@@ -15,36 +15,32 @@ logger = logging.getLogger(__name__)
 
 SPAM_KEYWORDS = [
     # تسويق/إعلان
-    "عرض", "خصم", "توصيل", "شحن",
+    "خصم", "توصيل",
     "إعلان", "إعلانات", "تسويق", "ربح", "دخل",
     "taplink", "linktr", "bit.ly", "tinyurl",
     "casino", "bet", "gambling",
-    # محتوى إباحي/استغلال
-    "اطفال", "طفل", "اطفالي", "infant", "child", "children",
-    "فيديوهات", "فيديو", "ساخن", "ساخنة", "عري", "عاري", "عارية",
-    "hot video", "hot videos", "sex", "sexy", "nude", "naked",
-    "adult", "xxx", "porn", "porno",
-    "محتوى اباحي", "فاضح", "فاضحة", "إباحي", "إباحية",
-    # عنصري/كراهية
+    # محتوى إباحي
+    "عري", "عارية",
+    "sex", "sexy", "nude", "naked",
+    "xxx", "porn", "porno",
+    "محتوى اباحي", "إباحي", "إباحية",
+    # كراهية
     "كافر", "كافرين", "مرتد", "مرتدين", "ملحد", "ملحدين",
     "يهودي", "يهود", "نصراني", "نصارى",
     "طائفي", "طائفية", "sectarian",
-    # مخدرات/أسلحة
-    "مخدر", "مخدرات", "حشيش", "بانجو", "كيف",
-    "drugs", "drug", "cannabis", "marijuana",
-    "سلاح", "أسلحة", "ذخيرة", "متفجر",
-    # نصب/احتيال
+    # مخدرات
+    "مخدر", "مخدرات", "حشيش", "بانجو",
+    "drugs", "cannabis", "marijuana",
+    # نصب
     "نصب", "احتيال", "غش", "خديعة",
-    "scam", "fraud", "fake", "hack", "hacking",
-    "احصل على", "مجاناً", "grabs", "free money",
+    "scam", "fraud", "hack", "hacking",
+    "احصل على", "free money",
 ]
 
 SUSPICIOUS_PATTERNS = [
     r"(https?://\S+){3,}",
     r"@[\w+]{15,}",
     r"\+?\d{10,}",
-    r"t\.me/",
-    r"telegram\.me/",
 ]
 
 
@@ -71,6 +67,20 @@ def normalize_arabic(text):
 user_message_times = defaultdict(list)
 
 
+async def _ban_user(update, context, user, chat, reason: str, log_action: str, log_detail: str):
+    if await _is_privileged(user.id, chat):
+        return
+    try:
+        await update.message.delete()
+        await chat.ban_member(user.id)
+        await ban_user(user.id, reason, context.bot.id)
+        await log_activity(log_action, f"{reason} from {user.id} in {chat.id}", user.id)
+        await chat.send_message(f"تم حظر المستخدم {user.first_name} بسبب محتوى مخالف.")
+        log_protection(user.id, chat.id, log_action, log_detail)
+    except Exception as e:
+        logger.error(f"Error banning user {user.id}: {e}")
+
+
 def is_rate_limited(user_id, max_messages=5, time_window=60):
     """فحص Rate Limiting"""
     now = datetime.now()
@@ -89,46 +99,32 @@ def log_protection(user_id, chat_id, reason, detail):
     )
 
 
+async def _is_privileged(user_id: int, chat) -> bool:
+    try:
+        member = await chat.get_member(user_id)
+        return member.status in ("administrator", "creator")
+    except Exception:
+        return False
+
+
 async def check_text_content(update, context, text):
     """فحص النص (مستخدمة في الرسائل النصية والوسائط)"""
     user = update.effective_user
     chat = update.effective_chat
 
+    if await _is_privileged(user.id, chat):
+        return
+
     normalized = normalize_arabic(text.lower())
 
     for keyword in SPAM_KEYWORDS:
         if keyword.lower() in normalized:
-            try:
-                await update.message.delete()
-                await chat.ban_member(user.id)
-                await ban_user(user.id, f"Spam keyword: {keyword}", context.bot.id)
-                await log_activity(
-                    "spam_detected",
-                    f"Keyword '{keyword}' detected from {user.id} in {chat.id}",
-                    user.id,
-                )
-                await chat.send_message(
-                    f"تم حظر المستخدم {user.first_name} بسبب محتوى مخالف."
-                )
-                log_protection(user.id, chat.id, "spam_keyword", keyword)
-            except Exception as e:
-                logger.error(f"Error banning spammer: {e}")
+            await _ban_user(update, context, user, chat, f"Spam keyword: {keyword}", "spam_keyword", keyword)
             return
 
     for pattern in SUSPICIOUS_PATTERNS:
         if re.search(pattern, text):
-            try:
-                await update.message.delete()
-                await chat.ban_member(user.id)
-                await ban_user(user.id, f"Suspicious pattern: {pattern}", context.bot.id)
-                await log_activity(
-                    "suspicious_message",
-                    f"Suspicious pattern '{pattern}' from {user.id} in {chat.id}",
-                    user.id,
-                )
-                log_protection(user.id, chat.id, "suspicious_pattern", pattern)
-            except Exception as e:
-                logger.error(f"Error handling suspicious message: {e}")
+            await _ban_user(update, context, user, chat, f"Suspicious pattern: {pattern}", "suspicious_pattern", pattern)
             return
 
 
@@ -151,10 +147,11 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         member = await chat.get_member(user.id)
-        if member.status in ["administrator", "creator"]:
+        if member.status in ("administrator", "creator"):
             return
     except Exception as e:
-        logger.error(f"Error checking member status: {e}")
+        logger.warning(f"Cannot check member status for {user.id}, allowing: {e}")
+        return
 
     try:
         group = await get_group(chat.id)
@@ -181,18 +178,9 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if is_rate_limited(user.id):
-        try:
-            await update.message.delete()
-            await chat.ban_member(user.id)
-            await ban_user(user.id, "Rate limit exceeded", context.bot.id)
-            await log_activity(
-                "rate_limit",
-                f"Rate limit exceeded by {user.id} in {chat.id}",
-                user.id,
-            )
-            log_protection(user.id, chat.id, "rate_limit", "exceeded")
-        except Exception as e:
-            logger.error(f"Error handling rate limit: {e}")
+        if await _is_privileged(user.id, chat):
+            return
+        await _ban_user(update, context, user, chat, "Rate limit exceeded", "rate_limit", "exceeded")
         return
 
     await check_text_content(update, context, update.message.text)
@@ -200,7 +188,14 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def check_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فحص الوسائط (صور/فيديو/ملفات)"""
-    if not update.message:
+    if not update.message or not update.effective_user or not update.effective_chat:
+        return
+
+    if update.effective_chat.type not in ("group", "supergroup"):
+        return
+    if update.effective_user.id == context.bot.id:
+        return
+    if await _is_privileged(update.effective_user.id, update.effective_chat):
         return
 
     caption = update.message.caption or ""
