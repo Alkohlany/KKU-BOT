@@ -1,4 +1,7 @@
+import logging
 from bot.config import GEMINI_API_KEY
+
+logger = logging.getLogger(__name__)
 
 
 def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questions: int = 5) -> list[str]:
@@ -25,6 +28,10 @@ def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questio
         model="gemini-2.0-flash",
         contents=prompt,
     )
+
+    if not response.candidates:
+        raise RuntimeError("Gemini blocked the request (no candidates returned)")
+
     result = response.text.strip().split("\n")
     items = [line.strip("- ").strip() for line in result if line.strip()]
     return items
