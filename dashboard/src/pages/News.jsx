@@ -46,37 +46,14 @@ export default function News() {
     try {
       let newItem;
       if (uploadFile) {
-        if (uploadFile.size <= 10 * 1024 * 1024) {
-          const config = await api.getUploadConfig();
-
-          const formData = new FormData();
-          formData.append('file', uploadFile);
-          formData.append('api_key', config.api_key);
-          formData.append('timestamp', config.timestamp);
-          formData.append('signature', config.signature);
-          formData.append('folder', config.folder);
-
-          const result = await api.uploadToCloudinary(config.cloud_name, formData, (percent) => {
-            setUploadProgress(percent);
-          });
-
-          newItem = await api.addNews({
-            title: form.title,
-            content: form.content,
-            file_url: result.secure_url,
-            file_name: uploadFile.name,
-            as_document: form.as_document,
-          });
-        } else {
-          const formData = new FormData();
-          formData.append('title', form.title);
-          formData.append('content', form.content);
-          formData.append('file', uploadFile);
-          formData.append('as_document', form.as_document);
-          newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
-            setUploadProgress(percent);
-          });
-        }
+        const formData = new FormData();
+        formData.append('title', form.title);
+        formData.append('content', form.content);
+        formData.append('file', uploadFile);
+        formData.append('as_document', form.as_document);
+        newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
+          setUploadProgress(percent);
+        });
       } else {
         newItem = await api.addNews(form);
       }
