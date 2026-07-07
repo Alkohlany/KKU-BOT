@@ -4,7 +4,7 @@ from bot.config import OPENROUTER_API_KEY
 logger = logging.getLogger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_MODEL = "qwen/qwen-2.5-7b-instruct:free"
+DEFAULT_MODEL = "openai/gpt-oss-20b:free"
 
 
 def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questions: int = 5) -> list[str]:
