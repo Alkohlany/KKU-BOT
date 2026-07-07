@@ -308,6 +308,7 @@ async def publish_group_plans(group_id: int):
                         continue
 
                     pdf_content = None
+                    last_status = None
                     for dl_attempt in range(3):
                         try:
                             file_resp = await client.get(plan.file_url, timeout=90)
@@ -315,8 +316,10 @@ async def publish_group_plans(group_id: int):
                                 pdf_content = file_resp.content
                                 break
                             else:
+                                last_status = file_resp.status_code
                                 print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
                         except Exception as e:
+                            last_status = 0
                             print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
                         if dl_attempt < 2:
                             await asyncio.sleep(2)
@@ -415,6 +418,7 @@ async def publish_single_plan(plan_id: int):
 
         async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
             pdf_content = None
+            last_status = None
             for dl_attempt in range(3):
                 try:
                     file_resp = await client.get(plan.file_url, timeout=90)
@@ -422,15 +426,17 @@ async def publish_single_plan(plan_id: int):
                         pdf_content = file_resp.content
                         break
                     else:
+                        last_status = file_resp.status_code
                         print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
                 except Exception as e:
+                    last_status = 0
                     print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
                 if dl_attempt < 2:
                     import asyncio
                     await asyncio.sleep(2)
 
             if not pdf_content:
-                return {"error": "فشل تحميل الملف من Cloudinary"}
+                return {"error": f"فشل تحميل الملف من Cloudinary (status: {last_status})"}
 
             caption = ""
             if group and group.group_tag:
