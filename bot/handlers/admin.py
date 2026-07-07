@@ -31,6 +31,13 @@ def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
 
+async def send_admin_message(context: ContextTypes.DEFAULT_TYPE, user_id: int, text: str, parse_mode=None):
+    try:
+        await context.bot.send_message(chat_id=user_id, text=text, parse_mode=parse_mode)
+    except Exception as e:
+        logger.error(f"Failed to send private message to admin {user_id}: {e}")
+
+
 # ==================== اوامر النص المباشر ====================
 
 async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -58,7 +65,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").strip()
         
         if not keywords_part:
-            await update.message.reply_text(
+            await send_admin_message(context, user.id,
                 "❌ الطريقة الصحيحة:\n"
                 "اضافه رد [كلمة] [رد]\n\n"
                 "💡 يمكنك أيضاً الرد على رسالة وإرسال:\n"
@@ -68,7 +75,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         parts = keywords_part.split(None, 1)
         if len(parts) < 2:
-            await update.message.reply_text("❌ يجب كتابة الكلمة والرد\n\nمثال: اضافه رد تسجيل كيف أسجل")
+            await send_admin_message(context, user.id, "❌ يجب كتابة الكلمة والرد\n\nمثال: اضافه رد تسجيل كيف أسجل")
             return
 
         keyword = parts[0]
@@ -80,32 +87,32 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 response=response_text,
                 created_by=user.id
             )
-            await update.message.reply_text(f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📝 الرد: {response_text}")
+            await send_admin_message(context, user.id, f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📝 الرد: {response_text}")
             await log_activity("add_response", f"Keyword: {keyword}", user.id)
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل إضافة الرد: {str(e)}")
+            await send_admin_message(context, user.id, f"❌ فشل إضافة الرد: {str(e)}")
 
     elif text.startswith("احذف رد") or text.startswith("احذف الرد"):
         id_part = text.replace("احذف رد", "").replace("احذف الرد", "").strip()
         
         if not id_part:
-            await update.message.reply_text("❌ يجب كتابة رقم الرد\n\nمثال: احذف رد 5")
+            await send_admin_message(context, user.id, "❌ يجب كتابة رقم الرد\n\nمثال: احذف رد 5")
             return
 
         try:
             response_id = int(id_part)
             await remove_auto_response(response_id)
-            await update.message.reply_text(f"✅ تمت حذف الرد رقم {response_id}")
+            await send_admin_message(context, user.id, f"✅ تمت حذف الرد رقم {response_id}")
             await log_activity("delete_response", f"ID: {response_id}", user.id)
         except ValueError:
-            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل حذف الرد: {str(e)}")
+            await send_admin_message(context, user.id, f"❌ فشل حذف الرد: {str(e)}")
 
     elif text in ["قائمة الردود", "الردود", "عرض الردود", "جميع الردود"]:
         responses = await get_all_auto_responses()
         if not responses:
-            await update.message.reply_text("📭 لا توجد ردود تلقائية")
+            await send_admin_message(context, user.id, "📭 لا توجد ردود تلقائية")
             return
 
         text_msg = "📋 **الردود التلقائية:**\n\n"
@@ -116,31 +123,31 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if len(responses) > 30:
             text_msg += f"\n... و {len(responses) - 30} رد آخر"
 
-        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     elif text.startswith("بحث في الردود") or text.startswith("بحث رد"):
         query = text.replace("بحث في الردود", "").replace("بحث رد", "").strip()
         
         if not query:
-            await update.message.reply_text("❌ يجب كتابة كلمة البحث\n\nمثال: بحث في الردود تسجيل")
+            await send_admin_message(context, user.id, "❌ يجب كتابة كلمة البحث\n\nمثال: بحث في الردود تسجيل")
             return
 
         responses = await get_all_auto_responses()
         results = [r for r in responses if query.lower() in r.keyword.lower()]
 
         if not results:
-            await update.message.reply_text(f"🔍 لا توجد نتائج لـ: {query}")
+            await send_admin_message(context, user.id, f"🔍 لا توجد نتائج لـ: {query}")
             return
 
         text_msg = f"🔍 **نتائج البحث لـ:** {query}\n\n"
         for r in results[:10]:
             text_msg += f"`{r.id}` - 🔑 {r.keyword}\n📝 {r.response[:50]}...\n\n"
 
-        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     # ==================== الاسئلة الشائعة ====================
     elif text.startswith("اضافه سؤال") or text.startswith("أضف سؤال"):
-        await update.message.reply_text(
+        await send_admin_message(context, user.id,
             "❌ الطريقة الصحيحة:\n"
             "1. ارسل السؤال كرسالة\n"
             "2. رد عليها بالإجابة\n"
@@ -152,23 +159,23 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         id_part = text.replace("احذف سؤال", "").replace("احذف السؤال", "").strip()
         
         if not id_part:
-            await update.message.reply_text("❌ يجب كتابة رقم السؤال\n\nمثال: احذف سؤال 5")
+            await send_admin_message(context, user.id, "❌ يجب كتابة رقم السؤال\n\nمثال: احذف سؤال 5")
             return
 
         try:
             question_id = int(id_part)
             await delete_question(question_id)
-            await update.message.reply_text(f"✅ تمت حذف السؤال رقم {question_id}")
+            await send_admin_message(context, user.id, f"✅ تمت حذف السؤال رقم {question_id}")
             await log_activity("delete_question", f"ID: {question_id}", user.id)
         except ValueError:
-            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل حذف السؤال: {str(e)}")
+            await send_admin_message(context, user.id, f"❌ فشل حذف السؤال: {str(e)}")
 
     elif text in ["قائمة الاسئلة", "الاسئلة", "عرض الاسئلة", "جميع الاسئلة", "قائمة الأسئلة", "الأسئلة", "عرض الأسئلة"]:
         questions = await get_all_questions()
         if not questions:
-            await update.message.reply_text("📭 لا توجد أسئلة شائعة")
+            await send_admin_message(context, user.id, "📭 لا توجد أسئلة شائعة")
             return
 
         text_msg = "❓ **الاسئلة الشائعة:**\n\n"
@@ -178,31 +185,31 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if len(questions) > 20:
             text_msg += f"\n... و {len(questions) - 20} سؤال آخر"
 
-        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     elif text.startswith("بحث في الاسئلة") or text.startswith("بحث سؤال") or text.startswith("بحث في الأسئلة"):
         query = text.replace("بحث في الاسئلة", "").replace("بحث سؤال", "").replace("بحث في الأسئلة", "").strip()
         
         if not query:
-            await update.message.reply_text("❌ يجب كتابة كلمة البحث\n\nمثال: بحث في الاسئلة تسجيل")
+            await send_admin_message(context, user.id, "❌ يجب كتابة كلمة البحث\n\nمثال: بحث في الاسئلة تسجيل")
             return
 
         questions = await get_all_questions()
         results = [q for q in questions if query.lower() in (q.question or '').lower() or query.lower() in (q.keywords or '').lower()]
 
         if not results:
-            await update.message.reply_text(f"🔍 لا توجد نتائج لـ: {query}")
+            await send_admin_message(context, user.id, f"🔍 لا توجد نتائج لـ: {query}")
             return
 
         text_msg = f"🔍 **نتائج البحث لـ:** {query}\n\n"
         for q in results[:10]:
             text_msg += f"`{q.id}` - 💬 {q.question[:50]}...\n📝 {q.answer[:50]}...\n\n"
 
-        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     # ==================== الاخبار ====================
     elif text.startswith("اضافه خبر") or text.startswith("أضف خبر") or text == "اضافه خبر":
-        await update.message.reply_text(
+        await send_admin_message(context, user.id,
             "📰 لإضافة خبر:\n"
             "1. ارسل العنوان كرسالة\n"
             "2. رد عليها بالمحتوى\n"
@@ -215,23 +222,23 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         id_part = text.replace("احذف خبر", "").replace("احذف الخبر", "").strip()
         
         if not id_part:
-            await update.message.reply_text("❌ يجب كتابة رقم الخبر\n\nمثال: احذف خبر 5")
+            await send_admin_message(context, user.id, "❌ يجب كتابة رقم الخبر\n\nمثال: احذف خبر 5")
             return
 
         try:
             news_id = int(id_part)
             await delete_news(news_id)
-            await update.message.reply_text(f"✅ تمت حذف الخبر رقم {news_id}")
+            await send_admin_message(context, user.id, f"✅ تمت حذف الخبر رقم {news_id}")
             await log_activity("delete_news", f"ID: {news_id}", user.id)
         except ValueError:
-            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل حذف الخبر: {str(e)}")
+            await send_admin_message(context, user.id, f"❌ فشل حذف الخبر: {str(e)}")
 
     elif text in ["قائمة الاخبار", "الاخبار", "عرض الاخبار", "جميع الاخبار", "قائمة الأخبار", "الأخبار", "عرض الأخبار"]:
         news = await get_all_news()
         if not news:
-            await update.message.reply_text("📭 لا توجد أخبار")
+            await send_admin_message(context, user.id, "📭 لا توجد أخبار")
             return
 
         text_msg = "📰 **الاخبار:**\n\n"
@@ -242,14 +249,14 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if len(news) > 15:
             text_msg += f"\n... و {len(news) - 15} خبر آخر"
 
-        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     # ==================== إدارة المستخدمين ====================
     elif text.startswith("حظر"):
         id_part = text.replace("حظر", "").strip()
         
         if not id_part:
-            await update.message.reply_text("❌ يجب كتابة رقم المستخدم\n\nمثال: حظر 12345678 سبب الحظر")
+            await send_admin_message(context, user.id, "❌ يجب كتابة رقم المستخدم\n\nمثال: حظر 12345678 سبب الحظر")
             return
 
         parts = id_part.split(None, 1)
@@ -258,22 +265,22 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reason = parts[1] if len(parts) > 1 else "لا يوجد سبب"
 
             if await is_banned(target_id):
-                await update.message.reply_text("⚠️ هذا المستخدم محظور بالفعل.")
+                await send_admin_message(context, user.id, "⚠️ هذا المستخدم محظور بالفعل.")
                 return
 
             await ban_user(target_id, reason, user.id)
-            await update.message.reply_text(f"🚫 تم حظر المستخدم `{target_id}`\n📋 السبب: {reason}")
+            await send_admin_message(context, user.id, f"🚫 تم حظر المستخدم `{target_id}`\n📋 السبب: {reason}")
             await log_activity("ban_user", f"User: {target_id}, Reason: {reason}", user.id)
         except ValueError:
-            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل الحظر: {str(e)}")
+            await send_admin_message(context, user.id, f"❌ فشل الحظر: {str(e)}")
 
     elif text.startswith("الغاء حظر") or text.startswith("إلغاء حظر"):
         id_part = text.replace("الغاء حظر", "").replace("إلغاء حظر", "").strip()
         
         if not id_part:
-            await update.message.reply_text("❌ يجب كتابة رقم المستخدم\n\nمثال: الغاء حظر 12345678")
+            await send_admin_message(context, user.id, "❌ يجب كتابة رقم المستخدم\n\nمثال: الغاء حظر 12345678")
             return
 
         try:
@@ -286,24 +293,24 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await session.execute(sql_delete(BannedUser).where(BannedUser.telegram_id == target_id))
                 await session.commit()
 
-            await update.message.reply_text(f"✅ تم رفع الحظر عن المستخدم `{target_id}`")
+            await send_admin_message(context, user.id, f"✅ تم رفع الحظر عن المستخدم `{target_id}`")
             await log_activity("unban_user", f"User: {target_id}", user.id)
         except ValueError:
-            await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+            await send_admin_message(context, user.id, "❌ يجب إدخال رقم صحيح")
         except Exception as e:
-            await update.message.reply_text(f"❌ فشل رفع الحظر: {str(e)}")
+            await send_admin_message(context, user.id, f"❌ فشل رفع الحظر: {str(e)}")
 
     elif text in ["قائمة المحظورين", "المحظورين", "عرض المحظورين"]:
         banned = await get_all_banned()
         if not banned:
-            await update.message.reply_text("✅ لا يوجد محظورين")
+            await send_admin_message(context, user.id, "✅ لا يوجد محظورين")
             return
 
         text_msg = "🚫 **قائمة المحظورين:**\n\n"
         for b in banned[:20]:
             text_msg += f"`{b.telegram_id}` - {b.reason or 'لا يوجد سبب'}\n"
 
-        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     # ==================== عام ====================
     elif text in ["الاحصائيات", "احصائيات", "الإحصائيات", "إحصائيات", "stats"]:
@@ -329,12 +336,12 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 ❓ الاسئلة: {total_questions}
 📰 الاخبار: {total_news}"""
 
-        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     elif text in ["القروبات", "قروبات", "عرض القروبات", "groups"]:
         groups = await get_all_groups()
         if not groups:
-            await update.message.reply_text("📭 لا توجد قروبات مسجلة")
+            await send_admin_message(context, user.id, "📭 لا توجد قروبات مسجلة")
             return
 
         text_msg = "👥 **القروبات:**\n\n"
@@ -342,18 +349,18 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             status = "✅" if g.is_active else "❌"
             text_msg += f"{status} `{g.chat_id}` - {g.title or 'بدون عنوان'}\n"
 
-        await update.message.reply_text(text_msg, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     elif text.startswith("اذاعة") or text.startswith("إذاعة") or text.startswith("broadcast"):
         message = text.replace("اذاعة", "").replace("إذاعة", "").replace("broadcast", "").strip()
         
         if not message:
-            await update.message.reply_text("❌ يجب كتابة الرسالة\n\nمثال: اذاعة مرحبا بالجميع")
+            await send_admin_message(context, user.id, "❌ يجب كتابة الرسالة\n\nمثال: اذاعة مرحبا بالجميع")
             return
 
         groups = await get_all_groups()
         if not groups:
-            await update.message.reply_text("📭 لا توجد قروبات لإرسال الرسالة")
+            await send_admin_message(context, user.id, "📭 لا توجد قروبات لإرسال الرسالة")
             return
 
         sent = 0
@@ -366,7 +373,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             except Exception:
                 failed += 1
 
-        await update.message.reply_text(f"✅ تم الإرسال\n📤 نجح: {sent}\n❌ فشل: {failed}")
+        await send_admin_message(context, user.id, f"✅ تم الإرسال\n📤 نجح: {sent}\n❌ فشل: {failed}")
         await log_activity("broadcast", f"Sent: {sent}, Failed: {failed}", user.id)
 
     elif text in ["مساعدة", "المساعدة", "اوامر", "الأوامر", "help", "أوامر الادمن", "اوامر الادمن"]:
@@ -400,7 +407,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 اذاعة [رسالة] - إرسال للجميع
 مساعدة - عرض هذه الرسالة"""
 
-        await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
+        await send_admin_message(context, user.id, help_text, parse_mode=ParseMode.MARKDOWN)
 
 
 # ==================== اوامر الرد على الرسائل ====================
@@ -436,14 +443,14 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     except:
         pass
 
-    if text in ["حذف", "ازالة", "امسح"]:
+    if text in ["حذف", "حذفا", "ازالة", "ازل", "زل", "امسح", "مسح"]:
         try:
             await update.message.reply_to_message.delete()
             await update.message.reply_text(f"✅ تم حذف رسالة {target_user.first_name}")
         except Exception as e:
             await update.message.reply_text(f"❌ فشل في حذف الرسالة: {e}")
 
-    elif text in ["حظر", "ban"]:
+    elif text in ["حظر", "احظر", "ban"]:
         try:
             await chat.ban_member(target_user_id)
             await update.message.reply_to_message.delete()
@@ -451,14 +458,14 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             await update.message.reply_text(f"❌ فشل في حظر المستخدم: {e}")
 
-    elif text in ["الغاء حظر", "unban"]:
+    elif text in ["الغاء حظر", "الغي حظر", "unban"]:
         try:
             await chat.unban_member(target_user_id)
             await update.message.reply_text(f"✅ تم إلغاء حظر {target_user.first_name}")
         except Exception as e:
             await update.message.reply_text(f"❌ فشل في إلغاء الحظر: {e}")
 
-    elif text in ["طرد", "kick"]:
+    elif text in ["طرد", "اطرد", "kick"]:
         try:
             await chat.ban_member(target_user_id)
             await chat.unban_member(target_user_id)
@@ -467,15 +474,15 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             await update.message.reply_text(f"❌ فشل في طرد المستخدم: {e}")
 
-    elif text in ["تثبيت", "pin"]:
+    elif text in ["تثبيت", "ثبت", "pin"]:
         try:
             await update.message.reply_to_message.pin()
             await update.message.reply_text(f"📌 تم تثبيت رسالة {target_user.first_name}")
         except Exception as e:
             await update.message.reply_text(f"❌ فشل في تثبيت الرسالة: {e}")
 
-    elif text.startswith("اضافه رد") or text.startswith("أضف رد"):
-        keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").strip()
+    elif text.startswith("اضافه رد") or text.startswith("اضف رد") or text.startswith("ضف رد"):
+        keywords_part = text.replace("اضافه رد", "").replace("اضف رد", "").replace("ضف رد", "").strip()
         replied = update.message.reply_to_message
         response_text = replied.text or replied.caption or ""
         file_url = None
@@ -573,7 +580,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             await update.message.reply_text("❌ فشل في إنشاء الردود التلقائية")
 
-    elif text.strip() in ["ازاله الرد", "ازالة الرد"]:
+    elif text.strip() in ["ازاله الرد", "ازالة الرد", "ازل رد"]:
         replied = update.message.reply_to_message
         responses = await get_auto_responses_by_source(chat.id, replied.message_id)
         if not responses:
