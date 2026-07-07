@@ -1,7 +1,10 @@
 import cloudinary
 import cloudinary.uploader
 import os
+import logging
 from bot.config import CLOUDINARY_URL
+
+logger = logging.getLogger(__name__)
 
 cloudinary.config(secure=True)
 
@@ -17,13 +20,7 @@ def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
 
 
 def upload_raw(file_bytes: bytes, filename: str = "", folder: str = "kku-bot") -> str:
-    upload_params = {
-        "folder": folder,
-        "resource_type": "raw",
-    }
-    if filename:
-        upload_params["public_id"] = filename
-    result = cloudinary.uploader.upload(file_bytes, **upload_params)
+    result = cloudinary.uploader.upload(file_bytes, folder=folder, resource_type="raw")
     return result["secure_url"]
 
 
@@ -32,7 +29,21 @@ def download_raw(file_url: str) -> bytes | None:
     import requests
     try:
         path = urllib.parse.urlparse(file_url).path
-        parts = path.split("/raw/upload/")
+        path_decoded = urllib.parse.unquote(path)
+        
+        resource_type = "raw"
+        upload_marker = "/raw/upload/"
+        if upload_marker not in path_decoded:
+            upload_marker = "/image/upload/"
+            resource_type = "image"
+            if upload_marker not in path_decoded:
+                upload_marker = "/video/upload/"
+                resource_type = "video"
+                if upload_marker not in path_decoded:
+                    logger.warning(f"download_raw: unknown URL format: {file_url}")
+                    return None
+
+        parts = path_decoded.split(upload_marker)
         if len(parts) != 2:
             return None
         path_after = parts[1]
@@ -41,7 +52,7 @@ def download_raw(file_url: str) -> bytes | None:
             return None
         full_public_id = path_after[slash_idx + 1:]
 
-        api_url = "https://api.cloudinary.com/v1_1/kcjltbov/raw/download"
+        api_url = f"https://api.cloudinary.com/v1_1/kcjltbov/{resource_type}/download"
         resp = requests.get(
             api_url,
             params={"public_id": full_public_id, "type": "upload"},
