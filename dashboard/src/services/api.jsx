@@ -69,7 +69,7 @@ const api = {
   addResponseWithFile: (formData) => api.postFormData('/responses/upload', formData),
   updateResponseWithFile: (id, formData) => api.putFormData(`/responses/upload/${id}`, formData),
   addResponseWithFileProgress: (formData, onProgress) => api.uploadWithProgress('/responses/upload', formData, onProgress, 'POST'),
-  updateResponseWithFileProgress: (id, formData, onProgress) => api.uploadWithProgress(`/responses/${id}`, formData, onProgress, 'PUT'),
+  updateResponseWithFileProgress: (id, formData, onProgress) => api.uploadWithProgress(`/responses/upload/${id}`, formData, onProgress, 'PUT'),
   getGroups: () => api.get('/groups'),
   addGroup: (data) => api.post('/groups', data),
   toggleGroup: (id, enabled) => api.put(`/groups/${id}/toggle`, { enabled }),
@@ -152,7 +152,7 @@ const api = {
   addQuestionWithFile: (formData) => api.postFormData('/questions/upload', formData),
   updateQuestionWithFile: (id, formData) => api.putFormData(`/questions/upload/${id}`, formData),
   addQuestionWithFileProgress: (formData, onProgress) => api.uploadWithProgress('/questions/upload', formData, onProgress, 'POST'),
-  updateQuestionWithFileProgress: (id, formData, onProgress) => api.uploadWithProgress(`/questions/${id}`, formData, onProgress, 'PUT'),
+  updateQuestionWithFileProgress: (id, formData, onProgress) => api.uploadWithProgress(`/questions/upload/${id}`, formData, onProgress, 'PUT'),
 
   getScheduledPosts: () => api.get('/scheduled-posts'),
   addScheduledPost: (data) => api.post('/scheduled-posts', data),
