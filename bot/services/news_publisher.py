@@ -11,25 +11,6 @@ logger = logging.getLogger(__name__)
 
 bot = Bot(token=BOT_TOKEN)
 
-MIME_TYPES = {
-    'pdf': 'application/pdf',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'mp4': 'video/mp4',
-    'avi': 'video/x-msvideo',
-    'mov': 'video/quicktime',
-    'mkv': 'video/x-matroska',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'txt': 'text/plain',
-    'zip': 'application/zip',
-}
-
 
 async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, publish_to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None):
     groups = await get_all_groups()
@@ -54,24 +35,16 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     return sent
 
 
-async def _send_local_file(chat_id: str, file_path: str, caption: str, filename: str = None) -> bool:
-    try:
-        if not os.path.exists(file_path):
-            logger.warning(f"Local file not found: {file_path}")
-            return False
-        if not filename:
-            filename = os.path.basename(file_path)
-        with open(file_path, 'rb') as f:
-            await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption)
-        return True
-    except Exception as e:
-        logger.warning(f"send_document local file failed for {chat_id}: {e}")
-        return False
-
-
 async def _send_file(chat_id: str, url: str, caption: str, original_filename: str = None) -> bool:
     if os.path.exists(url):
-        return await _send_local_file(chat_id, url, caption, original_filename)
+        try:
+            filename = original_filename or os.path.basename(url)
+            with open(url, 'rb') as f:
+                await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption)
+            return True
+        except Exception as e:
+            logger.warning(f"send_document local file failed for {chat_id}: {e}")
+            return False
 
     if not original_filename:
         try:
@@ -101,15 +74,29 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
     return False
 
 
+async def _send_file_with_thumbnail(chat_id: str, file_path: str, caption: str, thumbnail_path: str, filename: str = None) -> bool:
+    try:
+        if not os.path.exists(file_path):
+            return False
+        if not filename:
+            filename = os.path.basename(file_path)
+        with open(file_path, 'rb') as doc_f:
+            if thumbnail_path and os.path.exists(thumbnail_path):
+                with open(thumbnail_path, 'rb') as thumb_f:
+                    await bot.send_document(chat_id=chat_id, document=doc_f, filename=filename, caption=caption, thumb=thumb_f)
+            else:
+                await bot.send_document(chat_id=chat_id, document=doc_f, filename=filename, caption=caption)
+        return True
+    except Exception as e:
+        logger.warning(f"send_document with thumbnail failed for {chat_id}: {e}")
+        return False
+
+
 async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> bool:
     try:
         if as_document:
             if file_url:
-                if thumbnail_url and os.path.exists(thumbnail_url):
-                    await _send_local_file(chat_id, thumbnail_url, text)
-                    if await _send_local_file(chat_id, file_url, "", file_name):
-                        return True
-                if await _send_file(chat_id, file_url, text, original_filename=file_name):
+                if await _send_file_with_thumbnail(chat_id, file_url, text, thumbnail_url, file_name):
                     return True
             if image_url:
                 if await _send_file(chat_id, image_url, text, original_filename=file_name):
@@ -123,11 +110,7 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                 logger.warning(f"send_photo failed for {chat_id}: {e}")
 
         if file_url:
-            if thumbnail_url and os.path.exists(thumbnail_url):
-                await _send_local_file(chat_id, thumbnail_url, text)
-                if await _send_local_file(chat_id, file_url, "", file_name):
-                    return True
-            if await _send_file(chat_id, file_url, text, original_filename=file_name):
+            if await _send_file_with_thumbnail(chat_id, file_url, text, thumbnail_url, file_name):
                 return True
 
         if image_url:
