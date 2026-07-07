@@ -16,6 +16,24 @@ router = APIRouter()
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads', 'news')
 
 
+def generate_pdf_thumbnail(pdf_path: str) -> str | None:
+    try:
+        import fitz
+        doc = fitz.open(pdf_path)
+        if len(doc) == 0:
+            doc.close()
+            return None
+        page = doc[0]
+        mat = fitz.Matrix(2.0, 2.0)
+        pix = page.get_pixmap(matrix=mat)
+        thumb_path = pdf_path.rsplit('.', 1)[0] + '_thumb.jpg'
+        pix.save(thumb_path)
+        doc.close()
+        return thumb_path
+    except Exception as e:
+        return None
+
+
 def save_file_locally(file_data: bytes, filename: str) -> str:
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     ext = filename.lower().split('.')[-1] if '.' in filename else ''
@@ -61,6 +79,7 @@ async def get_news():
             "content": n.content,
             "imageUrl": n.image_url,
             "fileUrl": n.file_url,
+            "thumbnailUrl": n.thumbnail_url,
             "fileName": n.file_name,
             "fileId": n.file_id,
             "fileType": n.file_type,
@@ -99,6 +118,7 @@ async def create_news_with_file(
     try:
         image_url = None
         file_url = None
+        thumbnail_url = None
         file_type = None
 
         if file:
@@ -117,8 +137,10 @@ async def create_news_with_file(
             else:
                 file_url = save_file_locally(file_data, file.filename)
                 file_type = detect_file_type(file.filename)
+                if ext == 'pdf':
+                    thumbnail_url = generate_pdf_thumbnail(file_url)
 
-        n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
+        n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
                             publish_to_channel=publish_to_channel, as_document=as_document)
         return {"id": n.id, "title": n.title, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id, "published": n.is_published,
@@ -143,7 +165,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         text = f"📰 {news.title}\n\n{news.content}"
         sent = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         publish_to_channel=publish_to_channel, as_document=as_document,
-                                        file_name=news.file_name)
+                                        file_name=news.file_name, thumbnail_url=news.thumbnail_url)
 
         await publish_news(news_id)
         return {"status": "published", "sent": sent, "failed": 0}

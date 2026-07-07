@@ -31,7 +31,7 @@ MIME_TYPES = {
 }
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, publish_to_channel: bool = False, as_document: bool = False, file_name: str = None):
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, publish_to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None):
     groups = await get_all_groups()
     sent = 0
 
@@ -39,14 +39,14 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
         if not group.is_active:
             continue
         try:
-            if await _send_to_chat(str(group.chat_id), text, image_url, file_url, file_id, as_document, file_name):
+            if await _send_to_chat(str(group.chat_id), text, image_url, file_url, file_id, as_document, file_name, thumbnail_url):
                 sent += 1
         except Exception as e:
             logger.error(f"Failed to send to group {group.chat_id}: {e}")
 
     if publish_to_channel and CHANNEL_ID:
         try:
-            if await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url, file_id, as_document, file_name):
+            if await _send_to_chat(str(CHANNEL_ID), text, image_url, file_url, file_id, as_document, file_name, thumbnail_url):
                 sent += 1
         except Exception as e:
             logger.error(f"Failed to send to channel {CHANNEL_ID}: {e}")
@@ -101,10 +101,14 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
     return False
 
 
-async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None) -> bool:
+async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> bool:
     try:
         if as_document:
             if file_url:
+                if thumbnail_url and os.path.exists(thumbnail_url):
+                    await _send_local_file(chat_id, thumbnail_url, text)
+                    if await _send_local_file(chat_id, file_url, "", file_name):
+                        return True
                 if await _send_file(chat_id, file_url, text, original_filename=file_name):
                     return True
             if image_url:
@@ -119,6 +123,10 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
                 logger.warning(f"send_photo failed for {chat_id}: {e}")
 
         if file_url:
+            if thumbnail_url and os.path.exists(thumbnail_url):
+                await _send_local_file(chat_id, thumbnail_url, text)
+                if await _send_local_file(chat_id, file_url, "", file_name):
+                    return True
             if await _send_file(chat_id, file_url, text, original_filename=file_name):
                 return True
 
