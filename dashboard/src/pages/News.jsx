@@ -395,8 +395,8 @@ export default function News() {
                       <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)} title="تعديل">
                         تعديل
                       </button>
-                      <button className="btn btn-primary btn-sm" onClick={() => openPublishModal(item)} title="إعادة نشر">
-                        إعادة نشر
+                      <button className="btn btn-primary btn-sm" onClick={() => openPublishModal(item)} title={item.published ? 'إعادة النشر' : 'نشر'}>
+                        {item.published ? 'إعادة النشر' : 'نشر'}
                       </button>
                       <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)} title="إعادة ربط">
                         إعادة ربط
@@ -455,7 +455,7 @@ export default function News() {
                   تعديل
                 </button>
                 <button className="btn btn-primary btn-sm" onClick={() => openPublishModal(item)}>
-                  إعادة نشر
+                  {item.published ? 'إعادة النشر' : 'نشر'}
                 </button>
                 <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)}>
                   إعادة ربط

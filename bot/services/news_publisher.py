@@ -77,7 +77,7 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
         try:
             filename = original_filename or os.path.basename(url)
             with open(url, 'rb') as f:
-                await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption)
+                await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
             return True
         except Exception as e:
             logger.warning(f"send_document local file failed for {chat_id}: {e}")
@@ -85,7 +85,7 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
 
     if not original_filename:
         try:
-            await bot.send_document(chat_id=chat_id, document=url, caption=caption)
+            await bot.send_document(chat_id=chat_id, document=url, caption=caption, parse_mode='HTML')
             return True
         except Exception as e:
             logger.warning(f"send_document URL failed for {chat_id}: {e}")
@@ -103,7 +103,7 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
     if file_bytes:
         try:
             filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
-            await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption)
+            await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption, parse_mode='HTML')
             return True
         except Exception as e3:
             logger.warning(f"send_document bytes failed for {chat_id}: {e3}")
@@ -130,7 +130,7 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
 
         if image_url and not as_document:
             try:
-                msg = await bot.send_photo(chat_id=chat_id, photo=image_url, caption=text)
+                msg = await bot.send_photo(chat_id=chat_id, photo=image_url, caption=text, parse_mode='HTML')
                 return msg.message_id
             except Exception as e:
                 logger.warning(f"send_photo failed for {chat_id}: {e}")
@@ -145,7 +145,7 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
             if msg:
                 return msg.message_id
 
-        msg = await bot.send_message(chat_id=chat_id, text=text)
+        msg = await bot.send_message(chat_id=chat_id, text=text, parse_mode='HTML')
         return msg.message_id
     except Exception as e:
         logger.error(f"All send methods failed for {chat_id}: {e}")
@@ -157,14 +157,14 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
         try:
             filename = original_filename or os.path.basename(url)
             with open(url, 'rb') as f:
-                return await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption)
+                return await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
         except Exception as e:
             logger.warning(f"send_document local file failed for {chat_id}: {e}")
             return None
 
     if not original_filename:
         try:
-            return await bot.send_document(chat_id=chat_id, document=url, caption=caption)
+            return await bot.send_document(chat_id=chat_id, document=url, caption=caption, parse_mode='HTML')
         except Exception as e:
             logger.warning(f"send_document URL failed for {chat_id}: {e}")
 
@@ -181,7 +181,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
     if file_bytes:
         try:
             filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
-            return await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption)
+            return await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption, parse_mode='HTML')
         except Exception as e3:
             logger.warning(f"send_document bytes failed for {chat_id}: {e3}")
 
@@ -209,26 +209,26 @@ async def edit_published_message(chat_id: str, message_id: int, text: str, image
         if as_document:
             if file_url:
                 try:
-                    await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text)
+                    await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text, parse_mode='HTML')
                     return True
                 except Exception as e:
                     logger.warning(f"edit_message_caption failed for {chat_id}: {e}")
             if image_url:
                 try:
-                    await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text)
+                    await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text, parse_mode='HTML')
                     return True
                 except Exception as e:
                     logger.warning(f"edit_message_caption failed for {chat_id}: {e}")
         
         if image_url and not as_document:
             try:
-                await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text)
+                await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text, parse_mode='HTML')
                 return True
             except Exception as e:
                 logger.warning(f"edit_message_caption failed for {chat_id}: {e}")
 
         try:
-            await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text)
+            await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, parse_mode='HTML')
             return True
         except Exception as e:
             logger.warning(f"edit_message_text failed for {chat_id}: {e}")

@@ -201,21 +201,9 @@ async def create_news_with_file(
             if is_valid_item(q):
                 await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
 
-        text = f"📰 {title}\n\n{content}"
-        sent, channel_message_id, group_message_ids = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,
-                                        to_channel=publish_to_channel, to_groups=to_groups,
-                                        as_document=as_document,
-                                        file_name=file.filename if file and file.filename else None,
-                                        thumbnail_url=thumbnail_url)
-        await publish_news(n.id)
-        import json
-        if channel_message_id or group_message_ids:
-            from bot.services.database import update_news
-            await update_news(n.id, channel_message_id=channel_message_id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)
-
         return {"id": n.id, "title": n.title, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
-                "published": True, "sent": sent,
+                "published": n.is_published,
                 "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
     except HTTPException:
         raise
