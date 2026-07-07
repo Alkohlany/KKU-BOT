@@ -61,6 +61,40 @@ const api = {
     return res.json();
   },
 
+  uploadWithProgress(endpoint, formData, onProgress, method = 'POST') {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, `${API_URL}${endpoint}`);
+      
+      const token = localStorage.getItem('token');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+      
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percent = Math.round((event.loaded * 100) / event.total);
+          onProgress(percent);
+        }
+      };
+      
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else if (xhr.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          reject(new Error('Unauthorized'));
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status}`));
+        }
+      };
+      
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
+
   getStats: () => api.get('/stats'),
   getResponses: () => api.get('/responses'),
   addResponse: (data) => api.post('/responses', data),
