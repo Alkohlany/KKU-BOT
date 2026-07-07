@@ -22,13 +22,13 @@ def wrap_links_in_blockquote(text: str) -> str:
     return re.sub(url_pattern, replace_url, text)
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, publish_to_groups: bool = True, publish_to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> tuple[int, int | None]:
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, to_groups: bool = True, to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> tuple[int, int | None]:
     text = wrap_links_in_blockquote(text)
     groups = await get_all_groups()
     sent = 0
     channel_message_id = None
 
-    if publish_to_groups:
+    if to_groups:
         for group in groups:
             if not group.is_active:
                 continue
@@ -38,7 +38,7 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
             except Exception as e:
                 logger.error(f"Failed to send to group {group.chat_id}: {e}")
 
-    if publish_to_channel and CHANNEL_ID:
+    if to_channel and CHANNEL_ID:
         try:
             chat_id = str(CHANNEL_ID)
             if as_document:

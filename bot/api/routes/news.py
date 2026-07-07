@@ -203,7 +203,7 @@ async def create_news_with_file(
 
         text = f"📰 {title}\n\n{content}"
         sent, channel_message_id = await publish_to_groups(text=text, image_url=image_url, file_url=file_url,
-                                        publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups,
+                                        to_channel=publish_to_channel, to_groups=publish_to_groups,
                                         as_document=as_document,
                                         file_name=file.filename if file and file.filename else None,
                                         thumbnail_url=thumbnail_url)
@@ -232,11 +232,11 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
             raise HTTPException(status_code=404, detail="News not found")
 
         publish_to_channel = payload.publish_to_channel if payload else news.publish_to_channel
-        publish_to_groups = payload.publish_to_groups if payload else news.publish_to_groups
+        should_publish_to_groups = payload.publish_to_groups if payload else news.publish_to_groups
         as_document = payload.as_document if payload else news.as_document
         text = f"📰 {news.title}\n\n{news.content}"
         sent, channel_message_id = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
-                                        publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups,
+                                        to_channel=publish_to_channel, to_groups=should_publish_to_groups,
                                         as_document=as_document,
                                         file_name=news.file_name, thumbnail_url=news.thumbnail_url)
 
