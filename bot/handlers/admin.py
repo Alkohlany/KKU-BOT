@@ -599,19 +599,28 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         except: pass
         
         keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").replace("اضف رد", "").replace("ضف رد", "").strip()
+        replied = update.message.reply_to_message
         
-        if not keywords_part:
+        if not replied:
             await send_admin_message(context, user.id,
                 "❌ الطريقة الصحيحة:\n"
-                "اضافه رد [كلمات مفتاحية بفواصل]\n\n"
-                "💡 البوت يعرض لك قائمة المنشورات لتختار منها\n"
+                "1. رد على رسالة في الجروب\n"
+                "2. اكتب:\nاضافه رد [كلمات مفتاحية بفواصل]\n\n"
                 "💡 مثال:\n"
                 "اضافه رد تسجيل,القبول")
             return
+        
+        response_text = replied.text or replied.caption or ""
+        
+        if not response_text and not (replied.photo or replied.video or replied.document or replied.voice or replied.audio):
+            await send_admin_message(context, user.id, "❌ يجب أن تحتوي الرسالة المُشار إليها على نص أو مرفق")
+            return
 
-        # Check if user is in the middle of selecting a news post
-        if 'pending_keywords' in context.user_data:
-            await send_admin_message(context, user.id, "❌ أكمل اختيار المنشور أولاً أو اكتب 'إلغاء' للبدء من جديد")
+        if not keywords_part:
+            await send_admin_message(context, user.id,
+                "❌ يجب كتابة الكلمات المفتاحية\n\n"
+                "💡 الصيغة:\n"
+                "اضافه رد تسجيل,القبول")
             return
 
         # Split keywords by comma
@@ -621,71 +630,71 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, "❌ يجب كتابة كلمة مفتاحية واحدة على الأقل")
             return
 
-        # Fetch all news posts
-        news_list = await get_all_news()
-        if not news_list:
-            await send_admin_message(context, user.id, "❌ لا توجد منشورات متاحة. أضف منشوراً أولاً")
-            return
-
-        # Store keywords in user_data for the next step
-        context.user_data['pending_keywords'] = keywords
+        # Get file from replied message
+        file_url = None
+        file_type = None
+        file_tg_id = None
         
-        # Show list of news posts
-        news_text = "📰 **اختر المنشور بالرد على هذه الرسالة بالرقم:**\n\n"
-        for n in news_list[:10]:
-            status = "✅" if n.is_published else "📝"
-            news_text += f"{status} `{n.id}` - {n.title[:40]}\n"
-        
-        if len(news_list) > 10:
-            news_text += f"\n... و {len(news_list) - 10} منشور آخر"
-        
-        news_text += "\n\n💡 أرسل رقم المنشور المطلوب"
-        
-        await send_admin_message(context, user.id, news_text)
-        return
-
-    # Handle news selection for adding response (reply handler)
-    if 'pending_keywords' in context.user_data and text.isdigit():
         try:
-            await update.message.delete()
-        except: pass
-        
-        keywords = context.user_data.pop('pending_keywords')
-        news_id = int(text)
-        
-        # Verify news exists
-        news = await get_news_by_id(news_id)
-        if not news:
-            await send_admin_message(context, user.id, f"❌ المنشور رقم {news_id} غير موجود")
-            return
-        
-        # Create auto-responses with news_id
+            if replied.photo:
+                file_obj = replied.photo[-1]
+                file_type = "photo"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="image")
+                file_url = result["secure_url"]
+            elif replied.video:
+                file_obj = replied.video
+                file_type = "video"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="video")
+                file_url = result["secure_url"]
+            elif replied.document:
+                file_obj = replied.document
+                file_type = "document"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                file_url = upload_raw(bytes(file_bytes), filename=file_obj.file_name or "file", folder="kku-bot/responses")
+            elif replied.voice or replied.audio:
+                file_obj = replied.voice or replied.audio
+                file_type = "document"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/responses")
+        except Exception as e:
+            logger.warning(f"Could not upload file from replied message: {e}")
+
+        # Create auto-responses
         created_count = 0
         for keyword in keywords:
             try:
-                await add_auto_response(
+                ar = AutoResponse(
                     keyword=keyword,
-                    response="تم الرد عبر المنشور",
+                    response=response_text,
                     created_by=user.id,
-                    news_id=news_id
+                    file_url=file_url,
+                    file_type=file_type,
+                    file_tg_id=file_tg_id,
+                    source_chat_id=chat.id,
+                    source_message_id=replied.message_id,
                 )
+                async with async_session() as session:
+                    session.add(ar)
+                    await session.commit()
                 created_count += 1
             except Exception as e:
                 logger.error(f"Could not create auto response for keyword '{keyword}': {e}")
-        
+
         if created_count > 0:
-            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}\n📰 المنشور: {news_id} - {news.title[:30]}")
+            file_info = f"\n📎 مرفق: {file_type}" if file_type else ""
+            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}{file_info}")
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
-        return
-
-    # Handle cancel for pending keywords (reply handler)
-    if text.strip() == "إلغاء" and 'pending_keywords' in context.user_data:
-        try:
-            await update.message.delete()
-        except: pass
-        context.user_data.pop('pending_keywords')
-        await send_admin_message(context, user.id, "✅ تم الإلغاء")
         return
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
