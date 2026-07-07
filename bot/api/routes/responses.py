@@ -162,6 +162,16 @@ async def upload_update_custom_response(
     return {"id": ar.id, "keyword": ar.keyword, "response": ar.response, "enabled": ar.is_active, "file_url": ar.file_url, "file_type": ar.file_type, "as_document": ar.as_document}
 
 
+@router.delete("")
+async def delete_all_responses(
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    await db.execute(delete(AutoResponse))
+    await db.commit()
+    return {"success": True}
+
+
 @router.delete("/{response_id}")
 async def delete_custom_response(
     response_id: int,

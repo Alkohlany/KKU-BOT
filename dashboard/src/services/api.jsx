@@ -66,6 +66,7 @@ const api = {
   addResponse: (data) => api.post('/responses', data),
   updateResponse: (id, data) => api.put(`/responses/${id}`, data),
   deleteResponse: (id) => api.delete(`/responses/${id}`),
+  deleteAllResponses: () => api.delete('/responses'),
   addResponseWithFile: (formData) => api.postFormData('/responses/upload', formData),
   updateResponseWithFile: (id, formData) => api.putFormData(`/responses/upload/${id}`, formData),
   addResponseWithFileProgress: (formData, onProgress) => api.uploadWithProgress('/responses/upload', formData, onProgress, 'POST'),

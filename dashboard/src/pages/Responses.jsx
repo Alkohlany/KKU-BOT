@@ -101,6 +101,20 @@ export default function Responses() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (responses.length === 0) return;
+    const ok = await confirm(`هل أنت متأكد من حذف جميع الردود (${responses.length})؟`);
+    if (!ok) return;
+    try {
+      await api.deleteAllResponses();
+      setResponses([]);
+      showToast('تم حذف جميع الردود بنجاح', 'success');
+    } catch (err) {
+      console.error('Failed to delete all responses:', err);
+      showToast('فشل حذف جميع الردود', 'error');
+    }
+  };
+
   const toggleEnabled = async (item) => {
     if (!item.id) return;
     try {
@@ -137,9 +151,16 @@ export default function Responses() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '', as_document: false }); setShowModal(true); }}>
-              + إضافة رد جديد
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {responses.length > 0 && (
+                <button className="btn btn-danger" onClick={handleDeleteAll}>
+                  🗑 حذف الكل ({responses.length})
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={() => { setEditItem(null); setForm({ keyword: '', response: '', file: null, file_url: '', file_type: '', as_document: false }); setShowModal(true); }}>
+                + إضافة رد جديد
+              </button>
+            </div>
           </div>
 
           {/* Desktop Table */}
