@@ -22,6 +22,9 @@ def _ch_link_keyboard():
 
 
 async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not CHANNEL_ID:
+        return True
+
     now = datetime.utcnow()
     last = _last_api.get(user_id)
 
@@ -31,17 +34,13 @@ async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) 
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
         is_subscribed = member.status in ("member", "administrator", "creator")
+        _last_api[user_id] = now
+        _last_result[user_id] = is_subscribed
+        await update_user_subscription(user_id, is_subscribed)
+        return is_subscribed
     except Exception as e:
-        if "member list is inaccessible" in str(e).lower() or "chat_admin_required" in str(e):
-            logger.warning(f"Cannot check subscription for {user_id}, allowing: {e}")
-            return True
         logger.error(f"Subscription check error for {user_id}: {e}")
-        is_subscribed = False
-
-    _last_api[user_id] = now
-    _last_result[user_id] = is_subscribed
-    await update_user_subscription(user_id, is_subscribed)
-    return is_subscribed
+        return True
 
 
 async def subscription_required(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
