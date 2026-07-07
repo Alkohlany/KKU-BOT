@@ -25,6 +25,5 @@ def upload_raw(file_bytes: bytes, filename: str, folder: str = "kku-bot") -> str
         folder=folder,
         resource_type="raw",
         public_id=safe_name,
-        access_control=[{"access_type": "anonymous"}],
     )
     return result["secure_url"]
