@@ -123,12 +123,10 @@ export default function Dashboard() {
   return (
     <>
       <div className="stats-grid">
-        <StatsCard icon="users" value={stats.users.toLocaleString()} label="إجمالي المستخدمين" trend={trends.users.value} trendDir={trends.users.direction} color="green" />
+        <StatsCard icon="users" value={`${totalMembers.toLocaleString()} عضو | ${stats.banned} محظور`} label="إجمالي المستخدمين" trend={trends.users.value} trendDir={trends.users.direction} color="green" />
         <StatsCard icon="newspaper" value={stats.totalNews} label="إجمالي المنشورات" trend={trends.totalNews.value} trendDir={trends.totalNews.direction} color="blue" />
-        <StatsCard icon="users" value={totalChannels} label="القنوات المتصلة" trend={`${activeItems} نشط`} trendDir="up" color="orange" />
-        <StatsCard icon="users" value={totalGroupsCount} label="الجروبات المتصلة" trend={`${inactiveItems} غير نشط`} trendDir={inactiveItems > 0 ? 'down' : 'up'} color="red" />
+        <StatsCard icon="users" value={`${allConnections.length} متصل (${totalChannels} قناة + ${totalGroupsCount} جروب)`} label="القنوات والجروبات المتصلة" trend={`${activeItems} نشط`} trendDir="up" color="orange" />
         <StatsCard icon="chat" value={stats.responses} label="الردود التلقائية" trend={trends.responses.value} trendDir={trends.responses.direction} color="green" />
-        <StatsCard icon="block" value={stats.banned} label="المحظورين" trend={trends.banned.value} trendDir={trends.banned.direction} color="red" />
       </div>
 
       <div className="grid-3">
