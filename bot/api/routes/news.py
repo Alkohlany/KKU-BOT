@@ -89,6 +89,7 @@ async def get_news():
             "published": n.is_published,
             "asDocument": n.as_document,
             "channelMessageId": n.channel_message_id,
+            "targetChannels": n.target_channels,
             "publishedAt": n.published_at.isoformat() if n.published_at else None,
             "createdAt": n.created_at.isoformat() if n.created_at else None,
         }
