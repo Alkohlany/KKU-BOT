@@ -58,8 +58,6 @@ class NewsCreate(BaseModel):
     image_url: Optional[str] = None
     file_url: Optional[str] = None
     file_name: Optional[str] = None
-    publish_to_channel: bool = False
-    publish_to_groups: bool = True
     as_document: bool = False
     file_id: Optional[str] = None
     target_channels: Optional[str] = None
@@ -68,12 +66,6 @@ class NewsCreate(BaseModel):
 class NewsAnalyze(BaseModel):
     title: str
     content: str
-
-
-class PublishPayload(BaseModel):
-    publish_to_channel: bool = False
-    publish_to_groups: bool = True
-    as_document: bool = False
 
 
 class RelinkPayload(BaseModel):
@@ -121,8 +113,6 @@ async def create_news(data: NewsCreate):
     n = await add_news(content=data.content,
                          image_url=data.image_url, file_url=data.file_url,
                          file_name=data.file_name,
-                         publish_to_channel=data.publish_to_channel,
-                         publish_to_groups=data.publish_to_groups,
                          as_document=data.as_document,
                          file_id=data.file_id,
                          target_channels=data.target_channels)
@@ -136,8 +126,6 @@ async def create_news(data: NewsCreate):
 async def create_news_with_file(
     content: str = Form(...),
     file: Optional[UploadFile] = File(None),
-    publish_to_channel: bool = Form(False),
-    to_groups: bool = Form(True),
     as_document: bool = Form(False),
     selected_keywords: str = Form("[]"),
     selected_questions: str = Form("[]"),
@@ -168,7 +156,7 @@ async def create_news_with_file(
                     thumbnail_url = generate_pdf_thumbnail(file_url)
 
         n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                            publish_to_channel=publish_to_channel, publish_to_groups=to_groups, as_document=as_document)
+                            as_document=as_document)
 
         import json
         try:
@@ -211,7 +199,7 @@ async def create_news_with_file(
 
 
 @router.post("/{news_id}/publish")
-async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
+async def publish_news_endpoint(news_id: int):
     async with async_session() as session:
         from sqlalchemy import select as sa_select
         result = await session.execute(sa_select(News).where(News.id == news_id))
@@ -219,7 +207,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         if not news:
             raise HTTPException(status_code=404, detail="News not found")
 
-        as_document = payload.as_document if payload else news.as_document
+        as_document = news.as_document
         text = news.content
         sent, channel_message_id, group_message_ids = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         as_document=as_document,
@@ -250,8 +238,6 @@ async def edit_news(news_id: int, data: NewsCreate):
     # Update the news in database
     updated = await update_news(news_id, content=data.content,
                           image_url=data.image_url, file_url=data.file_url,
-                          publish_to_channel=data.publish_to_channel,
-                          publish_to_groups=data.publish_to_groups,
                           as_document=data.as_document,
                           target_channels=data.target_channels)
     

@@ -10,22 +10,21 @@ export default function News() {
   const [news, setNews] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showPublishModal, setShowPublishModal] = useState(false);
+
   const [showRelinkModal, setShowRelinkModal] = useState(false);
   const [form, setForm] = useState({ content: '', as_document: false });
   const [editForm, setEditForm] = useState({ content: '', as_document: false });
   const [editItem, setEditItem] = useState(null);
-  const [publishItem, setPublishItem] = useState(null);
+
   const [uploadFile, setUploadFile] = useState(null);
   const [editUploadFile, setEditUploadFile] = useState(null);
-  const [publishToChannel, setPublishToChannel] = useState(false);
-  const [publishToGroups, setPublishToGroups] = useState(false);
+
   const [aiKeywords, setAiKeywords] = useState([]);
   const [aiQuestions, setAiQuestions] = useState([]);
   const [selectedKeywords, setSelectedKeywords] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(null);
-  const [publishProgress, setPublishProgress] = useState(null);
+
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -196,31 +195,14 @@ export default function News() {
     }
   };
 
-  const handlePublish = async () => {
-    if (!publishItem) return;
-    setPublishProgress(0);
+  const handlePublishDirect = async (item) => {
     try {
-      const publishPromise = api.post(`/news/${publishItem.id}/publish`, { publish_to_channel: publishToChannel, publish_to_groups: publishToGroups });
-      const progressInterval = setInterval(() => {
-        setPublishProgress((prev) => {
-          if (prev >= 90) { clearInterval(progressInterval); return 90; }
-          return prev + 10;
-        });
-      }, 300);
-      await publishPromise;
-      clearInterval(progressInterval);
-      setPublishProgress(100);
-      setNews(news.map((n) => n.id === publishItem.id ? { ...n, published: true } : n));
-      setShowPublishModal(false);
-      setPublishItem(null);
-      setPublishToChannel(false);
-      setPublishToGroups(false);
+      await api.post(`/news/${item.id}/publish`);
+      setNews(news.map((n) => n.id === item.id ? { ...n, published: true } : n));
       showToast('تم نشر المنشور بنجاح', 'success');
     } catch (err) {
       console.error('Failed to publish news:', err);
       showToast('فشل نشر المنشور', 'error');
-    } finally {
-      setTimeout(() => { setPublishProgress(null); }, 500);
     }
   };
 
@@ -372,12 +354,6 @@ export default function News() {
     setShowEditModal(true);
   };
 
-  const openPublishModal = (item) => {
-    setPublishItem(item);
-    setPublishToChannel(item.publish_to_channel || item.publishToChannel || false);
-    setPublishToGroups(item.publish_to_groups || item.publishToGroups || false);
-    setShowPublishModal(true);
-  };
 
   const openRelinkModal = async (item) => {
     setRelinkItem(item);
@@ -469,7 +445,7 @@ export default function News() {
                       <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)} title="تعديل">
                         تعديل
                       </button>
-                      <button className="btn btn-primary btn-sm" onClick={() => openPublishModal(item)} title={item.published ? 'إعادة النشر' : 'نشر'}>
+                      <button className="btn btn-primary btn-sm" onClick={() => handlePublishDirect(item)} title={item.published ? 'إعادة النشر' : 'نشر'}>
                         {item.published ? 'إعادة النشر' : 'نشر'}
                       </button>
                       <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)} title="إعادة ربط">
@@ -522,7 +498,7 @@ export default function News() {
                 <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)}>
                   تعديل
                 </button>
-                <button className="btn btn-primary btn-sm" onClick={() => openPublishModal(item)}>
+                <button className="btn btn-primary btn-sm" onClick={() => handlePublishDirect(item)}>
                   {item.published ? 'إعادة النشر' : 'نشر'}
                 </button>
                 <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)}>
@@ -769,68 +745,6 @@ export default function News() {
                 {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
               </button>
               <button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>إلغاء</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPublishModal && (
-        <div className="modal-overlay" onClick={() => { setShowPublishModal(false); setPublishItem(null); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-header">
-              <h3>إعادة نشر المنشور</h3>
-              <button className="modal-close" onClick={() => { setShowPublishModal(false); setPublishItem(null); }}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p style={{ marginBottom: 16, color: 'var(--gray-600)', fontSize: 14 }}>
-                هل أنت متأكد من إعادة نشر هذا المنشور؟
-              </p>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 0', fontSize: 14 }}>
-                <input
-                  type="checkbox"
-                  checked={publishToChannel}
-                  onChange={(e) => setPublishToChannel(e.target.checked)}
-                  style={{ width: 18, height: 18 }}
-                />
-                النشر على القناة الرسمية
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 0', fontSize: 14 }}>
-                <input
-                  type="checkbox"
-                  checked={publishToGroups}
-                  onChange={(e) => setPublishToGroups(e.target.checked)}
-                  style={{ width: 18, height: 18 }}
-                />
-                النشر على القروبات
-              </label>
-              <p style={{ marginTop: 8, fontSize: 12, color: 'var(--gray-400)' }}>
-                اختر مكان النشر المناسب
-              </p>
-            </div>
-            <div className="modal-footer">
-              {publishProgress !== null && (
-                <div style={{ width: '100%', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                    <span>جاري النشر...</span>
-                    <span>{publishProgress}%</span>
-                  </div>
-                  <div style={{ width: '100%', height: 8, background: 'var(--gray-200)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${publishProgress}%`,
-                        height: '100%',
-                        background: publishProgress === 100 ? 'var(--success)' : 'var(--primary)',
-                        borderRadius: 4,
-                        transition: 'width 0.3s ease',
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-              <button className="btn btn-primary" onClick={handlePublish} disabled={publishProgress !== null}>
-                {publishProgress !== null ? 'جاري النشر...' : 'تأكيد النشر'}
-              </button>
-              <button className="btn btn-secondary" onClick={() => { setShowPublishModal(false); setPublishItem(null); }}>إلغاء</button>
             </div>
           </div>
         </div>

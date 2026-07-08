@@ -83,8 +83,6 @@ class News(Base):
     is_published = Column(Boolean, default=False)
     published_at = Column(DateTime)
     created_by = Column(BigInteger)
-    publish_to_channel = Column(Boolean, default=False)
-    publish_to_groups = Column(Boolean, default=True)
     channel_message_id = Column(Integer, nullable=True)
     as_document = Column(Boolean, default=False)
     group_message_ids = Column(Text, nullable=True)  # JSON string: {"chat_id": message_id, ...}

@@ -35,6 +35,7 @@ async def init_db():
 
         await drop_publish_to_channel_column()
         await drop_news_title_column()
+        await drop_news_publish_columns()
 
         await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES study_plan_groups(id)"))
@@ -56,7 +57,6 @@ async def init_db():
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_tg_id VARCHAR(200)"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS publish_to_groups BOOLEAN DEFAULT TRUE"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
@@ -234,11 +234,11 @@ async def log_activity(action: str, details: str = None, performed_by: int = Non
 
 
 # ==================== News ====================
-async def add_news(content, image_url=None, file_url=None, thumbnail_url=None, file_name=None, file_type=None, created_by=None, publish_to_channel=False, publish_to_groups=True, as_document=False, file_id=None, target_channels=None):
+async def add_news(content, image_url=None, file_url=None, thumbnail_url=None, file_name=None, file_type=None, created_by=None, as_document=False, file_id=None, target_channels=None):
     async with async_session() as session:
         news = News(content=content, image_url=image_url, 
                    file_url=file_url, thumbnail_url=thumbnail_url, file_name=file_name, file_type=file_type, created_by=created_by,
-                   publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups, as_document=as_document, file_id=file_id, target_channels=target_channels)
+                   as_document=as_document, file_id=file_id, target_channels=target_channels)
         session.add(news)
         await session.commit()
         return news
@@ -265,7 +265,7 @@ async def get_news_by_id(news_id: int):
         result = await session.execute(select(News).where(News.id == news_id))
         return result.scalar_one_or_none()
 
-async def update_news(news_id, content=None, image_url=None, file_url=None, publish_to_channel=None, publish_to_groups=None, as_document=None, channel_message_id=None, group_message_ids=None, target_channels=None, is_published=None):
+async def update_news(news_id, content=None, image_url=None, file_url=None, as_document=None, channel_message_id=None, group_message_ids=None, target_channels=None, is_published=None):
     async with async_session() as session:
         update_data = {}
         if content is not None:
@@ -274,10 +274,6 @@ async def update_news(news_id, content=None, image_url=None, file_url=None, publ
             update_data["image_url"] = image_url
         if file_url is not None:
             update_data["file_url"] = file_url
-        if publish_to_channel is not None:
-            update_data["publish_to_channel"] = publish_to_channel
-        if publish_to_groups is not None:
-            update_data["publish_to_groups"] = publish_to_groups
         if as_document is not None:
             update_data["as_document"] = as_document
         if channel_message_id is not None:
@@ -500,6 +496,16 @@ async def drop_news_title_column():
             logger.info("Dropped title column from news")
         except Exception as e:
             logger.warning(f"Could not drop title column from news: {e}")
+
+
+async def drop_news_publish_columns():
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE news DROP COLUMN IF EXISTS publish_to_channel"))
+            await conn.execute(text("ALTER TABLE news DROP COLUMN IF EXISTS publish_to_groups"))
+            logger.info("Dropped publish_to_channel and publish_to_groups columns from news")
+        except Exception as e:
+            logger.warning(f"Could not drop publish_to columns from news: {e}")
 
 
 # ==================== Study Plan Groups ====================
