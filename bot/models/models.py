@@ -124,7 +124,6 @@ class ScheduledPost(Base):
     is_published = Column(Boolean, default=False)
     published_at = Column(DateTime)
     created_by = Column(BigInteger)
-    publish_to_channel = Column(Boolean, default=False)
     as_document = Column(Boolean, default=False)
     target_channels = Column(Text, nullable=True)
     group_message_ids = Column(Text, nullable=True)

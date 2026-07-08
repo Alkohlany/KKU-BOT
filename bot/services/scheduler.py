@@ -19,7 +19,6 @@ async def check_scheduled_posts(context):
                     text=post.content,
                     image_url=post.image_url,
                     file_url=post.file_url,
-                    to_channel=post.publish_to_channel,
                     as_document=post.as_document,
                     target_channels=post.target_channels
                 )

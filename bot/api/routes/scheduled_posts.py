@@ -18,7 +18,6 @@ class ScheduledPostCreate(BaseModel):
     schedule_time: datetime
     is_recurring: bool = False
     recurring_interval: Optional[str] = None
-    publish_to_channel: bool = False
     as_document: bool = False
     target_channels: Optional[str] = None
 
@@ -37,7 +36,6 @@ async def get_scheduled_posts():
             "recurring": p.is_recurring,
             "recurringInterval": p.recurring_interval,
             "isPublished": p.is_published,
-            "publishToChannel": p.publish_to_channel,
             "asDocument": p.as_document,
             "targetChannels": p.target_channels,
             "createdAt": p.created_at.isoformat() if p.created_at else None,
@@ -59,7 +57,6 @@ async def create_scheduled_post(data: ScheduledPostCreate):
                                     image_url=data.image_url, file_url=data.file_url,
                                     is_recurring=data.is_recurring,
                                     recurring_interval=data.recurring_interval,
-                                    publish_to_channel=data.publish_to_channel,
                                     as_document=data.as_document,
                                     target_channels=data.target_channels)
     return {
@@ -67,7 +64,7 @@ async def create_scheduled_post(data: ScheduledPostCreate):
         "imageUrl": p.image_url, "fileUrl": p.file_url,
         "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
         "recurring": p.is_recurring, "isPublished": p.is_published,
-        "publishToChannel": p.publish_to_channel, "asDocument": p.as_document
+        "asDocument": p.as_document
     }
 
 
@@ -79,7 +76,6 @@ async def create_scheduled_post_with_file(
     title: Optional[str] = Form(None),
     recurring_interval: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
-    publish_to_channel: bool = Form(False),
     as_document: bool = Form(False),
     target_channels: Optional[str] = Form(None),
 ):
@@ -106,7 +102,6 @@ async def create_scheduled_post_with_file(
                                     image_url=image_url, file_url=file_url,
                                     is_recurring=is_recurring,
                                     recurring_interval=recurring_interval,
-                                    publish_to_channel=publish_to_channel,
                                     as_document=as_document,
                                     target_channels=target_channels)
     return {
@@ -114,7 +109,7 @@ async def create_scheduled_post_with_file(
         "imageUrl": p.image_url, "fileUrl": p.file_url,
         "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
         "recurring": p.is_recurring, "isPublished": p.is_published,
-        "publishToChannel": p.publish_to_channel, "asDocument": p.as_document
+        "asDocument": p.as_document
     }
 
 
@@ -138,7 +133,7 @@ async def update_scheduled_post(post_id: int, post: ScheduledPostCreate):
     else:
         riyadh_tz = ZoneInfo("Asia/Riyadh")
         dt = dt.replace(tzinfo=riyadh_tz).astimezone(timezone.utc).replace(tzinfo=None)
-    updated = await update_post(post_id, content=post.content, schedule_time=dt, is_recurring=post.is_recurring, recurring_interval=post.recurring_interval, publish_to_channel=post.publish_to_channel, as_document=post.as_document, target_channels=post.target_channels)
+    updated = await update_post(post_id, content=post.content, schedule_time=dt, is_recurring=post.is_recurring, recurring_interval=post.recurring_interval, as_document=post.as_document, target_channels=post.target_channels)
     return updated
 
 

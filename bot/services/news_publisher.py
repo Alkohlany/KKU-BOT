@@ -23,66 +23,31 @@ def wrap_links_in_blockquote(text: str) -> str:
     return re.sub(url_pattern, replace_url, text)
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, to_groups: bool = True, to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, target_channels: str = None) -> tuple[int, int | None, dict]:
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, target_channels: str = None) -> tuple[int, int | None, dict]:
     text = wrap_links_in_blockquote(text)
-    groups = await get_active_channel_groups()
     sent = 0
     channel_message_id = None
     group_message_ids = {}
 
-    target_chat_ids = None
-    if target_channels:
+    if not target_channels:
+        logger.warning("No target_channels specified, skipping publish")
+        return sent, channel_message_id, group_message_ids
+
+    try:
+        target_chat_ids = json.loads(target_channels)
+    except (json.JSONDecodeError, TypeError):
+        logger.error(f"Invalid target_channels JSON: {target_channels}")
+        return sent, channel_message_id, group_message_ids
+
+    for chat_id in target_chat_ids:
+        chat_id_str = str(chat_id)
         try:
-            target_chat_ids = json.loads(target_channels)
-        except (json.JSONDecodeError, TypeError):
-            target_chat_ids = None
-
-    if to_groups:
-        for group in groups:
-            if not group.is_active:
-                continue
-            if target_chat_ids is not None and str(group.chat_id) not in [str(cid) for cid in target_chat_ids]:
-                continue
-            try:
-                msg_id = await _send_to_chat_and_get_id(str(group.chat_id), text, image_url, file_url, file_id, as_document, file_name, thumbnail_url)
-                if msg_id:
-                    sent += 1
-                    group_message_ids[str(group.chat_id)] = msg_id
-            except Exception as e:
-                logger.error(f"Failed to send to group {group.chat_id}: {e}")
-
-    if to_channel:
-        channel = None
-        for ch in groups:
-            if ch.type == 'channel' and ch.is_active:
-                channel = ch
-                break
-        if channel and (target_chat_ids is None or str(channel.chat_id) in [str(cid) for cid in target_chat_ids]):
-            try:
-                chat_id = str(channel.chat_id)
-                if as_document:
-                    if file_url:
-                        if await _send_file(chat_id, file_url, text, original_filename=file_name):
-                            sent += 1
-                    if image_url:
-                        if await _send_file(chat_id, image_url, text, original_filename=file_name):
-                            sent += 1
-                elif image_url:
-                    try:
-                        msg = await bot.send_photo(chat_id=chat_id, photo=image_url, caption=text)
-                        sent += 1
-                        channel_message_id = msg.message_id
-                    except Exception as e:
-                        logger.warning(f"send_photo failed for channel {channel.chat_id}: {e}")
-                elif file_url:
-                    if await _send_file(chat_id, file_url, text, original_filename=file_name):
-                        sent += 1
-                else:
-                    msg = await bot.send_message(chat_id=chat_id, text=text)
-                    sent += 1
-                    channel_message_id = msg.message_id
-            except Exception as e:
-                logger.error(f"Failed to send to channel {channel.chat_id}: {e}")
+            msg_id = await _send_to_chat_and_get_id(chat_id_str, text, image_url, file_url, file_id, as_document, file_name, thumbnail_url)
+            if msg_id:
+                sent += 1
+                group_message_ids[chat_id_str] = msg_id
+        except Exception as e:
+            logger.error(f"Failed to send to {chat_id_str}: {e}")
 
     if sent > 0:
         try:

@@ -33,11 +33,11 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created successfully")
 
+        await drop_publish_to_channel_column()
+
         await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES study_plan_groups(id)"))
         await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS publish_to_channel BOOLEAN DEFAULT FALSE"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS publish_to_channel BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
@@ -392,12 +392,12 @@ async def update_question(question_id: int, question: str = None, answer: str = 
 # ==================== Scheduled Posts ====================
 async def add_scheduled_post(title, content, schedule_time, image_url=None, file_url=None, 
                             is_recurring=False, recurring_interval=None, created_by=None,
-                            publish_to_channel=False, as_document=False, target_channels=None):
+                            as_document=False, target_channels=None):
     async with async_session() as session:
         post = ScheduledPost(title=title, content=content, schedule_time=schedule_time,
                             image_url=image_url, file_url=file_url, is_recurring=is_recurring,
                             recurring_interval=recurring_interval, created_by=created_by,
-                            publish_to_channel=publish_to_channel, as_document=as_document, target_channels=target_channels)
+                            as_document=as_document, target_channels=target_channels)
         session.add(post)
         await session.commit()
         return post
@@ -481,6 +481,15 @@ async def delete_all_scheduled_posts():
     async with async_session() as session:
         await session.execute(text("DELETE FROM scheduled_posts"))
         await session.commit()
+
+
+async def drop_publish_to_channel_column():
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("ALTER TABLE scheduled_posts DROP COLUMN IF EXISTS publish_to_channel"))
+            logger.info("Dropped publish_to_channel column from scheduled_posts")
+        except Exception as e:
+            logger.warning(f"Could not drop publish_to_channel column: {e}")
 
 
 # ==================== Study Plan Groups ====================
