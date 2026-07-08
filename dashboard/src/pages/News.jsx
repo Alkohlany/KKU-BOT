@@ -896,62 +896,79 @@ export default function News() {
                 اختر طريقة الحذف للمنشور: "{deleteItem?.content?.substring(0, 50)}..."
               </p>
               
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={deleteOptions.fromChannels}
-                    onChange={(e) => setDeleteOptions({ ...deleteOptions, fromChannels: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  حذف من القنوات المحددة
-                </label>
-                {deleteOptions.fromChannels && (
-                  <div style={{ marginTop: 8, paddingRight: 28 }}>
-                    <ChannelGroupSelector
-                      selected={deleteOptions.channelIds}
-                      onChange={(ids) => setDeleteOptions({ ...deleteOptions, channelIds: ids })}
-                      label="اختر القنوات"
+              {deleteItem?.published && (deleteItem?.publish_to_channel || deleteItem?.publishToChannel) && (
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                    <input
+                      type="checkbox"
+                      checked={deleteOptions.fromChannels}
+                      onChange={(e) => setDeleteOptions({ ...deleteOptions, fromChannels: e.target.checked })}
+                      style={{ width: 18, height: 18 }}
                     />
-                  </div>
-                )}
-              </div>
+                    حذف من القنوات المحددة
+                  </label>
+                  {deleteOptions.fromChannels && (
+                    <div style={{ marginTop: 8, paddingRight: 28 }}>
+                      <ChannelGroupSelector
+                        selected={deleteOptions.channelIds}
+                        onChange={(ids) => setDeleteOptions({ ...deleteOptions, channelIds: ids })}
+                        label="اختر القنوات"
+                        type="channel"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={deleteOptions.fromGroups}
-                    onChange={(e) => setDeleteOptions({ ...deleteOptions, fromGroups: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  حذف من الجروبات المحددة
-                </label>
-                {deleteOptions.fromGroups && (
-                  <div style={{ marginTop: 8, paddingRight: 28 }}>
-                    <ChannelGroupSelector
-                      selected={deleteOptions.groupIds}
-                      onChange={(ids) => setDeleteOptions({ ...deleteOptions, groupIds: ids })}
-                      label="اختر الجروبات"
+              {deleteItem?.published && (deleteItem?.publish_to_groups || deleteItem?.publishToGroups) && (
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                    <input
+                      type="checkbox"
+                      checked={deleteOptions.fromGroups}
+                      onChange={(e) => setDeleteOptions({ ...deleteOptions, fromGroups: e.target.checked })}
+                      style={{ width: 18, height: 18 }}
                     />
-                  </div>
-                )}
-              </div>
+                    حذف من الجروبات المحددة
+                  </label>
+                  {deleteOptions.fromGroups && (
+                    <div style={{ marginTop: 8, paddingRight: 28 }}>
+                      <ChannelGroupSelector
+                        selected={deleteOptions.groupIds}
+                        onChange={(ids) => setDeleteOptions({ ...deleteOptions, groupIds: ids })}
+                        label="اختر الجروبات"
+                        type="group"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={deleteOptions.deleteAll}
-                    onChange={(e) => setDeleteOptions({ ...deleteOptions, deleteAll: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  حذف من الكل + جعله مسودة
-                </label>
-                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12, paddingRight: 28 }}>
-                  سيتم إزالة المنشور من جميع القنوات والجروبات وجعله مسودة
-                </small>
-              </div>
+              {deleteItem?.published && (
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                    <input
+                      type="checkbox"
+                      checked={deleteOptions.deleteAll}
+                      onChange={(e) => setDeleteOptions({ ...deleteOptions, deleteAll: e.target.checked })}
+                      style={{ width: 18, height: 18 }}
+                    />
+                    حذف من الكل + جعله مسودة
+                  </label>
+                  <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12, paddingRight: 28 }}>
+                    سيتم إزالة المنشور من جميع القنوات والجروبات وجعله مسودة
+                  </small>
+                </div>
+              )}
+
+              {!deleteItem?.published && (
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--gray-500)' }}>
+                    <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📝</span>
+                    هذا المنشور مسودة (غير منشور)
+                  </label>
+                </div>
+              )}
 
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, color: 'var(--danger)' }}>
