@@ -37,8 +37,12 @@ export default function Settings({ onLogout }) {
 
   const checkBotStatus = async () => {
     try {
-      await api.get('/health');
-      setBotStatus('online');
+      const response = await fetch(`${window.location.origin}/health`);
+      if (response.ok) {
+        setBotStatus('online');
+      } else {
+        setBotStatus('offline');
+      }
     } catch {
       setBotStatus('offline');
     }
