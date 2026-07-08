@@ -5,15 +5,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const COLORS = ['#2E7D32', '#1976D2', '#F57C00', '#D32F2F', '#9C27B0'];
 
-const calculateTrend = (current, previous) => {
-  if (previous === 0) return { value: '0%', direction: 'up' };
-  const change = ((current - previous) / previous * 100).toFixed(0);
-  return {
-    value: `${change}%`,
-    direction: change >= 0 ? 'up' : 'down',
-  };
-};
-
 export default function Dashboard() {
   const [stats, setStats] = useState({
     users: 0,
@@ -22,13 +13,7 @@ export default function Dashboard() {
     banned: 0,
     totalNews: 0,
   });
-  const [trends, setTrends] = useState({
-    users: { value: '0%', direction: 'up' },
-    groups: { value: '0%', direction: 'up' },
-    responses: { value: '0%', direction: 'up' },
-    banned: { value: '0%', direction: 'up' },
-    totalNews: { value: '0%', direction: 'up' },
-  });
+
   const [weeklyData, setWeeklyData] = useState([]);
   const [pieData, setPieData] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -59,18 +44,6 @@ export default function Dashboard() {
 
       const days = weeklyRes?.data || [];
       setWeeklyData(days);
-
-      const half = Math.floor(days.length / 2) || 1;
-      const firstHalfTotal = days.slice(0, half).reduce((sum, d) => sum + (d['رسائل'] || 0), 0);
-      const secondHalfTotal = days.slice(half).reduce((sum, d) => sum + (d['رسائل'] || 0), 0);
-
-      setTrends({
-        users: calculateTrend(users, Math.max(1, Math.floor(users * 0.9))),
-        groups: calculateTrend(groups, Math.max(1, Math.floor(groups * 0.9))),
-        responses: calculateTrend(secondHalfTotal, firstHalfTotal),
-        banned: calculateTrend(banned, Math.max(0, banned - 1)),
-        totalNews: calculateTrend(totalNews, Math.max(1, Math.floor(totalNews * 0.85))),
-      });
 
       const typeCounts = { 'ردود تلقائية': 0, 'ردود يدوية': 0, 'رسائل نظام': 0, 'إجراءات أدمن': 0 };
       (activityData || []).forEach((a) => {
@@ -128,34 +101,26 @@ export default function Dashboard() {
           icon="users"
           value={totalMembers.toLocaleString()}
           label="إجمالي المستخدمين"
-          trend={trends.users.value}
-          trendDir={trends.users.direction}
           color="green"
-          subStats={[`${stats.banned} محظور`, `${trends.users.value - stats.banned} نشط`]}
+          subStats={[`${stats.banned} محظور`, `${totalMembers - stats.banned} نشط`]}
         />
         <StatsCard
           icon="newspaper"
           value={stats.totalNews}
           label="إجمالي المنشورات"
-          trend={trends.totalNews.value}
-          trendDir={trends.totalNews.direction}
           color="blue"
         />
         <StatsCard
           icon="link"
           value={allConnections.length}
           label="القنوات والجروبات المتصلة"
-          trend={`${activeItems} نشط`}
-          trendDir="up"
           color="orange"
-          subStats={[`${totalChannels} قناة`, `${totalGroupsCount} جروب`]}
+          subStats={[`${activeItems} نشط`, `${inactiveItems} غير نشط`]}
         />
         <StatsCard
           icon="chat"
           value={stats.responses}
           label="الردود التلقائية"
-          trend={trends.responses.value}
-          trendDir={trends.responses.direction}
           color="green"
         />
       </div>
