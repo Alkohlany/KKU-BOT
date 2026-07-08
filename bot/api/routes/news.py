@@ -118,7 +118,7 @@ async def analyze_news(data: NewsAnalyze):
 
 @router.post("/")
 async def create_news(data: NewsCreate):
-    n = await add_news(title=None, content=data.content,
+    n = await add_news(content=data.content,
                          image_url=data.image_url, file_url=data.file_url,
                          file_name=data.file_name,
                          publish_to_channel=data.publish_to_channel,
@@ -167,7 +167,7 @@ async def create_news_with_file(
                 if ext == 'pdf':
                     thumbnail_url = generate_pdf_thumbnail(file_url)
 
-        n = await add_news(title=None, content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
+        n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
                             publish_to_channel=publish_to_channel, publish_to_groups=to_groups, as_document=as_document)
 
         import json
