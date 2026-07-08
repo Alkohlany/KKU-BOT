@@ -33,13 +33,13 @@ export default function Groups() {
 
   const filtered = channelGroups.filter((g) => {
     const matchesTab = activeTab === 'channels' ? g.type === 'channel' : g.type === 'group';
-    const matchesSearch = g.title?.includes(search) || g.chat_id?.toString().includes(search);
+    const matchesSearch = g.title?.includes(search) || g.chatId?.toString().includes(search);
     return matchesTab && matchesSearch;
   });
 
   const channels = channelGroups.filter((g) => g.type === 'channel');
   const groups = channelGroups.filter((g) => g.type === 'group');
-  const totalMembers = channelGroups.reduce((sum, g) => sum + (g.member_count || 0), 0);
+  const totalMembers = channelGroups.reduce((sum, g) => sum + (g.memberCount || 0), 0);
   const activeCount = channelGroups.filter((g) => g.is_active || g.isActive).length;
 
   const handleEditSave = async () => {
@@ -93,8 +93,8 @@ export default function Groups() {
     setEditItem(item);
     setEditForm({
       title: item.title || '',
-      member_count: item.member_count || 0,
-      invite_link: item.invite_link || ''
+      member_count: item.memberCount || 0,
+      invite_link: item.inviteLink || ''
     });
     setShowEditModal(true);
   };
@@ -179,12 +179,12 @@ export default function Groups() {
               {filtered.map((item) => (
                 <tr key={item.id}>
                   <td><strong>{item.title || 'بدون عنوان'}</strong></td>
-                  <td><code style={{ fontSize: 12 }}>{item.chat_id}</code></td>
-                  <td>{(item.member_count || 0).toLocaleString()}</td>
+                  <td><code style={{ fontSize: 12 }}>{item.chatId}</code></td>
+                  <td>{(item.memberCount || 0).toLocaleString()}</td>
                   <td>
-                    {item.invite_link ? (
+                    {item.inviteLink ? (
                       <a
-                        href={item.invite_link}
+                        href={item.inviteLink}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ fontSize: 13, color: 'var(--primary)' }}
@@ -256,15 +256,15 @@ export default function Groups() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 12, color: 'var(--gray-400)', minWidth: 70 }}>Chat ID:</span>
-                    <code style={{ fontSize: 12 }}>{item.chat_id}</code>
+                    <code style={{ fontSize: 12 }}>{item.chatId}</code>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 12, color: 'var(--gray-400)', minWidth: 70 }}>الأعضاء:</span>
-                    <span style={{ fontSize: 13 }}>{(item.member_count || 0).toLocaleString()}</span>
+                    <span style={{ fontSize: 13 }}>{(item.memberCount || 0).toLocaleString()}</span>
                   </div>
-                  {item.invite_link && (
+                  {item.inviteLink && (
                     <a
-                      href={item.invite_link}
+                      href={item.inviteLink}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ fontSize: 12, color: 'var(--primary)' }}

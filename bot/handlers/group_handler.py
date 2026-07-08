@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ChatMemberHandler, MessageHandler, filters, CommandHandler
-from bot.services.database import add_channel_group, get_channel_group_by_chat_id
+from bot.services.database import add_channel_group, get_channel_group_by_chat_id, update_channel_group
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,18 +11,35 @@ async def track_group_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if not update.my_chat_member:
             return
         chat = update.my_chat_member.chat
-        if not chat or chat.type not in ("group", "supergroup"):
+        if not chat:
             return
+
         new_status = update.my_chat_member.new_chat_member.status
         old_status = update.my_chat_member.old_chat_member.status
+
+        if chat.type == "channel":
+            chat_type = "channel"
+        elif chat.type in ("group", "supergroup"):
+            chat_type = "group"
+        else:
+            return
+
         is_member = new_status in ("member", "administrator", "creator")
         was_member = old_status in ("member", "administrator", "creator")
         bot_id = update.my_chat_member.new_chat_member.user.id if update.my_chat_member.new_chat_member.user else context.bot.id
+
         if not was_member and is_member and bot_id == context.bot.id:
-            existing_cg = await get_channel_group_by_chat_id(chat.id)
-            if not existing_cg:
-                await add_channel_group(chat.id, chat.title, "group")
-                logger.info(f"Registered group in 'channel_groups' table: {chat.title} ({chat.id})")
+            existing = await get_channel_group_by_chat_id(chat.id)
+            if not existing:
+                await add_channel_group(chat.id, chat.title, chat_type)
+                logger.info(f"Registered {chat_type}: {chat.title} ({chat.id})")
+            else:
+                logger.info(f"{chat_type} already registered: {chat.title} ({chat.id})")
+        elif was_member and not is_member and bot_id == context.bot.id:
+            existing = await get_channel_group_by_chat_id(chat.id)
+            if existing:
+                await update_channel_group(existing.id, is_active=False)
+                logger.info(f"Deactivated {chat_type}: {chat.title} ({chat.id})")
     except Exception as e:
         logger.error(f"Error in track_group_member: {e}", exc_info=True)
 
@@ -36,10 +53,10 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
             return
         for member in update.message.new_chat_members:
             if member.id == context.bot.id:
-                existing_cg = await get_channel_group_by_chat_id(chat.id)
-                if not existing_cg:
+                existing = await get_channel_group_by_chat_id(chat.id)
+                if not existing:
                     await add_channel_group(chat.id, chat.title, "group")
-                    logger.info(f"Registered group in 'channel_groups' table via NEW_CHAT_MEMBERS: {chat.title} ({chat.id})")
+                    logger.info(f"Registered group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id})")
     except Exception as e:
         logger.error(f"Error in track_group_new_members: {e}", exc_info=True)
 

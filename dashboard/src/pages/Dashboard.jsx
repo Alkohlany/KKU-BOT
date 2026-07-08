@@ -42,11 +42,10 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [statsData, weeklyRes, activityData, channelsData, groupsData] = await Promise.all([
+      const [statsData, weeklyRes, activityData, channelsData] = await Promise.all([
         api.getStats(),
         api.get('/stats/weekly'),
         api.getActivityLog(),
-        api.get('/channels'),
         api.get('/channels'),
       ]);
 
@@ -87,8 +86,10 @@ export default function Dashboard() {
       );
 
       setActivities(activityData.slice(0, 6) || []);
-      setChannels(channelsData || []);
-      setGroupsList(groupsData || []);
+      const channelsList = channelsData.filter(c => c.type === 'channel');
+      const groupsListData = channelsData.filter(c => c.type === 'group');
+      setChannels(channelsList);
+      setGroupsList(groupsListData);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -103,8 +104,8 @@ export default function Dashboard() {
   const inactiveItems = [...channels, ...groupsList].filter(g => !g.isActive).length;
 
   const allConnections = [
-    ...channels.map(c => ({ ...c, displayType: 'channel' })),
-    ...groupsList.map(g => ({ ...g, displayType: 'group' })),
+    ...channels,
+    ...groupsList,
   ];
 
   const mostActive = allConnections
@@ -238,7 +239,7 @@ export default function Dashboard() {
                   {allConnections.slice(0, 10).map((item, index) => (
                     <tr key={item.id || index} style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <td style={{ padding: '10px 12px', fontWeight: 500 }}>
-                        {item.name || `عنصر ${index + 1}`}
+                        {item.title || `عنصر ${index + 1}`}
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
@@ -246,10 +247,10 @@ export default function Dashboard() {
                           borderRadius: 12,
                           fontSize: 12,
                           fontWeight: 600,
-                          background: item.displayType === 'channel' ? '#E3F2FD' : '#E8F5E9',
-                          color: item.displayType === 'channel' ? '#1976D2' : '#2E7D32',
+                          background: item.type === 'channel' ? '#E3F2FD' : '#E8F5E9',
+                          color: item.type === 'channel' ? '#1976D2' : '#2E7D32',
                         }}>
-                          {item.displayType === 'channel' ? 'قناة' : 'جروب'}
+                          {item.type === 'channel' ? 'قناة' : 'جروب'}
                         </span>
                       </td>
                       <td style={{ padding: '10px 12px', color: '#666' }}>
@@ -301,9 +302,9 @@ export default function Dashboard() {
                 <div key={item.id || index} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 }}>
                   <span style={{ fontWeight: 700, color: '#999', minWidth: 24 }}>{index + 1}</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{item.name || `عنصر ${index + 1}`}</div>
+                    <div style={{ fontWeight: 600 }}>{item.title || `عنصر ${index + 1}`}</div>
                     <div style={{ fontSize: 12, color: '#888' }}>
-                      {item.displayType === 'channel' ? 'قناة' : 'جروب'} • {(item.memberCount || 0).toLocaleString()} عضو
+                      {item.type === 'channel' ? 'قناة' : 'جروب'} • {(item.memberCount || 0).toLocaleString()} عضو
                     </div>
                   </div>
                   <span style={{ fontWeight: 700, color: '#1976D2' }}>{item.postCount || 0} منشور</span>
