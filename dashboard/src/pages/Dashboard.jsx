@@ -53,7 +53,7 @@ export default function Dashboard() {
       const groups = statsData.groups || 0;
       const responses = statsData.responses || 0;
       const banned = statsData.banned || 0;
-      const totalNews = statsData.totalNews || 0;
+      const totalNews = channelsData.reduce((sum, c) => sum + (c.postCount || 0), 0);
 
       setStats({ users, groups, responses, banned, totalNews });
 
