@@ -18,16 +18,6 @@ class User(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
-class Group(Base):
-    __tablename__ = "groups"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    chat_id = Column(BigInteger, unique=True, nullable=False)
-    title = Column(String(255))
-    is_active = Column(Boolean, default=True)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-
-
 class ChannelGroup(Base):
     __tablename__ = 'channel_groups'
 

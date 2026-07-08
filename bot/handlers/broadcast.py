@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
-from bot.services.database import get_all_groups, log_activity
+from bot.services.database import get_active_channel_groups, log_activity
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     message = " ".join(context.args)
-    groups = await get_all_groups()
+    groups = await get_active_channel_groups()
     
     sent = 0
     failed = 0

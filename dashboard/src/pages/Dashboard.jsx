@@ -47,7 +47,7 @@ export default function Dashboard() {
         api.get('/stats/weekly'),
         api.getActivityLog(),
         api.get('/channels'),
-        api.get('/groups'),
+        api.get('/channels'),
       ]);
 
       const users = statsData.users || 0;

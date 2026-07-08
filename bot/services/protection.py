@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 
-from bot.services.database import is_banned, ban_user, log_activity, get_group
+from bot.services.database import is_banned, ban_user, log_activity, get_channel_group_by_chat_id
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        group = await get_group(chat.id)
+        group = await get_channel_group_by_chat_id(chat.id)
         if not group or not group.is_active:
             return
     except Exception as e:

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from bot.services.database import get_pending_posts, mark_post_published, get_all_groups
+from bot.services.database import get_pending_posts, mark_post_published
 from bot.services.news_publisher import publish_to_groups
 
 logger = logging.getLogger(__name__)

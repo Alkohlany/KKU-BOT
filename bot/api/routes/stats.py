@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from bot.services.database import get_db
 from bot.api.auth import get_current_user
-from bot.models.models import User, Group, AutoResponse, BannedUser, ActivityLog, Settings
+from bot.models.models import User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, Settings
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ async def get_stats(
     user: dict = Depends(get_current_user),
 ):
     users_count = (await db.execute(select(func.count(User.id)))).scalar() or 0
-    groups_count = (await db.execute(select(func.count(Group.id)))).scalar() or 0
+    groups_count = (await db.execute(select(func.count(ChannelGroup.id)))).scalar() or 0
     responses_count = (await db.execute(select(func.count(AutoResponse.id)))).scalar() or 0
     banned_count = (await db.execute(select(func.count(BannedUser.id)))).scalar() or 0
 

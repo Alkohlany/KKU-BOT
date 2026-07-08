@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ChatMemberHandler, MessageHandler, filters, CommandHandler
-from bot.services.database import add_group, get_group, add_channel_group, get_channel_group_by_chat_id
+from bot.services.database import add_channel_group, get_channel_group_by_chat_id
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,11 +19,6 @@ async def track_group_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         was_member = old_status in ("member", "administrator", "creator")
         bot_id = update.my_chat_member.new_chat_member.user.id if update.my_chat_member.new_chat_member.user else context.bot.id
         if not was_member and is_member and bot_id == context.bot.id:
-            existing = await get_group(chat.id)
-            if not existing:
-                await add_group(chat_id=chat.id, title=chat.title)
-                logger.info(f"Registered group in 'groups' table: {chat.title} ({chat.id})")
-            # Also register in channel_groups table
             existing_cg = await get_channel_group_by_chat_id(chat.id)
             if not existing_cg:
                 await add_channel_group(chat.id, chat.title, "group")
@@ -41,11 +36,6 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
             return
         for member in update.message.new_chat_members:
             if member.id == context.bot.id:
-                existing = await get_group(chat.id)
-                if not existing:
-                    await add_group(chat_id=chat.id, title=chat.title)
-                    logger.info(f"Registered group in 'groups' table via NEW_CHAT_MEMBERS: {chat.title} ({chat.id})")
-                # Also register in channel_groups table
                 existing_cg = await get_channel_group_by_chat_id(chat.id)
                 if not existing_cg:
                     await add_channel_group(chat.id, chat.title, "group")
@@ -64,15 +54,11 @@ async def register_group_command(update: Update, context: ContextTypes.DEFAULT_T
     if member.status not in ("administrator", "creator"):
         await update.message.reply_text("يجب أن تكون admin لاستخدام هذا الأمر.")
         return
-    existing = await get_group(chat.id)
-    if existing:
+    existing_cg = await get_channel_group_by_chat_id(chat.id)
+    if existing_cg:
         await update.message.reply_text(f"القروب مسجل أصلاً: {chat.title}")
     else:
-        await add_group(chat_id=chat.id, title=chat.title)
-        # Also register in channel_groups table
-        existing_cg = await get_channel_group_by_chat_id(chat.id)
-        if not existing_cg:
-            await add_channel_group(chat.id, chat.title, "group")
+        await add_channel_group(chat.id, chat.title, "group")
         await update.message.reply_text(f"تم تسجيل القروب: {chat.title} ✓")
 
 

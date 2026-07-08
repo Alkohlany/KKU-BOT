@@ -9,7 +9,7 @@ from bot.services.database import (
     add_question, get_all_questions, delete_question,
     get_all_news, get_news_by_id, delete_news,
     ban_user, get_all_banned, is_banned,
-    get_all_groups, log_activity, async_session
+    get_active_channel_groups, log_activity, async_session
 )
 import cloudinary.uploader
 import logging
@@ -416,11 +416,11 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif text in ["الاحصائيات", "احصائيات", "الإحصائيات", "إحصائيات", "stats"]:
         from bot.services.database import async_session
         from sqlalchemy import select, func
-        from bot.models.models import User, Group, Question, News
+        from bot.models.models import User, ChannelGroup, Question, News
 
         async with async_session() as session:
             users = await session.execute(select(func.count(User.id)))
-            groups = await session.execute(select(func.count(Group.id)))
+            groups = await session.execute(select(func.count(ChannelGroup.id)))
             questions = await session.execute(select(func.count(Question.id)))
             news = await session.execute(select(func.count(News.id)))
 
@@ -439,7 +439,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await send_admin_message(context, user.id, text_msg, parse_mode=ParseMode.MARKDOWN)
 
     elif text in ["القروبات", "قروبات", "عرض القروبات", "groups"]:
-        groups = await get_all_groups()
+        groups = await get_active_channel_groups()
         if not groups:
             await send_admin_message(context, user.id, "📭 لا توجد قروبات مسجلة")
             return
@@ -458,7 +458,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await send_admin_message(context, user.id, "❌ يجب كتابة الرسالة\n\nمثال: اذاعة مرحبا بالجميع")
             return
 
-        groups = await get_all_groups()
+        groups = await get_active_channel_groups()
         if not groups:
             await send_admin_message(context, user.id, "📭 لا توجد قروبات لإرسال الرسالة")
             return

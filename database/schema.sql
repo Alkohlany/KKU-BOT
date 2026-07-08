@@ -8,13 +8,14 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE groups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_id INTEGER UNIQUE NOT NULL,
-    title VARCHAR(255),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- DEPRECATED: groups table removed, use channel_groups table instead
+-- CREATE TABLE groups (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     chat_id INTEGER UNIQUE NOT NULL,
+--     title VARCHAR(255),
+--     is_active BOOLEAN DEFAULT TRUE,
+--     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );
 
 CREATE TABLE auto_responses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

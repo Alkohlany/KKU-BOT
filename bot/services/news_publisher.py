@@ -2,7 +2,7 @@ import logging
 import re
 import json
 from telegram import Bot
-from bot.services.database import get_all_groups
+from bot.services.database import get_active_channel_groups
 from bot.config import BOT_TOKEN, CHANNEL_ID
 from bot.services.cloud_storage import download_raw
 import asyncio
@@ -25,7 +25,7 @@ def wrap_links_in_blockquote(text: str) -> str:
 
 async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, to_groups: bool = True, to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, target_channels: str = None) -> tuple[int, int | None, dict]:
     text = wrap_links_in_blockquote(text)
-    groups = await get_all_groups()
+    groups = await get_active_channel_groups()
     sent = 0
     channel_message_id = None
     group_message_ids = {}

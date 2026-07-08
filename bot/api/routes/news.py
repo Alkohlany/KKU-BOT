@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from bot.services.database import async_session, add_news, get_all_news, publish_news, get_all_groups, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
+from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, edit_published_messages
 from bot.services.cloud_storage import upload_image
 from bot.models.models import News

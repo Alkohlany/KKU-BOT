@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from bot.api.routes import auth, responses, groups, users, stats, news, questions, scheduled_posts, study_plans, channels
+from bot.api.routes import auth, responses, users, stats, news, questions, scheduled_posts, study_plans, channels
 import os
 import logging
 
@@ -27,7 +27,6 @@ async def health():
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(responses.router, prefix="/api/responses", tags=["Responses"])
-app.include_router(groups.router, prefix="/api/groups", tags=["Groups"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(stats.router, prefix="/api/stats", tags=["Stats"])
 app.include_router(news.router, prefix="/api/news", tags=["News"])

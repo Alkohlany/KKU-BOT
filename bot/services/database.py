@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from bot.models.models import Base, User, Group, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, ResponseCategory, Settings
+from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, ResponseCategory, Settings
 from bot.config import DATABASE_URL
 from sqlalchemy import select, update, delete, func, text
 from datetime import datetime, timezone, timedelta
@@ -118,43 +118,6 @@ async def update_user_subscription(telegram_id: int, is_subscribed: bool):
             update(User)
             .where(User.telegram_id == telegram_id)
             .values(is_subscribed=is_subscribed, last_check=datetime.utcnow())
-        )
-        await session.commit()
-
-
-async def add_group(chat_id: int, title: str = None) -> Group:
-    async with async_session() as session:
-        group = Group(chat_id=chat_id, title=title)
-        session.add(group)
-        await session.commit()
-        await session.refresh(group)
-        return group
-
-
-async def get_group(chat_id: int) -> Group | None:
-    async with async_session() as session:
-        result = await session.execute(
-            select(Group).where(Group.chat_id == chat_id)
-        )
-        return result.scalar_one_or_none()
-
-
-async def get_all_groups():
-    async with async_session() as session:
-        result = await session.execute(select(Group))
-        return result.scalars().all()
-
-
-async def get_all_active_groups():
-    async with async_session() as session:
-        result = await session.execute(select(Group).where(Group.is_active == True))
-        return result.scalars().all()
-
-
-async def remove_group(chat_id: int):
-    async with async_session() as session:
-        await session.execute(
-            delete(Group).where(Group.chat_id == chat_id)
         )
         await session.commit()
 

@@ -101,10 +101,6 @@ const api = {
   updateResponse: (id, data) => api.put(`/responses/${id}`, data),
   deleteResponse: (id) => api.delete(`/responses/${id}`),
   deleteAllResponses: () => api.delete('/responses'),
-  getGroups: () => api.get('/groups'),
-  addGroup: (data) => api.post('/groups', data),
-  toggleGroup: (id, enabled) => api.put(`/groups/${id}/toggle`, { enabled }),
-
   getChannels: () => api.get('/channels'),
   getActiveChannels: () => api.get('/channels/active'),
   addChannel: (data) => api.post('/channels', data),

@@ -7,7 +7,7 @@ from bot.services.database import (
     add_question, get_all_questions, delete_question,
     get_all_news, delete_news,
     ban_user, get_all_banned, is_banned,
-    get_all_groups, log_activity
+    get_active_channel_groups, log_activity
 )
 import logging
 
@@ -423,11 +423,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     from bot.services.database import async_session
     from sqlalchemy import select, func
-    from bot.models.models import User, Group, Question, News
+    from bot.models.models import User, ChannelGroup, Question, News
 
     async with async_session() as session:
         users = await session.execute(select(func.count(User.id)))
-        groups = await session.execute(select(func.count(Group.id)))
+        groups = await session.execute(select(func.count(ChannelGroup.id)))
         questions = await session.execute(select(func.count(Question.id)))
         news = await session.execute(select(func.count(News.id)))
 
@@ -450,7 +450,7 @@ async def groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         return
 
-    groups = await get_all_groups()
+    groups = await get_active_channel_groups()
     if not groups:
         await update.message.reply_text("📭 لا توجد قروبات مسجلة")
         return
@@ -472,7 +472,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     message = ' '.join(context.args)
-    groups = await get_all_groups()
+    groups = await get_active_channel_groups()
 
     if not groups:
         await update.message.reply_text("📭 لا توجد قروبات لإرسال الرسالة")
