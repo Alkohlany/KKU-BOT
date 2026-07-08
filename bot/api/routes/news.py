@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
-from bot.services.news_publisher import publish_to_groups, delete_from_channel, edit_published_messages
+from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages
 from bot.services.cloud_storage import upload_image
 from bot.models.models import News
 from bot.config import BOT_TOKEN
@@ -295,11 +295,12 @@ async def edit_news(news_id: int, data: NewsCreate):
 @router.delete("/{news_id}/channel")
 async def delete_from_channel_endpoint(news_id: int):
     n = await get_news_by_id(news_id)
-    if not n:
-        raise HTTPException(status_code=404, detail="News not found")
     if n.channel_message_id:
         await delete_from_channel(n.channel_message_id)
-        await update_news(news_id, channel_message_id=None)
+        await update_news(news_id, channel_message_id=None, is_published=False)
+    elif n.group_message_ids:
+        await delete_from_groups(n.group_message_ids)
+        await update_news(news_id, group_message_ids=None, is_published=False)
     return {"status": "deleted_from_channel"}
 
 

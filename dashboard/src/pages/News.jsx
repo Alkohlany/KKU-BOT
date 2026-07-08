@@ -48,6 +48,10 @@ export default function News() {
 
   useEffect(() => {
     loadNews();
+    const interval = setInterval(() => {
+      loadNews();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadNews = async () => {

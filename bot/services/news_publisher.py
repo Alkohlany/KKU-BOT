@@ -234,6 +234,25 @@ async def delete_news_from_channel(channel_message_id: int) -> bool:
     return await delete_from_channel(channel_message_id)
 
 
+async def delete_from_groups(group_message_ids) -> bool:
+    if not group_message_ids:
+        return False
+    if isinstance(group_message_ids, str):
+        import json
+        try:
+            group_message_ids = json.loads(group_message_ids)
+        except:
+            return False
+    deleted = 0
+    for chat_id_str, message_id in group_message_ids.items():
+        try:
+            await bot.delete_message(chat_id=chat_id_str, message_id=message_id)
+            deleted += 1
+        except Exception as e:
+            logger.error(f"Failed to delete message {message_id} from group {chat_id_str}: {e}")
+    return deleted > 0
+
+
 async def edit_published_message(chat_id: str, message_id: int, text: str, image_url: str = None, file_url: str = None, as_document: bool = False, file_name: str = None) -> bool:
     """Edit an already published message in a group or channel"""
     try:
