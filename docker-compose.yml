@@ -6,8 +6,6 @@ services:
         condition: service_healthy
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
-      - CHANNEL_ID=${CHANNEL_ID}
-      - CHANNEL_LINK=${CHANNEL_LINK}
       - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/kku_bot
       - ADMIN_IDS=${ADMIN_IDS}
       - SECRET_KEY=${SECRET_KEY}

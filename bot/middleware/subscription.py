@@ -1,7 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
-from bot.services.database import get_user, create_user, update_user_subscription, is_banned
-from bot.config import CHANNEL_ID, CHANNEL_LINK
+from bot.services.database import get_user, create_user, update_user_subscription, is_banned, get_active_channel_groups
 from datetime import datetime, timedelta
 import logging
 
@@ -16,14 +15,27 @@ _last_result: dict[int, bool] = {}
 _SUB_MSG = "📢 لاستخدام البوت يجب الاشتراك في القناة أولاً\n\n🔗 {link}"
 
 
-def _ch_link_keyboard():
+async def get_subscription_channel():
+    """Get the first active channel from database"""
+    channels = await get_active_channel_groups()
+    for ch in channels:
+        if ch.type == 'channel':
+            return ch
+    return None
+
+
+async def _ch_link_keyboard():
+    channel = await get_subscription_channel()
+    if not channel:
+        return InlineKeyboardMarkup([[]])
     return InlineKeyboardMarkup([[
-        InlineKeyboardButton("📢 اشترك في القناة", url=CHANNEL_LINK)
+        InlineKeyboardButton("📢 اشترك في القناة", url=channel.invite_link)
     ]])
 
 
 async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    if not CHANNEL_ID or user_id == ANONYMOUS_ADMIN_ID:
+    channel = await get_subscription_channel()
+    if not channel or user_id == ANONYMOUS_ADMIN_ID:
         return True
 
     now = datetime.utcnow()
@@ -33,14 +45,14 @@ async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) 
         return _last_result.get(user_id, True)
 
     try:
-        member = await context.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        member = await context.bot.get_chat_member(chat_id=channel.chat_id, user_id=user_id)
         is_subscribed = member.status in ("member", "administrator", "creator")
         _last_api[user_id] = now
         _last_result[user_id] = is_subscribed
         await update_user_subscription(user_id, is_subscribed)
         return is_subscribed
     except Exception as e:
-        logger.error(f"Subscription check error for user={user_id} channel={CHANNEL_ID}: {e}")
+        logger.error(f"Subscription check error for user={user_id} channel={channel.chat_id}: {e}")
         return True
 
 
@@ -60,9 +72,11 @@ async def subscription_required(update: Update, context: ContextTypes.DEFAULT_TY
         db_user = await create_user(telegram_id=user.id, username=user.username, first_name=user.first_name)
 
     if not await verify_subscription(user.id, context):
+        channel = await get_subscription_channel()
+        link = channel.invite_link if channel else ""
         await update.message.reply_text(
-            _SUB_MSG.format(link=CHANNEL_LINK),
-            reply_markup=_ch_link_keyboard()
+            _SUB_MSG.format(link=link),
+            reply_markup=await _ch_link_keyboard()
         )
         return False
     return True
@@ -97,9 +111,11 @@ async def group_subscription_check(update: Update, context: ContextTypes.DEFAULT
         except Exception:
             pass
 
+        channel = await get_subscription_channel()
+        link = channel.invite_link if channel else ""
         await update.effective_chat.send_message(
-            f"📢 {user.first_name}، {_SUB_MSG.format(link=CHANNEL_LINK)}",
-            reply_markup=_ch_link_keyboard()
+            f"📢 {user.first_name}، {_SUB_MSG.format(link=link)}",
+            reply_markup=await _ch_link_keyboard()
         )
 
 

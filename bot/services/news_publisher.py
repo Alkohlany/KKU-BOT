@@ -3,7 +3,7 @@ import re
 import json
 from telegram import Bot
 from bot.services.database import get_active_channel_groups
-from bot.config import BOT_TOKEN, CHANNEL_ID
+from bot.config import BOT_TOKEN
 from bot.services.cloud_storage import download_raw
 import asyncio
 import httpx
@@ -51,10 +51,15 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
             except Exception as e:
                 logger.error(f"Failed to send to group {group.chat_id}: {e}")
 
-    if to_channel and CHANNEL_ID:
-        if target_chat_ids is None or str(CHANNEL_ID) in [str(cid) for cid in target_chat_ids]:
+    if to_channel:
+        channel = None
+        for ch in groups:
+            if ch.type == 'channel' and ch.is_active:
+                channel = ch
+                break
+        if channel and (target_chat_ids is None or str(channel.chat_id) in [str(cid) for cid in target_chat_ids]):
             try:
-                chat_id = str(CHANNEL_ID)
+                chat_id = str(channel.chat_id)
                 if as_document:
                     if file_url:
                         if await _send_file(chat_id, file_url, text, original_filename=file_name):
@@ -68,7 +73,7 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
                         sent += 1
                         channel_message_id = msg.message_id
                     except Exception as e:
-                        logger.warning(f"send_photo failed for channel {CHANNEL_ID}: {e}")
+                        logger.warning(f"send_photo failed for channel {channel.chat_id}: {e}")
                 elif file_url:
                     if await _send_file(chat_id, file_url, text, original_filename=file_name):
                         sent += 1
@@ -77,7 +82,7 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
                     sent += 1
                     channel_message_id = msg.message_id
             except Exception as e:
-                logger.error(f"Failed to send to channel {CHANNEL_ID}: {e}")
+                logger.error(f"Failed to send to channel {channel.chat_id}: {e}")
 
     return sent, channel_message_id, group_message_ids
 
@@ -199,13 +204,19 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
 
 
 async def delete_from_channel(channel_message_id: int) -> bool:
-    if not CHANNEL_ID:
+    channel = None
+    groups = await get_active_channel_groups()
+    for ch in groups:
+        if ch.type == 'channel':
+            channel = ch
+            break
+    if not channel:
         return False
     try:
-        await bot.delete_message(chat_id=CHANNEL_ID, message_id=channel_message_id)
+        await bot.delete_message(chat_id=channel.chat_id, message_id=channel_message_id)
         return True
     except Exception as e:
-        logger.error(f"Failed to delete message {channel_message_id} from channel {CHANNEL_ID}: {e}")
+        logger.error(f"Failed to delete message {channel_message_id} from channel {channel.chat_id}: {e}")
         return False
 
 
@@ -267,14 +278,21 @@ async def edit_published_messages(text: str, group_message_ids: dict, channel_me
                 failed += 1
     
     # Edit channel message
-    if channel_message_id and CHANNEL_ID:
-        try:
-            if await edit_published_message(str(CHANNEL_ID), channel_message_id, text, image_url, file_url, as_document, file_name):
-                edited += 1
-            else:
+    if channel_message_id:
+        channel = None
+        groups = await get_active_channel_groups()
+        for ch in groups:
+            if ch.type == 'channel':
+                channel = ch
+                break
+        if channel:
+            try:
+                if await edit_published_message(str(channel.chat_id), channel_message_id, text, image_url, file_url, as_document, file_name):
+                    edited += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                logger.error(f"Failed to edit channel message: {e}")
                 failed += 1
-        except Exception as e:
-            logger.error(f"Failed to edit channel message: {e}")
-            failed += 1
     
     return edited, failed

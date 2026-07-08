@@ -12,12 +12,21 @@ from bot.services.database import (
     async_session, add_study_plan, get_all_study_plans, get_study_plans_by_faculty,
     delete_study_plan, get_all_study_plan_groups, get_study_plan_group_by_id,
     create_study_plan_group, delete_study_plan_group, get_study_plans_by_group,
-    update_study_plan_group
+    update_study_plan_group, get_active_channel_groups
 )
 from bot.services.cloud_storage import upload_raw
-from bot.config import BOT_TOKEN, CHANNEL_ID
+from bot.config import BOT_TOKEN
 
 router = APIRouter()
+
+
+async def _get_channel_id():
+    """Get the channel chat_id from the database"""
+    channels = await get_active_channel_groups()
+    for ch in channels:
+        if ch.type == 'channel':
+            return ch.chat_id
+    return None
 
 
 def to_arabic_numerals(number: int) -> str:
@@ -45,7 +54,8 @@ async def update_group_post(group_id: int, force_new: bool = False):
         if not published and not group.channel_message_id:
             return
 
-        channel_username = CHANNEL_ID.replace("@", "")
+        channel_chat_id = await _get_channel_id()
+        channel_username = str(channel_chat_id).replace("@", "")
 
         today = Hijri.today()
         arabic_year = to_arabic_numerals(today.year)
@@ -63,12 +73,14 @@ async def update_group_post(group_id: int, force_new: bool = False):
         text += "https://whatsapp.com/channel/0029VbD8NhHC1FuKSEmrJY2W\n\n"
         text += "#شاركها_فربما_يبحث_عنها_غيرك"
 
+        channel_chat_id = await _get_channel_id()
+
         async with httpx.AsyncClient() as client:
             if group.channel_message_id and not force_new:
                 resp = await client.post(
                     f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
                     data={
-                        "chat_id": CHANNEL_ID,
+                        "chat_id": channel_chat_id,
                         "message_id": group.channel_message_id,
                         "text": text,
                         "parse_mode": "HTML",
@@ -81,7 +93,7 @@ async def update_group_post(group_id: int, force_new: bool = False):
                     try:
                         await client.post(
                             f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                            data={"chat_id": CHANNEL_ID, "message_id": group.channel_message_id},
+                            data={"chat_id": channel_chat_id, "message_id": group.channel_message_id},
                             timeout=30
                         )
                     except Exception:
@@ -92,7 +104,7 @@ async def update_group_post(group_id: int, force_new: bool = False):
                 resp = await client.post(
                     f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                     data={
-                        "chat_id": CHANNEL_ID,
+                        "chat_id": channel_chat_id,
                         "text": text,
                         "parse_mode": "HTML",
                         "disable_web_page_preview": True
@@ -143,8 +155,10 @@ async def create_study_plan_group_endpoint(data: StudyPlanGroupCreate):
         if group.description:
             text += f"{group.description}"
 
+        channel_chat_id = await _get_channel_id()
+
         async with httpx.AsyncClient() as client:
-            data_payload = {"chat_id": CHANNEL_ID, "text": text}
+            data_payload = {"chat_id": channel_chat_id, "text": text}
             resp = await client.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                 data=data_payload,
@@ -196,12 +210,14 @@ async def delete_study_plan_group_endpoint(group_id: int, mode: str = "permanent
             plans_result = await session.execute(plans_stmt)
             all_plans = plans_result.scalars().all()
 
+            channel_chat_id = await _get_channel_id()
+
             async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
                 if group.channel_message_id:
                     try:
                         await client.post(
                             f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                            data={"chat_id": CHANNEL_ID, "message_id": group.channel_message_id},
+                            data={"chat_id": channel_chat_id, "message_id": group.channel_message_id},
                             timeout=30
                         )
                     except Exception:
@@ -213,7 +229,7 @@ async def delete_study_plan_group_endpoint(group_id: int, mode: str = "permanent
                         try:
                             await client.post(
                                 f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                                data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
+                                data={"chat_id": channel_chat_id, "message_id": plan.channel_message_id},
                                 timeout=30
                             )
                         except Exception:
@@ -290,6 +306,8 @@ async def publish_group_plans(group_id: int):
         if not all_plans:
             return {"message": "لا توجد خطط في هذه المجموعة"}
 
+        channel_chat_id = await _get_channel_id()
+
         published_count = 0
         failed_plans = []
         batch_size = 10
@@ -354,7 +372,7 @@ async def publish_group_plans(group_id: int):
                 resp = await client.post(
                     f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup",
                     files=files,
-                    data={"chat_id": CHANNEL_ID, "media": json.dumps(media)},
+                    data={"chat_id": channel_chat_id, "media": json.dumps(media)},
                     timeout=120
                 )
 
@@ -375,7 +393,7 @@ async def publish_group_plans(group_id: int):
                     try:
                         await del_client.post(
                             f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                            data={"chat_id": CHANNEL_ID, "message_id": old_group_message_id},
+                            data={"chat_id": channel_chat_id, "message_id": old_group_message_id},
                             timeout=30
                         )
                     except Exception:
@@ -386,7 +404,7 @@ async def publish_group_plans(group_id: int):
                         try:
                             await del_client.post(
                                 f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                                data={"chat_id": CHANNEL_ID, "message_id": old_id},
+                                data={"chat_id": channel_chat_id, "message_id": old_id},
                                 timeout=30
                             )
                         except Exception:
@@ -424,6 +442,8 @@ async def publish_single_plan(plan_id: int):
         import asyncio
         from bot.services.cloud_storage import download_raw
 
+        channel_chat_id = await _get_channel_id()
+
         async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
             pdf_content = None
             last_status = None
@@ -457,7 +477,7 @@ async def publish_single_plan(plan_id: int):
             resp = await client.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
                 data={
-                    "chat_id": CHANNEL_ID,
+                    "chat_id": channel_chat_id,
                     "caption": caption,
                     "parse_mode": "HTML"
                 },
@@ -471,7 +491,7 @@ async def publish_single_plan(plan_id: int):
                     try:
                         await client.post(
                             f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                            data={"chat_id": CHANNEL_ID, "message_id": old_message_id},
+                            data={"chat_id": channel_chat_id, "message_id": old_message_id},
                             timeout=30
                         )
                     except Exception:
@@ -544,11 +564,12 @@ async def delete_study_plan_endpoint(plan_id: int, mode: str = "permanent"):
             group_id = plan.group_id
 
             if plan.channel_message_id:
+                channel_chat_id = await _get_channel_id()
                 async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
                     try:
                         await client.post(
                             f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                            data={"chat_id": CHANNEL_ID, "message_id": plan.channel_message_id},
+                            data={"chat_id": channel_chat_id, "message_id": plan.channel_message_id},
                             timeout=30
                         )
                     except Exception:

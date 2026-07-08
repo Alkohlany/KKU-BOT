@@ -14,7 +14,6 @@ elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 
 async def publish_all():
@@ -22,6 +21,12 @@ async def publish_all():
 
     groups = await conn.fetch("SELECT id, title, description, group_tag, channel_message_id FROM study_plan_groups ORDER BY id")
     print(f"Found {len(groups)} groups\n")
+
+    channel_row = await conn.fetchrow("SELECT chat_id FROM channel_groups WHERE type = 'channel' AND is_active = true ORDER BY created_at DESC LIMIT 1")
+    CHANNEL_ID = str(channel_row["chat_id"]) if channel_row else None
+    if not CHANNEL_ID:
+        print("No active channel found in database, aborting")
+        return
 
     for group in groups:
         gid = group["id"]

@@ -127,6 +127,16 @@ async def register_group_command(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(f"تم تسجيل القروب: {chat.title} ✓\nعدد الأعضاء: {member_count}")
 
 
+async def edit_chat_title(chat_id, new_title, context):
+    """Edit the channel/group title on Telegram"""
+    try:
+        await context.bot.set_chat_title(chat_id, new_title)
+        return True
+    except Exception as e:
+        logger.error(f"Could not edit chat title: {e}")
+        return False
+
+
 group_chat_member_handler = ChatMemberHandler(track_group_member, ChatMemberHandler.MY_CHAT_MEMBER)
 group_new_members_handler = MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, track_group_new_members)
 register_group_cmd = CommandHandler("registergroup", register_group_command)

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from telegram import Bot
+import os
 from ...services.database import (
     get_all_channel_groups, get_active_channel_groups, 
     add_channel_group, toggle_channel_group, 
@@ -79,6 +81,17 @@ async def update_channel_group_endpoint(group_id: int, data: ChannelGroupUpdate)
     group = await update_channel_group(group_id, **update_data)
     if not group:
         raise HTTPException(status_code=404, detail="Channel/Group not found")
+    
+    # If title was updated, also update on Telegram
+    if data.title:
+        try:
+            bot_token = os.getenv("BOT_TOKEN")
+            bot = Bot(token=bot_token)
+            await bot.set_chat_title(group.chat_id, data.title)
+        except Exception as e:
+            # Log but don't fail - the database update succeeded
+            pass
+    
     return {
         "id": group.id,
         "chatId": group.chat_id,

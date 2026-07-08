@@ -1,8 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
 from bot.middleware.subscription import subscription_required
-from bot.services.database import get_all_study_plan_groups
-from bot.config import CHANNEL_ID
+from bot.services.database import get_all_study_plan_groups, get_active_channel_groups
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,16 @@ async def get_plans_text() -> str:
     if not groups:
         return "لا توجد خطط دراسية منشورة حالياً 📭"
 
-    channel_username = CHANNEL_ID.replace("@", "")
+    all_channels = await get_active_channel_groups()
+    channel = None
+    for ch in all_channels:
+        if ch.type == 'channel':
+            channel = ch
+            break
+    if not channel:
+        return "لا توجد قناة نشرة حالياً 📭"
+
+    channel_username = str(channel.chat_id).replace("@", "")
 
     text = "📚 محدث خطط التخصصات\n"
     text += "جامعة الملك خالد 1447هـ\n\n"

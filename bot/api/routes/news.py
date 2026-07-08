@@ -7,7 +7,7 @@ from bot.services.database import async_session, add_news, get_all_news, publish
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, edit_published_messages
 from bot.services.cloud_storage import upload_image
 from bot.models.models import News
-from bot.config import BOT_TOKEN, CHANNEL_ID
+from bot.config import BOT_TOKEN
 import os
 import uuid
 
