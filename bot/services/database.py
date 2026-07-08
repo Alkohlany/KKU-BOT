@@ -390,11 +390,11 @@ async def update_question(question_id: int, question: str = None, answer: str = 
 
 
 # ==================== Scheduled Posts ====================
-async def add_scheduled_post(title, content, schedule_time, image_url=None, file_url=None, 
+async def add_scheduled_post(content, schedule_time, image_url=None, file_url=None, 
                             is_recurring=False, recurring_interval=None, created_by=None,
-                            as_document=False, target_channels=None):
+                            as_document=False, target_channels=None, title=None):
     async with async_session() as session:
-        post = ScheduledPost(title=title, content=content, schedule_time=schedule_time,
+        post = ScheduledPost(content=content, schedule_time=schedule_time,
                             image_url=image_url, file_url=file_url, is_recurring=is_recurring,
                             recurring_interval=recurring_interval, created_by=created_by,
                             as_document=as_document, target_channels=target_channels)

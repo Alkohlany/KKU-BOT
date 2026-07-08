@@ -11,7 +11,6 @@ router = APIRouter()
 
 
 class ScheduledPostCreate(BaseModel):
-    title: Optional[str] = None
     content: str
     image_url: Optional[str] = None
     file_url: Optional[str] = None
@@ -28,7 +27,6 @@ async def get_scheduled_posts():
     return [
         {
             "id": p.id,
-            "title": p.title,
             "content": p.content,
             "imageUrl": p.image_url,
             "fileUrl": p.file_url,
@@ -52,7 +50,7 @@ async def create_scheduled_post(data: ScheduledPostCreate):
     else:
         riyadh_tz = ZoneInfo("Asia/Riyadh")
         dt = dt.replace(tzinfo=riyadh_tz).astimezone(timezone.utc).replace(tzinfo=None)
-    p = await add_scheduled_post(title=data.title, content=data.content,
+    p = await add_scheduled_post(content=data.content,
                                     schedule_time=dt,
                                     image_url=data.image_url, file_url=data.file_url,
                                     is_recurring=data.is_recurring,
@@ -60,7 +58,7 @@ async def create_scheduled_post(data: ScheduledPostCreate):
                                     as_document=data.as_document,
                                     target_channels=data.target_channels)
     return {
-        "id": p.id, "title": p.title, "content": p.content,
+        "id": p.id, "content": p.content,
         "imageUrl": p.image_url, "fileUrl": p.file_url,
         "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
         "recurring": p.is_recurring, "isPublished": p.is_published,
@@ -73,7 +71,6 @@ async def create_scheduled_post_with_file(
     content: str = Form(...),
     schedule_time: str = Form(...),
     is_recurring: bool = Form(False),
-    title: Optional[str] = Form(None),
     recurring_interval: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     as_document: bool = Form(False),
@@ -97,7 +94,7 @@ async def create_scheduled_post_with_file(
     else:
         riyadh_tz = ZoneInfo("Asia/Riyadh")
         dt = dt.replace(tzinfo=riyadh_tz).astimezone(timezone.utc).replace(tzinfo=None)
-    p = await add_scheduled_post(title=title, content=content,
+    p = await add_scheduled_post(content=content,
                                     schedule_time=dt,
                                     image_url=image_url, file_url=file_url,
                                     is_recurring=is_recurring,
@@ -105,7 +102,7 @@ async def create_scheduled_post_with_file(
                                     as_document=as_document,
                                     target_channels=target_channels)
     return {
-        "id": p.id, "title": p.title, "content": p.content,
+        "id": p.id, "content": p.content,
         "imageUrl": p.image_url, "fileUrl": p.file_url,
         "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
         "recurring": p.is_recurring, "isPublished": p.is_published,

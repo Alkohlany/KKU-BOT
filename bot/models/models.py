@@ -114,7 +114,6 @@ class ScheduledPost(Base):
     __tablename__ = "scheduled_posts"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(255))
     content = Column(Text, nullable=False)
     image_url = Column(String(500))
     file_url = Column(String(500))
