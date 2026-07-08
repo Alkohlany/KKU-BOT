@@ -128,36 +128,6 @@ export default function Dashboard() {
       <div className="grid-3">
         <div className="card">
           <div className="card-header">
-            <h3>إحصائيات القنوات والجروبات</h3>
-          </div>
-          <div className="card-body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f8f9fa', borderRadius: 8 }}>
-                <span style={{ color: '#666' }}>إجمالي القنوات</span>
-                <span style={{ fontWeight: 700, color: '#1976D2' }}>{totalChannels}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f8f9fa', borderRadius: 8 }}>
-                <span style={{ color: '#666' }}>إجمالي الجروبات</span>
-                <span style={{ fontWeight: 700, color: '#2E7D32' }}>{totalGroupsCount}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f8f9fa', borderRadius: 8 }}>
-                <span style={{ color: '#666' }}>إجمالي الأعضاء</span>
-                <span style={{ fontWeight: 700, color: '#F57C00' }}>{totalMembers.toLocaleString()}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f8f9fa', borderRadius: 8 }}>
-                <span style={{ color: '#666' }}>نشط / غير نشط</span>
-                <span>
-                  <span style={{ fontWeight: 700, color: '#2E7D32' }}>{activeItems}</span>
-                  <span style={{ color: '#999', margin: '0 6px' }}>/</span>
-                  <span style={{ fontWeight: 700, color: '#D32F2F' }}>{inactiveItems}</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
             <h3>الرسائل خلال الأسبوع</h3>
           </div>
           <div className="card-body">
