@@ -235,10 +235,13 @@ async def edit_news(news_id: int, data: NewsCreate):
         raise HTTPException(status_code=404, detail="News not found")
     
     # Update the news in database
-    updated = await update_news(news_id, content=data.content,
+    await update_news(news_id, content=data.content,
                           image_url=data.image_url, file_url=data.file_url,
                           as_document=data.as_document,
                           target_channels=data.target_channels)
+    
+    # Fetch updated news
+    updated = await get_news_by_id(news_id)
     
     # Edit published messages in groups and channel
     edited_count = 0
@@ -267,6 +270,7 @@ async def edit_news(news_id: int, data: NewsCreate):
     return {"id": updated.id, "content": updated.content,
             "imageUrl": updated.image_url, "fileUrl": updated.file_url,
             "asDocument": updated.as_document, "channelMessageId": updated.channel_message_id,
+            "targetChannels": updated.target_channels,
             "editedMessages": edited_count, "failedMessages": failed_count}
 
 
