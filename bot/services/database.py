@@ -268,27 +268,27 @@ async def update_news(news_id, title=None, content=None, image_url=None, file_ur
     async with async_session() as session:
         update_data = {}
         if title is not None:
-            update_data[News.title] = title
+            update_data["title"] = title
         if content is not None:
-            update_data[News.content] = content
+            update_data["content"] = content
         if image_url is not None:
-            update_data[News.image_url] = image_url
+            update_data["image_url"] = image_url
         if file_url is not None:
-            update_data[News.file_url] = file_url
+            update_data["file_url"] = file_url
         if publish_to_channel is not None:
-            update_data[News.publish_to_channel] = publish_to_channel
+            update_data["publish_to_channel"] = publish_to_channel
         if publish_to_groups is not None:
-            update_data[News.publish_to_groups] = publish_to_groups
+            update_data["publish_to_groups"] = publish_to_groups
         if as_document is not None:
-            update_data[News.as_document] = as_document
+            update_data["as_document"] = as_document
         if channel_message_id is not None:
-            update_data[News.channel_message_id] = channel_message_id
+            update_data["channel_message_id"] = channel_message_id
         if group_message_ids is not None:
-            update_data[News.group_message_ids] = group_message_ids
+            update_data["group_message_ids"] = group_message_ids
         if target_channels is not None:
-            update_data[News.target_channels] = target_channels
+            update_data["target_channels"] = target_channels
         if is_published is not None:
-            update_data[News.is_published] = is_published
+            update_data["is_published"] = is_published
         if update_data:
             await session.execute(
                 update(News).where(News.id == news_id).values(**update_data)
@@ -421,11 +421,11 @@ async def get_all_scheduled_posts():
 async def mark_post_published(post_id, group_message_ids=None):
     async with async_session() as session:
         update_data = {
-            ScheduledPost.is_published: True,
-            ScheduledPost.published_at: func.now()
+            "is_published": True,
+            "published_at": func.now()
         }
         if group_message_ids:
-            update_data[ScheduledPost.group_message_ids] = group_message_ids
+            update_data["group_message_ids"] = group_message_ids
         await session.execute(
             update(ScheduledPost)
             .where(ScheduledPost.id == post_id)
