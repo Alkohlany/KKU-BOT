@@ -166,6 +166,7 @@ export default function Groups() {
                 <th>{activeTab === 'channels' ? 'اسم القناة' : 'اسم الجروب'}</th>
                 <th>Chat ID</th>
                 <th>عدد الأعضاء</th>
+                <th>المنشورات</th>
                 <th>الرابط</th>
                 <th>الحالة</th>
                 <th>إجراءات</th>
@@ -177,6 +178,7 @@ export default function Groups() {
                   <td><strong>{item.title || 'بدون عنوان'}</strong></td>
                   <td><code style={{ fontSize: 12 }}>{item.chatId}</code></td>
                   <td>{(item.memberCount || 0).toLocaleString()}</td>
+                  <td>{(item.postCount || 0).toLocaleString()}</td>
                   <td>
                     {item.inviteLink ? (
                       <a
@@ -257,6 +259,10 @@ export default function Groups() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 12, color: 'var(--gray-400)', minWidth: 70 }}>الأعضاء:</span>
                     <span style={{ fontSize: 13 }}>{(item.memberCount || 0).toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--gray-400)', minWidth: 70 }}>المنشورات:</span>
+                    <span style={{ fontSize: 13 }}>{(item.postCount || 0).toLocaleString()}</span>
                   </div>
                   {item.inviteLink && (
                     <a

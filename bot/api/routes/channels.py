@@ -3,14 +3,40 @@ from pydantic import BaseModel
 from typing import Optional
 from telegram import Bot
 import os
+import json
+from ...models.models import News
 from ...services.database import (
     get_all_channel_groups, get_active_channel_groups, 
     add_channel_group, toggle_channel_group, 
     update_channel_group, delete_channel_group,
-    get_channel_group_by_chat_id
+    get_channel_group_by_chat_id, async_session
 )
 
 router = APIRouter()
+
+async def count_posts_for_chat(chat_id):
+    """Count how many posts are published to a specific chat_id"""
+    async with async_session() as session:
+        from sqlalchemy import select
+        news_result = await session.execute(select(News.group_message_ids, News.target_channels))
+        count = 0
+        for row in news_result:
+            if row[0]:
+                try:
+                    group_ids = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                    if str(chat_id) in group_ids:
+                        count += 1
+                        continue
+                except:
+                    pass
+            if row[1]:
+                try:
+                    targets = json.loads(row[1]) if isinstance(row[1], str) else row[1]
+                    if chat_id in targets or str(chat_id) in [str(t) for t in targets]:
+                        count += 1
+                except:
+                    pass
+        return count
 
 class ChannelGroupCreate(BaseModel):
     chat_id: int
@@ -28,8 +54,10 @@ class ChannelGroupUpdate(BaseModel):
 @router.get("/")
 async def get_channel_groups():
     groups = await get_all_channel_groups()
-    return [
-        {
+    result = []
+    for g in groups:
+        post_count = await count_posts_for_chat(g.chat_id)
+        result.append({
             "id": g.id,
             "chatId": g.chat_id,
             "title": g.title,
@@ -37,16 +65,18 @@ async def get_channel_groups():
             "memberCount": g.member_count,
             "inviteLink": g.invite_link,
             "isActive": g.is_active,
+            "postCount": post_count,
             "createdAt": g.created_at.isoformat() if g.created_at else None
-        }
-        for g in groups
-    ]
+        })
+    return result
 
 @router.get("/active")
 async def get_active_channel_groups_endpoint():
     groups = await get_active_channel_groups()
-    return [
-        {
+    result = []
+    for g in groups:
+        post_count = await count_posts_for_chat(g.chat_id)
+        result.append({
             "id": g.id,
             "chatId": g.chat_id,
             "title": g.title,
@@ -54,9 +84,9 @@ async def get_active_channel_groups_endpoint():
             "memberCount": g.member_count,
             "inviteLink": g.invite_link,
             "isActive": g.is_active,
-        }
-        for g in groups
-    ]
+            "postCount": post_count,
+        })
+    return result
 
 @router.post("/")
 async def create_channel_group(data: ChannelGroupCreate):
