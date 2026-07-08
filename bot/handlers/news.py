@@ -14,7 +14,7 @@ async def get_news_text():
     
     text = "📰 آخر المنشورات:\n\n"
     for news in news_list[:5]:
-        text += f"📌 {news.title}\n{news.content}\n\n"
+        text += f"📌 {news.content}\n\n"
         if news.image_url:
             text += "🖼️ يحتوي على صورة\n\n"
         text += "─" * 20 + "\n\n"
@@ -33,7 +33,7 @@ async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     for news in news_list[:5]:
-        text = f"📰 {news.title}\n\n{news.content}"
+        text = f"📰 {news.content}"
         if news.image_url:
             await update.message.reply_photo(photo=news.image_url, caption=text)
         elif news.file_url:

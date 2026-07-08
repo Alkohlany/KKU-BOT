@@ -247,7 +247,7 @@ async def news_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "📰 **المنشورات:**\n\n"
     for n in news[:15]:
         status = "✅" if n.is_published else "📝"
-        text += f"{status} `{n.id}` - {n.title[:30]}\n"
+        text += f"{status} `{n.id}` - {n.content[:30]}\n"
 
     if len(news) > 15:
         text += f"\n... و {len(news) - 15} منشور آخر"

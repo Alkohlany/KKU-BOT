@@ -95,7 +95,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         news_text = "📰 **اختر المنشور بالرد على هذه الرسالة بالرقم:**\n\n"
         for n in news_list[:10]:
             status = "✅" if n.is_published else "📝"
-            news_text += f"{status} `{n.id}` - {n.title[:40]}\n"
+            news_text += f"{status} `{n.id}` - {n.content[:40]}\n"
         
         if len(news_list) > 10:
             news_text += f"\n... و {len(news_list) - 10} منشور آخر"
@@ -127,7 +127,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 created_by=user.id,
                 news_id=news_id
             )
-            await send_admin_message(context, user.id, f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📰 المنشور: {news_id} - {news.title[:30]}")
+            await send_admin_message(context, user.id, f"✅ تمت إضافة الرد\n\n🔑 الكلمة: {keyword}\n📰 المنشور: {news_id} - {news.content[:30]}")
             await log_activity("add_response", f"Keyword: {keyword}, News: {news_id}", user.id)
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل إضافة الرد: {str(e)}")
@@ -338,7 +338,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         text_msg = "📰 **المنشورات:**\n\n"
         for n in news[:15]:
             status = "✅" if n.is_published else "📝"
-            text_msg += f"{status} `{n.id}` - {n.title[:30]}\n"
+            text_msg += f"{status} `{n.id}` - {n.content[:30]}\n"
 
         if len(news) > 15:
             text_msg += f"\n... و {len(news) - 15} منشور آخر"

@@ -54,7 +54,6 @@ def detect_file_type(filename: str) -> str:
 
 
 class NewsCreate(BaseModel):
-    title: Optional[str] = None
     content: str
     image_url: Optional[str] = None
     file_url: Optional[str] = None
@@ -88,7 +87,6 @@ async def get_news():
     return [
         {
             "id": n.id,
-            "title": n.title,
             "content": n.content,
             "imageUrl": n.image_url,
             "fileUrl": n.file_url,
@@ -120,7 +118,7 @@ async def analyze_news(data: NewsAnalyze):
 
 @router.post("/")
 async def create_news(data: NewsCreate):
-    n = await add_news(title=data.title or "", content=data.content,
+    n = await add_news(title=None, content=data.content,
                          image_url=data.image_url, file_url=data.file_url,
                          file_name=data.file_name,
                          publish_to_channel=data.publish_to_channel,
@@ -128,7 +126,7 @@ async def create_news(data: NewsCreate):
                          as_document=data.as_document,
                          file_id=data.file_id,
                          target_channels=data.target_channels)
-    return {"id": n.id, "title": n.title, "content": n.content,
+    return {"id": n.id, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
             "published": n.is_published,
             "publishToChannel": n.publish_to_channel, "as_document": n.as_document}
@@ -136,7 +134,6 @@ async def create_news(data: NewsCreate):
 
 @router.post("/upload")
 async def create_news_with_file(
-    title: str = Form(...),
     content: str = Form(...),
     file: Optional[UploadFile] = File(None),
     publish_to_channel: bool = Form(False),
@@ -170,7 +167,7 @@ async def create_news_with_file(
                 if ext == 'pdf':
                     thumbnail_url = generate_pdf_thumbnail(file_url)
 
-        n = await add_news(title=title, content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
+        n = await add_news(title=None, content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
                             publish_to_channel=publish_to_channel, publish_to_groups=to_groups, as_document=as_document)
 
         import json
@@ -203,7 +200,7 @@ async def create_news_with_file(
             if is_valid_item(q):
                 await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
 
-        return {"id": n.id, "title": n.title, "content": n.content,
+        return {"id": n.id, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
                 "published": n.is_published,
                 "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
@@ -223,7 +220,7 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
             raise HTTPException(status_code=404, detail="News not found")
 
         as_document = payload.as_document if payload else news.as_document
-        text = f"{news.title}\n\n{news.content}"
+        text = news.content
         sent, channel_message_id, group_message_ids = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         as_document=as_document,
                                         file_name=news.file_name, thumbnail_url=news.thumbnail_url,
@@ -251,7 +248,7 @@ async def edit_news(news_id: int, data: NewsCreate):
         raise HTTPException(status_code=404, detail="News not found")
     
     # Update the news in database
-    updated = await update_news(news_id, title=data.title, content=data.content,
+    updated = await update_news(news_id, content=data.content,
                           image_url=data.image_url, file_url=data.file_url,
                           publish_to_channel=data.publish_to_channel,
                           publish_to_groups=data.publish_to_groups,
@@ -271,7 +268,7 @@ async def edit_news(news_id: int, data: NewsCreate):
             pass
     
     if group_message_ids or n.channel_message_id:
-        text = f"{data.title}\n\n{data.content}"
+        text = data.content
         edited_count, failed_count = await edit_published_messages(
             text=text,
             group_message_ids=group_message_ids,
@@ -282,7 +279,7 @@ async def edit_news(news_id: int, data: NewsCreate):
             file_name=n.file_name
         )
     
-    return {"id": updated.id, "title": updated.title, "content": updated.content,
+    return {"id": updated.id, "content": updated.content,
             "imageUrl": updated.image_url, "fileUrl": updated.file_url,
             "publishToChannel": updated.publish_to_channel, "publishToGroups": updated.publish_to_groups,
             "asDocument": updated.as_document, "channelMessageId": updated.channel_message_id,

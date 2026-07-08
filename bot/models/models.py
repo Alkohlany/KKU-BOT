@@ -73,7 +73,6 @@ class News(Base):
     __tablename__ = "news"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(255), nullable=True)
     content = Column(Text, nullable=False)
     image_url = Column(String(500))
     file_url = Column(String(500))
