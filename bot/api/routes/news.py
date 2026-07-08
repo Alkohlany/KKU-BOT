@@ -87,8 +87,6 @@ async def get_news():
             "fileId": n.file_id,
             "fileType": n.file_type,
             "published": n.is_published,
-            "publishToChannel": n.publish_to_channel,
-            "publishToGroups": n.publish_to_groups,
             "asDocument": n.as_document,
             "channelMessageId": n.channel_message_id,
             "publishedAt": n.published_at.isoformat() if n.published_at else None,
@@ -119,7 +117,7 @@ async def create_news(data: NewsCreate):
     return {"id": n.id, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
             "published": n.is_published,
-            "publishToChannel": n.publish_to_channel, "as_document": n.as_document}
+            "as_document": n.as_document}
 
 
 @router.post("/upload")
@@ -191,7 +189,7 @@ async def create_news_with_file(
         return {"id": n.id, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
                 "published": n.is_published,
-                "publishToChannel": n.publish_to_channel, "asDocument": n.as_document}
+                "asDocument": n.as_document}
     except HTTPException:
         raise
     except Exception as e:
@@ -267,7 +265,6 @@ async def edit_news(news_id: int, data: NewsCreate):
     
     return {"id": updated.id, "content": updated.content,
             "imageUrl": updated.image_url, "fileUrl": updated.file_url,
-            "publishToChannel": updated.publish_to_channel, "publishToGroups": updated.publish_to_groups,
             "asDocument": updated.as_document, "channelMessageId": updated.channel_message_id,
             "editedMessages": edited_count, "failedMessages": failed_count}
 
