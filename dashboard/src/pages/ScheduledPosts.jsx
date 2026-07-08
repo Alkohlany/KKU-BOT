@@ -37,6 +37,10 @@ export default function ScheduledPosts() {
 
   useEffect(() => {
     loadPosts();
+    const interval = setInterval(() => {
+      loadPosts();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadPosts = async () => {
