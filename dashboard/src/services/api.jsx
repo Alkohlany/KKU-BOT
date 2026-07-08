@@ -104,6 +104,13 @@ const api = {
   getGroups: () => api.get('/groups'),
   addGroup: (data) => api.post('/groups', data),
   toggleGroup: (id, enabled) => api.put(`/groups/${id}/toggle`, { enabled }),
+
+  getChannels: () => api.get('/channels'),
+  getActiveChannels: () => api.get('/channels/active'),
+  addChannel: (data) => api.post('/channels', data),
+  updateChannel: (id, data) => api.put(`/channels/${id}`, data),
+  toggleChannel: (id) => api.put(`/channels/${id}/toggle`),
+  deleteChannel: (id) => api.delete(`/channels/${id}`),
   getBannedUsers: () => api.get('/users/banned'),
   banUser: (data) => api.post('/users/banned', data),
   unbanUser: (id) => api.delete(`/users/banned/${id}`),
@@ -131,7 +138,28 @@ const api = {
 
   getScheduledPosts: () => api.get('/scheduled-posts'),
   addScheduledPost: (data) => api.post('/scheduled-posts', data),
+  updateScheduledPost: (id, data) => api.put(`/scheduled-posts/${id}`, data),
   deleteScheduledPost: (id) => api.delete(`/scheduled-posts/${id}`),
+  deleteAllScheduledPosts: () => api.delete('/scheduled-posts'),
+  addScheduledPostWithFile: (formData) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_URL}/scheduled-posts/upload`);
+      const token = localStorage.getItem('token');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          reject(new Error(xhr.responseText));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
 
   getStudyPlans: () => api.get('/study-plans'),
   addStudyPlan: (data) => api.post('/study-plans', data),

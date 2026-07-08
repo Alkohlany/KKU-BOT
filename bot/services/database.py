@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from bot.models.models import Base, User, Group, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, ResponseCategory, Settings
+from bot.models.models import Base, User, Group, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, ResponseCategory, Settings
 from bot.config import DATABASE_URL
 from sqlalchemy import select, update, delete, func, text
 from datetime import datetime, timezone, timedelta
@@ -58,6 +58,27 @@ async def init_db():
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS publish_to_groups BOOLEAN DEFAULT TRUE"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS target_channels TEXT"))
+
+        # Add target_channels to news, scheduled_posts, study_plans
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS target_channels TEXT"))
+        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS target_channels TEXT"))
+
+        # Create channel_groups table if not exists
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS channel_groups (
+                id SERIAL PRIMARY KEY,
+                chat_id BIGINT UNIQUE NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                type VARCHAR(20) NOT NULL DEFAULT 'group',
+                member_count INTEGER DEFAULT 0,
+                invite_link VARCHAR(500),
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
 
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
@@ -248,11 +269,11 @@ async def log_activity(action: str, details: str = None, performed_by: int = Non
 
 
 # ==================== News ====================
-async def add_news(title, content, image_url=None, file_url=None, thumbnail_url=None, file_name=None, file_type=None, created_by=None, publish_to_channel=False, publish_to_groups=True, as_document=False, file_id=None):
+async def add_news(title, content, image_url=None, file_url=None, thumbnail_url=None, file_name=None, file_type=None, created_by=None, publish_to_channel=False, publish_to_groups=True, as_document=False, file_id=None, target_channels=None):
     async with async_session() as session:
         news = News(title=title, content=content, image_url=image_url, 
                    file_url=file_url, thumbnail_url=thumbnail_url, file_name=file_name, file_type=file_type, created_by=created_by,
-                   publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups, as_document=as_document, file_id=file_id)
+                   publish_to_channel=publish_to_channel, publish_to_groups=publish_to_groups, as_document=as_document, file_id=file_id, target_channels=target_channels)
         session.add(news)
         await session.commit()
         return news
@@ -279,7 +300,7 @@ async def get_news_by_id(news_id: int):
         result = await session.execute(select(News).where(News.id == news_id))
         return result.scalar_one_or_none()
 
-async def update_news(news_id, title=None, content=None, image_url=None, file_url=None, publish_to_channel=None, publish_to_groups=None, as_document=None, channel_message_id=None, group_message_ids=None):
+async def update_news(news_id, title=None, content=None, image_url=None, file_url=None, publish_to_channel=None, publish_to_groups=None, as_document=None, channel_message_id=None, group_message_ids=None, target_channels=None):
     async with async_session() as session:
         stmt = select(News).where(News.id == news_id)
         result = await session.execute(stmt)
@@ -304,6 +325,8 @@ async def update_news(news_id, title=None, content=None, image_url=None, file_ur
             news.channel_message_id = channel_message_id
         if group_message_ids is not None:
             news.group_message_ids = group_message_ids
+        if target_channels is not None:
+            news.target_channels = target_channels
         await session.commit()
         await session.refresh(news)
         return news
@@ -405,12 +428,12 @@ async def update_question(question_id: int, question: str = None, answer: str = 
 # ==================== Scheduled Posts ====================
 async def add_scheduled_post(title, content, schedule_time, image_url=None, file_url=None, 
                             is_recurring=False, recurring_interval=None, created_by=None,
-                            publish_to_channel=False, as_document=False):
+                            publish_to_channel=False, as_document=False, target_channels=None):
     async with async_session() as session:
         post = ScheduledPost(title=title, content=content, schedule_time=schedule_time,
                             image_url=image_url, file_url=file_url, is_recurring=is_recurring,
                             recurring_interval=recurring_interval, created_by=created_by,
-                            publish_to_channel=publish_to_channel, as_document=as_document)
+                            publish_to_channel=publish_to_channel, as_document=as_document, target_channels=target_channels)
         session.add(post)
         await session.commit()
         return post
@@ -463,6 +486,28 @@ async def reschedule_post(post_id: int, recurring_interval: str):
 async def delete_scheduled_post(post_id):
     async with async_session() as session:
         await session.execute(delete(ScheduledPost).where(ScheduledPost.id == post_id))
+        await session.commit()
+
+async def get_scheduled_post(post_id):
+    async with async_session() as session:
+        result = await session.execute(select(ScheduledPost).where(ScheduledPost.id == post_id))
+        return result.scalar_one_or_none()
+
+async def update_scheduled_post(post_id, **kwargs):
+    async with async_session() as session:
+        result = await session.execute(select(ScheduledPost).where(ScheduledPost.id == post_id))
+        post = result.scalar_one_or_none()
+        if post:
+            for key, value in kwargs.items():
+                if value is not None:
+                    setattr(post, key, value)
+            await session.commit()
+            await session.refresh(post)
+        return post
+
+async def delete_all_scheduled_posts():
+    async with async_session() as session:
+        await session.execute(text("DELETE FROM scheduled_posts"))
         await session.commit()
 
 
@@ -640,3 +685,62 @@ async def delete_response_category(cat_id):
     async with async_session() as session:
         await session.execute(delete(ResponseCategory).where(ResponseCategory.id == cat_id))
         await session.commit()
+
+
+# ==================== Channel Groups ====================
+async def get_all_channel_groups():
+    async with async_session() as session:
+        result = await session.execute(select(ChannelGroup).order_by(ChannelGroup.created_at.desc()))
+        return result.scalars().all()
+
+async def get_active_channel_groups():
+    async with async_session() as session:
+        result = await session.execute(select(ChannelGroup).where(ChannelGroup.is_active == True).order_by(ChannelGroup.created_at.desc()))
+        return result.scalars().all()
+
+async def add_channel_group(chat_id, title, type, member_count=0, invite_link=None):
+    async with async_session() as session:
+        existing = await session.execute(select(ChannelGroup).where(ChannelGroup.chat_id == chat_id))
+        if existing.scalar_one_or_none():
+            return None
+        group = ChannelGroup(chat_id=chat_id, title=title, type=type, member_count=member_count, invite_link=invite_link)
+        session.add(group)
+        await session.commit()
+        await session.refresh(group)
+        return group
+
+async def toggle_channel_group(group_id):
+    async with async_session() as session:
+        result = await session.execute(select(ChannelGroup).where(ChannelGroup.id == group_id))
+        group = result.scalar_one_or_none()
+        if group:
+            group.is_active = not group.is_active
+            await session.commit()
+            await session.refresh(group)
+        return group
+
+async def update_channel_group(group_id, **kwargs):
+    async with async_session() as session:
+        result = await session.execute(select(ChannelGroup).where(ChannelGroup.id == group_id))
+        group = result.scalar_one_or_none()
+        if group:
+            for key, value in kwargs.items():
+                setattr(group, key, value)
+            await session.commit()
+            await session.refresh(group)
+        return group
+
+async def delete_channel_group(group_id):
+    async with async_session() as session:
+        result = await session.execute(select(ChannelGroup).where(ChannelGroup.id == group_id))
+        group = result.scalar_one_or_none()
+        if group:
+            await session.delete(group)
+            await session.commit()
+            return True
+        return False
+
+async def get_channel_group_by_chat_id(chat_id):
+    async with async_session() as session:
+        result = await session.execute(select(ChannelGroup).where(ChannelGroup.chat_id == chat_id))
+        return result.scalar_one_or_none()

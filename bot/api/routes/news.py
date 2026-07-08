@@ -54,7 +54,7 @@ def detect_file_type(filename: str) -> str:
 
 
 class NewsCreate(BaseModel):
-    title: str
+    title: Optional[str] = None
     content: str
     image_url: Optional[str] = None
     file_url: Optional[str] = None
@@ -63,6 +63,7 @@ class NewsCreate(BaseModel):
     publish_to_groups: bool = True
     as_document: bool = False
     file_id: Optional[str] = None
+    target_channels: Optional[str] = None
 
 
 class NewsAnalyze(BaseModel):
@@ -119,13 +120,14 @@ async def analyze_news(data: NewsAnalyze):
 
 @router.post("/")
 async def create_news(data: NewsCreate):
-    n = await add_news(title=data.title, content=data.content,
+    n = await add_news(title=data.title or "", content=data.content,
                          image_url=data.image_url, file_url=data.file_url,
                          file_name=data.file_name,
                          publish_to_channel=data.publish_to_channel,
                          publish_to_groups=data.publish_to_groups,
                          as_document=data.as_document,
-                         file_id=data.file_id)
+                         file_id=data.file_id,
+                         target_channels=data.target_channels)
     return {"id": n.id, "title": n.title, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
             "published": n.is_published,
@@ -227,7 +229,8 @@ async def publish_news_endpoint(news_id: int, payload: PublishPayload = None):
         sent, channel_message_id, group_message_ids = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         to_channel=publish_to_channel, to_groups=should_publish_to_groups,
                                         as_document=as_document,
-                                        file_name=news.file_name, thumbnail_url=news.thumbnail_url)
+                                        file_name=news.file_name, thumbnail_url=news.thumbnail_url,
+                                        target_channels=news.target_channels)
 
         await publish_news(news_id)
         import json
@@ -255,7 +258,8 @@ async def edit_news(news_id: int, data: NewsCreate):
                           image_url=data.image_url, file_url=data.file_url,
                           publish_to_channel=data.publish_to_channel,
                           publish_to_groups=data.publish_to_groups,
-                          as_document=data.as_document)
+                          as_document=data.as_document,
+                          target_channels=data.target_channels)
     
     # Edit published messages in groups and channel
     edited_count = 0

@@ -28,6 +28,19 @@ class Group(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
+class ChannelGroup(Base):
+    __tablename__ = 'channel_groups'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chat_id = Column(BigInteger, unique=True, nullable=False)
+    title = Column(String(255), nullable=False)
+    type = Column(String(20), nullable=False, default='group')
+    member_count = Column(Integer, default=0)
+    invite_link = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+
 class AutoResponse(Base):
     __tablename__ = "auto_responses"
 
@@ -70,7 +83,7 @@ class News(Base):
     __tablename__ = "news"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(255), nullable=False)
+    title = Column(String(255), nullable=True)
     content = Column(Text, nullable=False)
     image_url = Column(String(500))
     file_url = Column(String(500))
@@ -86,6 +99,7 @@ class News(Base):
     channel_message_id = Column(Integer, nullable=True)
     as_document = Column(Boolean, default=False)
     group_message_ids = Column(Text, nullable=True)  # JSON string: {"chat_id": message_id, ...}
+    target_channels = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
@@ -122,6 +136,7 @@ class ScheduledPost(Base):
     created_by = Column(BigInteger)
     publish_to_channel = Column(Boolean, default=False)
     as_document = Column(Boolean, default=False)
+    target_channels = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
@@ -153,6 +168,7 @@ class StudyPlan(Base):
     is_active = Column(Boolean, default=True)
     usage_count = Column(Integer, default=0)
     channel_message_id = Column(Integer, nullable=True)
+    target_channels = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     group = relationship("StudyPlanGroup", back_populates="plans")

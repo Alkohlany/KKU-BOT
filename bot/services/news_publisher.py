@@ -23,16 +23,25 @@ def wrap_links_in_blockquote(text: str) -> str:
     return re.sub(url_pattern, replace_url, text)
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, to_groups: bool = True, to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> tuple[int, int | None, dict]:
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, to_groups: bool = True, to_channel: bool = False, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, target_channels: str = None) -> tuple[int, int | None, dict]:
     text = wrap_links_in_blockquote(text)
     groups = await get_all_groups()
     sent = 0
     channel_message_id = None
     group_message_ids = {}
 
+    target_chat_ids = None
+    if target_channels:
+        try:
+            target_chat_ids = json.loads(target_channels)
+        except (json.JSONDecodeError, TypeError):
+            target_chat_ids = None
+
     if to_groups:
         for group in groups:
             if not group.is_active:
+                continue
+            if target_chat_ids is not None and str(group.chat_id) not in [str(cid) for cid in target_chat_ids]:
                 continue
             try:
                 msg_id = await _send_to_chat_and_get_id(str(group.chat_id), text, image_url, file_url, file_id, as_document, file_name, thumbnail_url)
@@ -43,31 +52,32 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
                 logger.error(f"Failed to send to group {group.chat_id}: {e}")
 
     if to_channel and CHANNEL_ID:
-        try:
-            chat_id = str(CHANNEL_ID)
-            if as_document:
-                if file_url:
+        if target_chat_ids is None or str(CHANNEL_ID) in [str(cid) for cid in target_chat_ids]:
+            try:
+                chat_id = str(CHANNEL_ID)
+                if as_document:
+                    if file_url:
+                        if await _send_file(chat_id, file_url, text, original_filename=file_name):
+                            sent += 1
+                    if image_url:
+                        if await _send_file(chat_id, image_url, text, original_filename=file_name):
+                            sent += 1
+                elif image_url:
+                    try:
+                        msg = await bot.send_photo(chat_id=chat_id, photo=image_url, caption=text)
+                        sent += 1
+                        channel_message_id = msg.message_id
+                    except Exception as e:
+                        logger.warning(f"send_photo failed for channel {CHANNEL_ID}: {e}")
+                elif file_url:
                     if await _send_file(chat_id, file_url, text, original_filename=file_name):
                         sent += 1
-                if image_url:
-                    if await _send_file(chat_id, image_url, text, original_filename=file_name):
-                        sent += 1
-            elif image_url:
-                try:
-                    msg = await bot.send_photo(chat_id=chat_id, photo=image_url, caption=text)
+                else:
+                    msg = await bot.send_message(chat_id=chat_id, text=text)
                     sent += 1
                     channel_message_id = msg.message_id
-                except Exception as e:
-                    logger.warning(f"send_photo failed for channel {CHANNEL_ID}: {e}")
-            elif file_url:
-                if await _send_file(chat_id, file_url, text, original_filename=file_name):
-                    sent += 1
-            else:
-                msg = await bot.send_message(chat_id=chat_id, text=text)
-                sent += 1
-                channel_message_id = msg.message_id
-        except Exception as e:
-            logger.error(f"Failed to send to channel {CHANNEL_ID}: {e}")
+            except Exception as e:
+                logger.error(f"Failed to send to channel {CHANNEL_ID}: {e}")
 
     return sent, channel_message_id, group_message_ids
 

@@ -47,7 +47,7 @@ function Layout({ sidebarOpen, setSidebarOpen }) {
             <Route path="/scheduled-posts" element={<ScheduledPosts />} />
             <Route path="/banned" element={<BannedUsers />} />
             <Route path="/activity" element={<ActivityLog />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings" element={<Settings onLogout={() => { localStorage.removeItem('isLoggedIn'); localStorage.removeItem('token'); window.location.href = '/login'; }} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

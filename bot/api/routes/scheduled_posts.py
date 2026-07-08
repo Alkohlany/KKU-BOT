@@ -20,6 +20,7 @@ class ScheduledPostCreate(BaseModel):
     recurring_interval: Optional[str] = None
     publish_to_channel: bool = False
     as_document: bool = False
+    target_channels: Optional[str] = None
 
 
 @router.get("/")
@@ -58,7 +59,8 @@ async def create_scheduled_post(data: ScheduledPostCreate):
                                     is_recurring=data.is_recurring,
                                     recurring_interval=data.recurring_interval,
                                     publish_to_channel=data.publish_to_channel,
-                                    as_document=data.as_document)
+                                    as_document=data.as_document,
+                                    target_channels=data.target_channels)
     return {
         "id": p.id, "title": p.title, "content": p.content,
         "imageUrl": p.image_url, "fileUrl": p.file_url,
@@ -78,6 +80,7 @@ async def create_scheduled_post_with_file(
     file: Optional[UploadFile] = File(None),
     publish_to_channel: bool = Form(False),
     as_document: bool = Form(False),
+    target_channels: Optional[str] = Form(None),
 ):
     image_url = None
     file_url = None
@@ -103,7 +106,8 @@ async def create_scheduled_post_with_file(
                                     is_recurring=is_recurring,
                                     recurring_interval=recurring_interval,
                                     publish_to_channel=publish_to_channel,
-                                    as_document=as_document)
+                                    as_document=as_document,
+                                    target_channels=target_channels)
     return {
         "id": p.id, "title": p.title, "content": p.content,
         "imageUrl": p.image_url, "fileUrl": p.file_url,
@@ -117,3 +121,28 @@ async def create_scheduled_post_with_file(
 async def delete_scheduled_post_endpoint(post_id: int):
     await delete_scheduled_post(post_id)
     return {"status": "deleted"}
+
+
+@router.put("/{post_id}")
+async def update_scheduled_post(post_id: int, post: ScheduledPostCreate):
+    from ...services.database import get_scheduled_post, update_scheduled_post as update_post
+    existing = await get_scheduled_post(post_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Scheduled post not found")
+    if existing.is_published:
+        raise HTTPException(status_code=400, detail="Cannot edit a published post")
+    dt = post.schedule_time
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    else:
+        riyadh_tz = ZoneInfo("Asia/Riyadh")
+        dt = dt.replace(tzinfo=riyadh_tz).astimezone(timezone.utc).replace(tzinfo=None)
+    updated = await update_post(post_id, content=post.content, schedule_time=dt, is_recurring=post.is_recurring, recurring_interval=post.recurring_interval, publish_to_channel=post.publish_to_channel, as_document=post.as_document, target_channels=post.target_channels)
+    return updated
+
+
+@router.delete("/")
+async def delete_all_scheduled_posts():
+    from ...services.database import delete_all_scheduled_posts as delete_all
+    await delete_all()
+    return {"message": "All scheduled posts deleted"}

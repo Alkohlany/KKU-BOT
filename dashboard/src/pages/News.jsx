@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useConfirm } from '../components/ConfirmDialog';
 import { useToast } from '../components/ToastContext';
+import ChannelGroupSelector from '../components/ChannelGroupSelector';
 
 export default function News() {
   const { confirm } = useConfirm();
@@ -11,8 +12,8 @@ export default function News() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showRelinkModal, setShowRelinkModal] = useState(false);
-  const [form, setForm] = useState({ title: '', content: '', as_document: false, publish_to_channel: false, publish_to_groups: false });
-  const [editForm, setEditForm] = useState({ title: '', content: '', as_document: false });
+  const [form, setForm] = useState({ content: '', as_document: false });
+  const [editForm, setEditForm] = useState({ content: '', as_document: false });
   const [editItem, setEditItem] = useState(null);
   const [publishItem, setPublishItem] = useState(null);
   const [uploadFile, setUploadFile] = useState(null);
@@ -32,6 +33,18 @@ export default function News() {
   const [enhancingContent, setEnhancingContent] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [relinkItem, setRelinkItem] = useState(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [deleteOptions, setDeleteOptions] = useState({
+    fromChannels: false,
+    fromGroups: false,
+    deleteAll: false,
+    permanent: false,
+    channelIds: [],
+    groupIds: []
+  });
+  const [selectedChannels, setSelectedChannels] = useState([]);
+  const [editSelectedChannels, setEditSelectedChannels] = useState([]);
 
   useEffect(() => {
     loadNews();
@@ -49,7 +62,7 @@ export default function News() {
   };
 
   const filtered = news.filter(
-    (n) => n.title?.includes(search) || n.content?.includes(search)
+    (n) => n.content?.includes(search)
   );
 
   const handleEnhance = async () => {
@@ -60,7 +73,7 @@ export default function News() {
     setEnhancingContent(true);
     try {
       const formData = new FormData();
-      formData.append('title', form.title || '');
+      formData.append('title', '');
       formData.append('content', form.content);
       if (uploadFile) {
         formData.append('file', uploadFile);
@@ -79,13 +92,13 @@ export default function News() {
   };
 
   const handleGenerateAI = async () => {
-    if (!form.title || !form.content) {
-      showToast('يرجى ملء العنوان والمحتوى أولاً', 'error');
+    if (!form.content) {
+      showToast('يرجى كتابة المحتوى أولاً', 'error');
       return;
     }
     setGenerating(true);
     try {
-      const result = await api.analyzeNews({ title: form.title, content: form.content });
+      const result = await api.analyzeNews({ title: '', content: form.content });
       setAiKeywords(result.keywords || []);
       setAiQuestions(result.questions || []);
       setSelectedKeywords([]);
@@ -112,30 +125,30 @@ export default function News() {
   };
 
   const handleSave = async () => {
-    if (!form.title || !form.content) return;
+    if (!form.content) return;
     setSaving(true);
     setUploadProgress(0);
     try {
       let newItem;
       if (uploadFile) {
         const formData = new FormData();
-        formData.append('title', form.title);
+        formData.append('title', '');
         formData.append('content', form.content);
         formData.append('file', uploadFile);
         formData.append('as_document', form.as_document);
-        formData.append('publish_to_channel', form.publish_to_channel || false);
-        formData.append('publish_to_groups', form.publish_to_groups || false);
+        formData.append('target_channels', JSON.stringify(selectedChannels));
         formData.append('selected_keywords', JSON.stringify(selectedKeywords));
         formData.append('selected_questions', JSON.stringify(selectedQuestions));
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
         });
       } else {
-        newItem = await api.addNews(form);
+        newItem = await api.addNews({ ...form, title: '', target_channels: JSON.stringify(selectedChannels) });
       }
       setNews([...news, newItem]);
-      setForm({ title: '', content: '', as_document: false, publish_to_channel: false, publish_to_groups: false });
+      setForm({ content: '', as_document: false });
       setUploadFile(null);
+      setSelectedChannels([]);
       setShowModal(false);
       setShowAiPanel(false);
       setAiKeywords([]);
@@ -153,30 +166,24 @@ export default function News() {
   };
 
   const handleEditSave = async () => {
-    if (!editForm.title || !editForm.content || !editItem) return;
+    if (!editForm.content || !editItem) return;
     setSaving(true);
     try {
       if (editUploadFile) {
         const formData = new FormData();
-        formData.append('title', editForm.title);
+        formData.append('title', '');
         formData.append('content', editForm.content);
         formData.append('as_document', editForm.as_document);
-        formData.append('publish_to_channel', editForm.publish_to_channel);
-        formData.append('publish_to_groups', editForm.publish_to_groups);
+        formData.append('target_channels', JSON.stringify(editSelectedChannels));
         formData.append('file', editUploadFile);
         await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {});
       } else {
-        await api.put(`/news/${editItem.id}`, editForm);
+        await api.put(`/news/${editItem.id}`, { ...editForm, title: '', target_channels: JSON.stringify(editSelectedChannels) });
       }
       setNews(news.map(n => n.id === editItem.id ? { 
         ...n, 
-        title: editForm.title, 
         content: editForm.content, 
         as_document: editForm.as_document,
-        publish_to_channel: editForm.publish_to_channel,
-        publishToChannel: editForm.publish_to_channel,
-        publish_to_groups: editForm.publish_to_groups,
-        publishToGroups: editForm.publish_to_groups,
       } : n));
       setShowEditModal(false);
       setEditItem(null);
@@ -231,15 +238,42 @@ export default function News() {
     }
   };
 
-  const handleDeleteFromChannel = async (id) => {
-    const ok = await confirm('هل أنت متأكد من حذف هذا المنشور من القناة فقط؟');
-    if (!ok) return;
+  const openDeleteDialog = (item) => {
+    setDeleteItem(item);
+    setDeleteOptions({
+      fromChannels: false,
+      fromGroups: false,
+      deleteAll: false,
+      permanent: false,
+      channelIds: [],
+      groupIds: []
+    });
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteItem) return;
     try {
-      await api.delete(`/news/${id}/channel`);
-      showToast('تم حذف المنشور من القناة بنجاح', 'success');
+      if (deleteOptions.permanent) {
+        await api.delete(`/news/${deleteItem.id}`);
+        setNews(news.filter((n) => n.id !== deleteItem.id));
+        showToast('تم الحذف النهائي بنجاح', 'success');
+      } else if (deleteOptions.deleteAll) {
+        await api.delete(`/news/${deleteItem.id}/channel`);
+        setNews(news.map(n => n.id === deleteItem.id ? { ...n, published: false, is_published: false } : n));
+        showToast('تم الحذف من الكل وجعله مسودة', 'success');
+      } else {
+        const payload = {};
+        if (deleteOptions.fromChannels) payload.channelIds = deleteOptions.channelIds;
+        if (deleteOptions.fromGroups) payload.groupIds = deleteOptions.groupIds;
+        await api.post(`/news/${deleteItem.id}/delete-from`, payload);
+        showToast('تم الحذف من المحدد بنجاح', 'success');
+      }
+      setShowDeleteDialog(false);
+      setDeleteItem(null);
     } catch (err) {
-      console.error('Failed to delete from channel:', err);
-      showToast('فشل حذف المنشور من القناة', 'error');
+      console.error('Failed to delete:', err);
+      showToast('فشل الحذف', 'error');
     }
   };
 
@@ -279,7 +313,7 @@ export default function News() {
     if (!relinkItem) return;
     setGenerating(true);
     try {
-      const result = await api.analyzeNews({ title: relinkItem.title, content: relinkItem.content });
+      const result = await api.analyzeNews({ title: '', content: relinkItem.content });
       setAiKeywords(result.keywords || []);
       setAiQuestions(result.questions || []);
       setSelectedKeywords(relinkItem.keywords || []);
@@ -294,12 +328,10 @@ export default function News() {
   const openEditModal = (item) => {
     setEditItem(item);
     setEditForm({ 
-      title: item.title, 
       content: item.content, 
       as_document: item.as_document || false,
-      publish_to_channel: item.publish_to_channel || item.publishToChannel || false,
-      publish_to_groups: item.publish_to_groups || item.publishToGroups !== false,
     });
+    setEditSelectedChannels(item.target_channels ? (typeof item.target_channels === 'string' ? JSON.parse(item.target_channels) : item.target_channels) : []);
     setEditUploadFile(null);
     setShowEditModal(true);
   };
@@ -352,7 +384,7 @@ export default function News() {
               </svg>
               حذف الكل
             </button>
-            <button className="btn btn-primary" onClick={() => { setForm({ title: '', content: '', as_document: false, publish_to_channel: false, publish_to_groups: false }); setUploadFile(null); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ content: '', as_document: false }); setUploadFile(null); setSelectedChannels([]); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -366,7 +398,6 @@ export default function News() {
           <table>
             <thead>
               <tr>
-                <th>العنوان</th>
                 <th>المحتوى</th>
                 <th>الحالة</th>
                 <th>مكان النشر</th>
@@ -376,7 +407,6 @@ export default function News() {
             <tbody>
               {filtered.map((item) => (
                 <tr key={item.id}>
-                  <td><strong>{item.title}</strong></td>
                   <td style={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.content?.substring(0, 80)}...
                   </td>
@@ -409,14 +439,9 @@ export default function News() {
                       <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)} title="إعادة ربط">
                         إعادة ربط
                       </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)} title="حذف نهائي">
-                        حذف نهائي
+                      <button className="btn btn-danger btn-sm" onClick={() => openDeleteDialog(item)} title="حذف">
+                        حذف
                       </button>
-                      {(item.publish_to_channel || item.publishToChannel) && item.published && (
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFromChannel(item.id)} title="حذف من القناة فقط" style={{ background: 'var(--warning)', borderColor: 'var(--warning)' }}>
-                          حذف من القناة
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -438,7 +463,6 @@ export default function News() {
           {filtered.map((item) => (
             <div key={item.id} className="mobile-card">
               <div className="mobile-card-header">
-                <strong>{item.title}</strong>
                 <span className={`status-badge ${item.published ? 'active' : 'inactive'}`}>
                   {item.published ? 'منشور' : 'مسودة'}
                 </span>
@@ -468,14 +492,9 @@ export default function News() {
                 <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)}>
                   إعادة ربط
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)}>
-                  حذف نهائي
+                <button className="btn btn-danger btn-sm" onClick={() => openDeleteDialog(item)}>
+                  حذف
                 </button>
-                {(item.publish_to_channel || item.publishToChannel) && item.published && (
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFromChannel(item.id)} style={{ background: 'var(--warning)', borderColor: 'var(--warning)' }}>
-                    حذف من القناة
-                  </button>
-                )}
               </div>
             </div>
           ))}
@@ -500,15 +519,6 @@ export default function News() {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>العنوان</label>
-                <input
-                  className="form-input"
-                  placeholder="عنوان المنشور"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   المحتوى
                   <button
@@ -528,7 +538,7 @@ export default function News() {
                   style={{ minHeight: 150 }}
                 />
               </div>
-              {form.title && form.content && !showAiPanel && (
+              {form.content && !showAiPanel && (
                 <div className="form-group">
                   <button
                     className="btn btn-secondary"
@@ -634,26 +644,10 @@ export default function News() {
                 </small>
               </div>
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={form.publish_to_channel}
-                    onChange={(e) => setForm({ ...form, publish_to_channel: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  النشر على القناة الرسمية
-                </label>
-              </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={form.publish_to_groups}
-                    onChange={(e) => setForm({ ...form, publish_to_groups: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  النشر على القروبات
-                </label>
+                <ChannelGroupSelector
+                  selected={selectedChannels}
+                  onChange={setSelectedChannels}
+                />
               </div>
             </div>
             <div className="modal-footer">
@@ -694,15 +688,6 @@ export default function News() {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>العنوان</label>
-                <input
-                  className="form-input"
-                  placeholder="عنوان المنشور"
-                  value={editForm.title}
-                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
                 <label>المحتوى</label>
                 <textarea
                   className="form-input"
@@ -737,26 +722,10 @@ export default function News() {
                 </label>
               </div>
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={editForm.publish_to_channel}
-                    onChange={(e) => setEditForm({ ...editForm, publish_to_channel: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  النشر على القناة الرسمية
-                </label>
-              </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={editForm.publish_to_groups}
-                    onChange={(e) => setEditForm({ ...editForm, publish_to_groups: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  النشر على القروبات
-                </label>
+                <ChannelGroupSelector
+                  selected={editSelectedChannels}
+                  onChange={setEditSelectedChannels}
+                />
               </div>
             </div>
             <div className="modal-footer">
@@ -910,6 +879,100 @@ export default function News() {
                 حفظ الربط
               </button>
               <button className="btn btn-secondary" onClick={() => { setShowRelinkModal(false); setRelinkItem(null); }}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteDialog && (
+        <div className="modal-overlay" onClick={() => { setShowDeleteDialog(false); setDeleteItem(null); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
+            <div className="modal-header">
+              <h3>خيارات الحذف</h3>
+              <button className="modal-close" onClick={() => { setShowDeleteDialog(false); setDeleteItem(null); }}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: 16, color: 'var(--gray-600)', fontSize: 14 }}>
+                اختر طريقة الحذف للمنشور: "{deleteItem?.content?.substring(0, 50)}..."
+              </p>
+              
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={deleteOptions.fromChannels}
+                    onChange={(e) => setDeleteOptions({ ...deleteOptions, fromChannels: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  حذف من القنوات المحددة
+                </label>
+                {deleteOptions.fromChannels && (
+                  <div style={{ marginTop: 8, paddingRight: 28 }}>
+                    <ChannelGroupSelector
+                      selected={deleteOptions.channelIds}
+                      onChange={(ids) => setDeleteOptions({ ...deleteOptions, channelIds: ids })}
+                      label="اختر القنوات"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={deleteOptions.fromGroups}
+                    onChange={(e) => setDeleteOptions({ ...deleteOptions, fromGroups: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  حذف من الجروبات المحددة
+                </label>
+                {deleteOptions.fromGroups && (
+                  <div style={{ marginTop: 8, paddingRight: 28 }}>
+                    <ChannelGroupSelector
+                      selected={deleteOptions.groupIds}
+                      onChange={(ids) => setDeleteOptions({ ...deleteOptions, groupIds: ids })}
+                      label="اختر الجروبات"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={deleteOptions.deleteAll}
+                    onChange={(e) => setDeleteOptions({ ...deleteOptions, deleteAll: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  حذف من الكل + جعله مسودة
+                </label>
+                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12, paddingRight: 28 }}>
+                  سيتم إزالة المنشور من جميع القنوات والجروبات وجعله مسودة
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, color: 'var(--danger)' }}>
+                  <input
+                    type="checkbox"
+                    checked={deleteOptions.permanent}
+                    onChange={(e) => setDeleteOptions({ ...deleteOptions, permanent: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  حذف نهائي من قاعدة البيانات
+                </label>
+                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12, paddingRight: 28 }}>
+                  سيتم حذف المنشور نهائياً من قاعدة البيانات ولا يمكن التراجع عنه
+                </small>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-danger" onClick={handleDeleteConfirm}>
+                تأكيد الحذف
+              </button>
+              <button className="btn btn-secondary" onClick={() => { setShowDeleteDialog(false); setDeleteItem(null); }}>إلغاء</button>
             </div>
           </div>
         </div>

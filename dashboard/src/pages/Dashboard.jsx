@@ -20,16 +20,20 @@ export default function Dashboard() {
     groups: 0,
     responses: 0,
     banned: 0,
+    totalNews: 0,
   });
   const [trends, setTrends] = useState({
     users: { value: '0%', direction: 'up' },
     groups: { value: '0%', direction: 'up' },
     responses: { value: '0%', direction: 'up' },
     banned: { value: '0%', direction: 'up' },
+    totalNews: { value: '0%', direction: 'up' },
   });
   const [weeklyData, setWeeklyData] = useState([]);
   const [pieData, setPieData] = useState([]);
   const [activities, setActivities] = useState([]);
+  const [channels, setChannels] = useState([]);
+  const [groupsList, setGroupsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,18 +42,21 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [statsData, weeklyRes, activityData] = await Promise.all([
+      const [statsData, weeklyRes, activityData, channelsData, groupsData] = await Promise.all([
         api.getStats(),
         api.get('/stats/weekly'),
         api.getActivityLog(),
+        api.get('/channels'),
+        api.get('/groups'),
       ]);
 
       const users = statsData.users || 0;
       const groups = statsData.groups || 0;
       const responses = statsData.responses || 0;
       const banned = statsData.banned || 0;
+      const totalNews = statsData.totalNews || 0;
 
-      setStats({ users, groups, responses, banned });
+      setStats({ users, groups, responses, banned, totalNews });
 
       const days = weeklyRes?.data || [];
       setWeeklyData(days);
@@ -63,6 +70,7 @@ export default function Dashboard() {
         groups: calculateTrend(groups, Math.max(1, Math.floor(groups * 0.9))),
         responses: calculateTrend(secondHalfTotal, firstHalfTotal),
         banned: calculateTrend(banned, Math.max(0, banned - 1)),
+        totalNews: calculateTrend(totalNews, Math.max(1, Math.floor(totalNews * 0.85))),
       });
 
       const typeCounts = { 'ردود تلقائية': 0, 'ردود يدوية': 0, 'رسائل نظام': 0 };
@@ -79,12 +87,29 @@ export default function Dashboard() {
       );
 
       setActivities(activityData.slice(0, 6) || []);
+      setChannels(channelsData || []);
+      setGroupsList(groupsData || []);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  const totalChannels = channels.filter(c => c.type === 'channel').length;
+  const totalGroupsCount = groupsList.filter(g => g.type === 'group').length;
+  const totalMembers = [...channels, ...groupsList].reduce((sum, g) => sum + (g.memberCount || 0), 0);
+  const activeItems = [...channels, ...groupsList].filter(g => g.isActive).length;
+  const inactiveItems = [...channels, ...groupsList].filter(g => !g.isActive).length;
+
+  const allConnections = [
+    ...channels.map(c => ({ ...c, displayType: 'channel' })),
+    ...groupsList.map(g => ({ ...g, displayType: 'group' })),
+  ];
+
+  const mostActive = allConnections
+    .sort((a, b) => (b.postCount || 0) - (a.postCount || 0))
+    .slice(0, 5);
 
   if (loading) {
     return (
@@ -97,63 +122,40 @@ export default function Dashboard() {
   return (
     <>
       <div className="stats-grid">
-          <StatsCard icon="users" value={stats.users.toLocaleString()} label="إجمالي المستخدمين" trend={trends.users.value} trendDir={trends.users.direction} color="green" />
-          <StatsCard icon="groups" value={stats.groups} label="عدد القروبات" trend={trends.groups.value} trendDir={trends.groups.direction} color="blue" />
-          <StatsCard icon="chat" value={stats.responses} label="الردود التلقائية" trend={trends.responses.value} trendDir={trends.responses.direction} color="orange" />
-          <StatsCard icon="block" value={stats.banned} label="المحظورين" trend={trends.banned.value} trendDir={trends.banned.direction} color="red" />
-        </div>
+        <StatsCard icon="users" value={stats.users.toLocaleString()} label="إجمالي المستخدمين" trend={trends.users.value} trendDir={trends.users.direction} color="green" />
+        <StatsCard icon="newspaper" value={stats.totalNews} label="إجمالي المنشورات" trend={trends.totalNews.value} trendDir={trends.totalNews.direction} color="blue" />
+        <StatsCard icon="users" value={totalChannels} label="القنوات المتصلة" trend={`${activeItems} نشط`} trendDir="up" color="orange" />
+        <StatsCard icon="users" value={totalGroupsCount} label="الجروبات المتصلة" trend={`${inactiveItems} غير نشط`} trendDir={inactiveItems > 0 ? 'down' : 'up'} color="red" />
+        <StatsCard icon="chat" value={stats.responses} label="الردود التلقائية" trend={trends.responses.value} trendDir={trends.responses.direction} color="green" />
+        <StatsCard icon="block" value={stats.banned} label="المحظورين" trend={trends.banned.value} trendDir={trends.banned.direction} color="red" />
+      </div>
 
-        <div className="grid-3">
-          <div className="card">
-            <div className="card-header">
-              <h3>الرسائل خلال الأسبوع</h3>
-            </div>
-            <div className="card-body">
-              <div className="chart-container">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12, fontFamily: 'Tajawal' }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{ fontFamily: 'Tajawal', direction: 'rtl', borderRadius: 8, border: '1px solid #eee' }}
-                      formatter={(value) => [`${value} رسالة`, 'الرسائل']}
-                    />
-                    <Bar dataKey="رسائل" fill="#2E7D32" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+      <div className="grid-3">
+        <div className="card">
+          <div className="card-header">
+            <h3>إحصائيات القنوات والجروبات</h3>
           </div>
-
-          <div className="card">
-            <div className="card-header">
-              <h3>توزيع الرسائل</h3>
-            </div>
-            <div className="card-body">
-              <div className="chart-container">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={index} fill={COLORS[index]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ fontFamily: 'Tajawal', direction: 'rtl', borderRadius: 8 }}
-                      formatter={(value) => [`${value}%`, 'النسبة']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+          <div className="card-body">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f8f9fa', borderRadius: 8 }}>
+                <span style={{ color: '#666' }}>إجمالي القنوات</span>
+                <span style={{ fontWeight: 700, color: '#1976D2' }}>{totalChannels}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f8f9fa', borderRadius: 8 }}>
+                <span style={{ color: '#666' }}>إجمالي الجروبات</span>
+                <span style={{ fontWeight: 700, color: '#2E7D32' }}>{totalGroupsCount}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f8f9fa', borderRadius: 8 }}>
+                <span style={{ color: '#666' }}>إجمالي الأعضاء</span>
+                <span style={{ fontWeight: 700, color: '#F57C00' }}>{totalMembers.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#f8f9fa', borderRadius: 8 }}>
+                <span style={{ color: '#666' }}>نشط / غير نشط</span>
+                <span>
+                  <span style={{ fontWeight: 700, color: '#2E7D32' }}>{activeItems}</span>
+                  <span style={{ color: '#999', margin: '0 6px' }}>/</span>
+                  <span style={{ fontWeight: 700, color: '#D32F2F' }}>{inactiveItems}</span>
+                </span>
               </div>
             </div>
           </div>
@@ -161,25 +163,178 @@ export default function Dashboard() {
 
         <div className="card">
           <div className="card-header">
-            <h3>آخر النشاطات</h3>
-            <button className="btn btn-secondary btn-sm">عرض الكل</button>
+            <h3>الرسائل خلال الأسبوع</h3>
           </div>
           <div className="card-body">
-            {activities.length > 0 ? activities.map((act, index) => (
-              <div className="activity-item" key={act.id || index}>
-                <div className={`activity-dot ${act.type === 'حظر' ? 'red' : act.type === 'قروب' ? 'blue' : act.type === 'رد' ? 'green' : 'orange'}`} />
-                <div className="activity-text">
-                  <p>{act.text}</p>
-                  <span>{act.time}</span>
-                </div>
-              </div>
-            )) : (
-              <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>
-                لا توجد نشاطات حديثة
-              </div>
-            )}
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fontFamily: 'Tajawal' }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{ fontFamily: 'Tajawal', direction: 'rtl', borderRadius: 8, border: '1px solid #eee' }}
+                    formatter={(value) => [`${value} رسالة`, 'الرسائل']}
+                  />
+                  <Bar dataKey="رسائل" fill="#2E7D32" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3>توزيع الرسائل</h3>
+          </div>
+          <div className="card-body">
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={index} fill={COLORS[index]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ fontFamily: 'Tajawal', direction: 'rtl', borderRadius: 8 }}
+                    formatter={(value) => [`${value}%`, 'النسبة']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h3>القنوات والجروبات المتصلة</h3>
+          <span style={{ fontSize: 13, color: '#888' }}>{allConnections.length} متصل</span>
+        </div>
+        <div className="card-body">
+          {allConnections.length > 0 ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Tajawal', direction: 'rtl' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #eee', textAlign: 'right' }}>
+                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>الاسم</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>النوع</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>عدد الأعضاء</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>المنشورات</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>الحالة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allConnections.slice(0, 10).map((item, index) => (
+                    <tr key={item.id || index} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 500 }}>
+                        {item.name || `عنصر ${index + 1}`}
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <span style={{
+                          padding: '2px 10px',
+                          borderRadius: 12,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: item.displayType === 'channel' ? '#E3F2FD' : '#E8F5E9',
+                          color: item.displayType === 'channel' ? '#1976D2' : '#2E7D32',
+                        }}>
+                          {item.displayType === 'channel' ? 'قناة' : 'جروب'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 12px', color: '#666' }}>
+                        {(item.memberCount || 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '10px 12px', color: '#666' }}>
+                        {item.postCount || 0}
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: item.isActive ? '#2E7D32' : '#D32F2F',
+                        }}>
+                          <span style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: item.isActive ? '#2E7D32' : '#D32F2F',
+                            display: 'inline-block',
+                          }} />
+                          {item.isActive ? 'نشط' : 'غير نشط'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>
+              لا توجد قنوات أو جروبات متصلة
+            </div>
+          )}
+        </div>
+      </div>
+
+      {mostActive.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h3>الأكثر نشاطاً (حسب المنشورات)</h3>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {mostActive.map((item, index) => (
+                <div key={item.id || index} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 }}>
+                  <span style={{ fontWeight: 700, color: '#999', minWidth: 24 }}>{index + 1}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{item.name || `عنصر ${index + 1}`}</div>
+                    <div style={{ fontSize: 12, color: '#888' }}>
+                      {item.displayType === 'channel' ? 'قناة' : 'جروب'} • {(item.memberCount || 0).toLocaleString()} عضو
+                    </div>
+                  </div>
+                  <span style={{ fontWeight: 700, color: '#1976D2' }}>{item.postCount || 0} منشور</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-header">
+          <h3>آخر النشاطات</h3>
+          <button className="btn btn-secondary btn-sm">عرض الكل</button>
+        </div>
+        <div className="card-body">
+          {activities.length > 0 ? activities.map((act, index) => (
+            <div className="activity-item" key={act.id || index}>
+              <div className={`activity-dot ${act.type === 'حظر' ? 'red' : act.type === 'قروب' ? 'blue' : act.type === 'رد' ? 'green' : 'orange'}`} />
+              <div className="activity-text">
+                <p>{act.text}</p>
+                <span>{act.time}</span>
+              </div>
+            </div>
+          )) : (
+            <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>
+              لا توجد نشاطات حديثة
+            </div>
+          )}
+        </div>
+      </div>
     </>
   );
 }
