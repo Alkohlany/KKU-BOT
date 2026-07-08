@@ -13,7 +13,7 @@ export default function Groups() {
   const [search, setSearch] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [editForm, setEditForm] = useState({ title: '', member_count: 0, invite_link: '' });
+  const [editForm, setEditForm] = useState({ title: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -47,9 +47,7 @@ export default function Groups() {
     setSaving(true);
     try {
       await api.updateChannel(editItem.id, {
-        title: editForm.title,
-        member_count: parseInt(editForm.member_count) || 0,
-        invite_link: editForm.invite_link || null
+        title: editForm.title
       });
       setShowEditModal(false);
       setEditItem(null);
@@ -92,9 +90,7 @@ export default function Groups() {
   const openEditModal = (item) => {
     setEditItem(item);
     setEditForm({
-      title: item.title || '',
-      member_count: item.memberCount || 0,
-      invite_link: item.inviteLink || ''
+      title: item.title || ''
     });
     setShowEditModal(true);
   };
@@ -170,7 +166,7 @@ export default function Groups() {
                 <th>{activeTab === 'channels' ? 'اسم القناة' : 'اسم الجروب'}</th>
                 <th>Chat ID</th>
                 <th>عدد الأعضاء</th>
-                <th>رابط الدعوة</th>
+                <th>الرابط</th>
                 <th>الحالة</th>
                 <th>إجراءات</th>
               </tr>
@@ -269,7 +265,7 @@ export default function Groups() {
                       rel="noopener noreferrer"
                       style={{ fontSize: 12, color: 'var(--primary)' }}
                     >
-                      فتح رابط الدعوة
+                      فتح الرابط
                     </a>
                   )}
                 </div>
@@ -313,25 +309,6 @@ export default function Groups() {
                   placeholder="أدخل الاسم"
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>عدد الأعضاء</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  placeholder="0"
-                  value={editForm.member_count}
-                  onChange={(e) => setEditForm({ ...editForm, member_count: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>رابط الدعوة</label>
-                <input
-                  className="form-input"
-                  placeholder="https://t.me/+..."
-                  value={editForm.invite_link}
-                  onChange={(e) => setEditForm({ ...editForm, invite_link: e.target.value })}
                 />
               </div>
             </div>

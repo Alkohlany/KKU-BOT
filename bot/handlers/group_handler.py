@@ -31,7 +31,7 @@ async def track_group_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if not was_member and is_member and bot_id == context.bot.id:
             existing = await get_channel_group_by_chat_id(chat.id)
             if not existing:
-                # Fetch member count and invite link from Telegram API
+                # Fetch member count and channel/group link from Telegram API
                 member_count = 0
                 invite_link = None
                 try:
@@ -40,7 +40,9 @@ async def track_group_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     logger.warning(f"Could not get member count for {chat.title}: {e}")
                 try:
                     chat_info = await context.bot.get_chat(chat.id)
-                    if chat_info.invite_link:
+                    if chat_info.username:
+                        invite_link = f"https://t.me/{chat_info.username}"
+                    elif chat_info.invite_link:
                         invite_link = chat_info.invite_link
                 except Exception as e:
                     logger.warning(f"Could not get chat info for {chat.title}: {e}")
@@ -69,7 +71,7 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
             if member.id == context.bot.id:
                 existing = await get_channel_group_by_chat_id(chat.id)
                 if not existing:
-                    # Fetch member count and invite link
+                    # Fetch member count and channel/group link
                     member_count = 0
                     invite_link = None
                     try:
@@ -78,7 +80,9 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
                         logger.warning(f"Could not get member count: {e}")
                     try:
                         chat_info = await context.bot.get_chat(chat.id)
-                        if chat_info.invite_link:
+                        if chat_info.username:
+                            invite_link = f"https://t.me/{chat_info.username}"
+                        elif chat_info.invite_link:
                             invite_link = chat_info.invite_link
                     except Exception as e:
                         logger.warning(f"Could not get chat info: {e}")
@@ -103,7 +107,7 @@ async def register_group_command(update: Update, context: ContextTypes.DEFAULT_T
     if existing_cg:
         await update.message.reply_text(f"القروب مسجل أصلاً: {chat.title}")
     else:
-        # Fetch member count and invite link
+        # Fetch member count and channel/group link
         member_count = 0
         invite_link = None
         try:
@@ -112,7 +116,9 @@ async def register_group_command(update: Update, context: ContextTypes.DEFAULT_T
             logger.warning(f"Could not get member count: {e}")
         try:
             chat_info = await context.bot.get_chat(chat.id)
-            if chat_info.invite_link:
+            if chat_info.username:
+                invite_link = f"https://t.me/{chat_info.username}"
+            elif chat_info.invite_link:
                 invite_link = chat_info.invite_link
         except Exception as e:
             logger.warning(f"Could not get chat info: {e}")
