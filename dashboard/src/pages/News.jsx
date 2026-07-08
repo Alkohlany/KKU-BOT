@@ -76,17 +76,12 @@ export default function News() {
     }
     setEnhancingContent(true);
     try {
-      const formData = new FormData();
-      formData.append('title', '');
-      formData.append('content', form.content);
-      if (uploadFile) {
-        formData.append('file', uploadFile);
-      }
-      const result = await api.post('/news/enhance', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const result = await api.post('/news/enhance', {
+        content: form.content,
+        title: ''
       });
-      setForm({ ...form, content: result.enhanced_content || result.content || form.content });
-      showToast('تم تحسين المحتوى بنجاح' + (uploadFile ? ' مع تحليل الصورة' : ''), 'success');
+      setForm({ ...form, content: result.enhanced?.enhanced_content || result.enhanced?.content || form.content });
+      showToast('تم تحسين المحتوى بنجاح', 'success');
     } catch (err) {
       console.error('Failed to enhance content:', err);
       showToast('فشل تحسين المحتوى', 'error');

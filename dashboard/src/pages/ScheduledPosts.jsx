@@ -66,8 +66,9 @@ export default function ScheduledPosts() {
         content: form.content,
         title: ''
       });
-      if (result && result.content) {
-        setForm({ ...form, content: result.content });
+      if (result && result.enhanced) {
+        const enhanced = result.enhanced;
+        setForm({ ...form, content: enhanced.enhanced_content || enhanced.content || form.content });
         showToast('تم تحسين المحتوى بنجاح', 'success');
       }
     } catch (err) {

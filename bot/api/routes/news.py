@@ -330,20 +330,19 @@ async def relink_news(news_id: int, data: RelinkPayload):
     return {"status": "relinked", "keywords": len(data.keywords), "questions": len(data.questions)}
 
 
+class EnhanceRequest(BaseModel):
+    title: str = ""
+    content: str = ""
+
+
 @router.post("/enhance")
-async def enhance_content_endpoint(
-    title: str = Form(""),
-    content: str = Form(""),
-    file: Optional[UploadFile] = File(None),
-):
+async def enhance_content_endpoint(request: EnhanceRequest):
     try:
         from bot.services.ai import enhance_content
-        image_bytes = None
-        mime_type = None
-        if file:
-            image_bytes = await file.read()
-            mime_type = file.content_type or "image/jpeg"
-        result = enhance_content(title, content, image_bytes=image_bytes, mime_type=mime_type)
-        return result
+        result = enhance_content(
+            title=request.title,
+            content=request.content
+        )
+        return {"enhanced": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"فشل تحسين المحتوى: {str(e)}")
