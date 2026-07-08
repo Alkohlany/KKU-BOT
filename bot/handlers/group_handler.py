@@ -31,8 +31,22 @@ async def track_group_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if not was_member and is_member and bot_id == context.bot.id:
             existing = await get_channel_group_by_chat_id(chat.id)
             if not existing:
-                await add_channel_group(chat.id, chat.title, chat_type)
-                logger.info(f"Registered {chat_type}: {chat.title} ({chat.id})")
+                # Fetch member count and invite link from Telegram API
+                member_count = 0
+                invite_link = None
+                try:
+                    member_count = await context.bot.get_chat_member_count(chat.id)
+                except Exception as e:
+                    logger.warning(f"Could not get member count for {chat.title}: {e}")
+                try:
+                    chat_info = await context.bot.get_chat(chat.id)
+                    if chat_info.invite_link:
+                        invite_link = chat_info.invite_link
+                except Exception as e:
+                    logger.warning(f"Could not get chat info for {chat.title}: {e}")
+                
+                await add_channel_group(chat.id, chat.title, chat_type, member_count, invite_link)
+                logger.info(f"Registered {chat_type}: {chat.title} ({chat.id}), members: {member_count}")
             else:
                 logger.info(f"{chat_type} already registered: {chat.title} ({chat.id})")
         elif was_member and not is_member and bot_id == context.bot.id:
@@ -55,8 +69,22 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
             if member.id == context.bot.id:
                 existing = await get_channel_group_by_chat_id(chat.id)
                 if not existing:
-                    await add_channel_group(chat.id, chat.title, "group")
-                    logger.info(f"Registered group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id})")
+                    # Fetch member count and invite link
+                    member_count = 0
+                    invite_link = None
+                    try:
+                        member_count = await context.bot.get_chat_member_count(chat.id)
+                    except Exception as e:
+                        logger.warning(f"Could not get member count: {e}")
+                    try:
+                        chat_info = await context.bot.get_chat(chat.id)
+                        if chat_info.invite_link:
+                            invite_link = chat_info.invite_link
+                    except Exception as e:
+                        logger.warning(f"Could not get chat info: {e}")
+                    
+                    await add_channel_group(chat.id, chat.title, "group", member_count, invite_link)
+                    logger.info(f"Registered group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id}), members: {member_count}")
     except Exception as e:
         logger.error(f"Error in track_group_new_members: {e}", exc_info=True)
 
@@ -75,8 +103,22 @@ async def register_group_command(update: Update, context: ContextTypes.DEFAULT_T
     if existing_cg:
         await update.message.reply_text(f"القروب مسجل أصلاً: {chat.title}")
     else:
-        await add_channel_group(chat.id, chat.title, "group")
-        await update.message.reply_text(f"تم تسجيل القروب: {chat.title} ✓")
+        # Fetch member count and invite link
+        member_count = 0
+        invite_link = None
+        try:
+            member_count = await context.bot.get_chat_member_count(chat.id)
+        except Exception as e:
+            logger.warning(f"Could not get member count: {e}")
+        try:
+            chat_info = await context.bot.get_chat(chat.id)
+            if chat_info.invite_link:
+                invite_link = chat_info.invite_link
+        except Exception as e:
+            logger.warning(f"Could not get chat info: {e}")
+        
+        await add_channel_group(chat.id, chat.title, "group", member_count, invite_link)
+        await update.message.reply_text(f"تم تسجيل القروب: {chat.title} ✓\nعدد الأعضاء: {member_count}")
 
 
 group_chat_member_handler = ChatMemberHandler(track_group_member, ChatMemberHandler.MY_CHAT_MEMBER)
