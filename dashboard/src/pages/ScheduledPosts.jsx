@@ -93,6 +93,9 @@ export default function ScheduledPosts() {
         formData.append('as_document', form.as_document);
         if (form.title) formData.append('title', form.title);
         formData.append('file', uploadFile);
+        if (selectedChannels.length > 0) {
+          formData.append('target_channels', JSON.stringify(selectedChannels));
+        }
         newItem = await api.addScheduledPostWithFile(formData);
       } else {
         newItem = await api.addScheduledPost({
@@ -101,7 +104,7 @@ export default function ScheduledPosts() {
           is_recurring: form.recurring,
           publish_to_channel: form.publish_to_channel,
           as_document: form.as_document,
-          target_channels: JSON.stringify(selectedChannels),
+          target_channels: selectedChannels.length > 0 ? JSON.stringify(selectedChannels) : null,
         });
       }
       setPosts([...posts, newItem]);
@@ -149,6 +152,9 @@ export default function ScheduledPosts() {
         formData.append('publish_to_channel', editForm.publish_to_channel);
         formData.append('as_document', editForm.as_document);
         formData.append('file', editUploadFile);
+        if (editSelectedChannels.length > 0) {
+          formData.append('target_channels', JSON.stringify(editSelectedChannels));
+        }
         await api.uploadWithProgress(`/scheduled-posts/${editItem.id}/upload`, formData, () => {});
       } else {
         await api.updateScheduledPost(editItem.id, {
@@ -157,7 +163,7 @@ export default function ScheduledPosts() {
           is_recurring: editForm.recurring,
           publish_to_channel: editForm.publish_to_channel,
           as_document: editForm.as_document,
-          target_channels: JSON.stringify(editSelectedChannels),
+          target_channels: editSelectedChannels.length > 0 ? JSON.stringify(editSelectedChannels) : null,
         });
       }
       setShowEditModal(false);

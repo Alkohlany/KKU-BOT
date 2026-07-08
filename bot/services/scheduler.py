@@ -22,8 +22,11 @@ async def check_scheduled_posts(context):
                     as_document=post.as_document,
                     target_channels=post.target_channels
                 )
-                await mark_post_published(post.id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)
-                logger.info(f"Published scheduled post ID={post.id}, sent to {sent} groups")
+                if sent > 0:
+                    await mark_post_published(post.id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)
+                    logger.info(f"Published scheduled post ID={post.id}, sent to {sent} groups")
+                else:
+                    logger.warning(f"Scheduled post ID={post.id} not published - no messages sent (target_channels={post.target_channels})")
                 try:
                     await log_activity(
                         action="scheduled_post_published",
