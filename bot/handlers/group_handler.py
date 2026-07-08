@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ChatMemberHandler, MessageHandler, filters, CommandHandler
-from bot.services.database import add_group, get_group
+from bot.services.database import add_group, get_group, add_channel_group, get_channel_group_by_chat_id
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,12 @@ async def track_group_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
             existing = await get_group(chat.id)
             if not existing:
                 await add_group(chat_id=chat.id, title=chat.title)
-                logger.info(f"Registered group via ChatMemberHandler: {chat.title} ({chat.id})")
+                logger.info(f"Registered group in 'groups' table: {chat.title} ({chat.id})")
+            # Also register in channel_groups table
+            existing_cg = await get_channel_group_by_chat_id(chat.id)
+            if not existing_cg:
+                await add_channel_group(chat.id, chat.title, "group")
+                logger.info(f"Registered group in 'channel_groups' table: {chat.title} ({chat.id})")
     except Exception as e:
         logger.error(f"Error in track_group_member: {e}", exc_info=True)
 
@@ -39,9 +44,12 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
                 existing = await get_group(chat.id)
                 if not existing:
                     await add_group(chat_id=chat.id, title=chat.title)
-                    logger.info(f"Registered group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id})")
-                else:
-                    logger.info(f"Group already registered: {chat.title} ({chat.id})")
+                    logger.info(f"Registered group in 'groups' table via NEW_CHAT_MEMBERS: {chat.title} ({chat.id})")
+                # Also register in channel_groups table
+                existing_cg = await get_channel_group_by_chat_id(chat.id)
+                if not existing_cg:
+                    await add_channel_group(chat.id, chat.title, "group")
+                    logger.info(f"Registered group in 'channel_groups' table via NEW_CHAT_MEMBERS: {chat.title} ({chat.id})")
     except Exception as e:
         logger.error(f"Error in track_group_new_members: {e}", exc_info=True)
 
@@ -61,6 +69,10 @@ async def register_group_command(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(f"القروب مسجل أصلاً: {chat.title}")
     else:
         await add_group(chat_id=chat.id, title=chat.title)
+        # Also register in channel_groups table
+        existing_cg = await get_channel_group_by_chat_id(chat.id)
+        if not existing_cg:
+            await add_channel_group(chat.id, chat.title, "group")
         await update.message.reply_text(f"تم تسجيل القروب: {chat.title} ✓")
 
 
