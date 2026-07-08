@@ -240,13 +240,50 @@ export default function News() {
 
   const openDeleteDialog = (item) => {
     setDeleteItem(item);
+    
+    // Auto-detect which channels/groups the post is published to
+    let publishedChannelIds = [];
+    let publishedGroupIds = [];
+    
+    // Parse group_message_ids to find published groups
+    if (item.group_message_ids) {
+      try {
+        const groupMsgIds = typeof item.group_message_ids === 'string' 
+          ? JSON.parse(item.group_message_ids) 
+          : item.group_message_ids;
+        publishedGroupIds = Object.keys(groupMsgIds).map(id => parseInt(id));
+      } catch (e) {
+        console.error('Failed to parse group_message_ids:', e);
+      }
+    }
+    
+    // Parse target_channels to find target channels/groups
+    if (item.target_channels) {
+      try {
+        const targets = typeof item.target_channels === 'string' 
+          ? JSON.parse(item.target_channels) 
+          : item.target_channels;
+        if (Array.isArray(targets)) {
+          // We need to check which are channels vs groups from the available data
+          publishedChannelIds = targets;
+        }
+      } catch (e) {
+        console.error('Failed to parse target_channels:', e);
+      }
+    }
+    
+    // Check if published to channel (has channel_message_id)
+    if (item.channel_message_id || item.channelMessageId) {
+      // The post is published to the main channel - we'll detect it from channel_groups
+    }
+    
     setDeleteOptions({
-      fromChannels: false,
-      fromGroups: false,
+      fromChannels: publishedChannelIds.length > 0,
+      fromGroups: publishedGroupIds.length > 0,
       deleteAll: false,
       permanent: false,
-      channelIds: [],
-      groupIds: []
+      channelIds: publishedChannelIds,
+      groupIds: publishedGroupIds
     });
     setShowDeleteDialog(true);
   };
@@ -896,6 +933,31 @@ export default function News() {
                 اختر طريقة الحذف للمنشور: "{deleteItem?.content?.substring(0, 50)}..."
               </p>
               
+              {/* Show publication status */}
+              {deleteItem?.published && (
+                <div style={{ marginBottom: 16, padding: '10px 12px', background: 'var(--gray-50)', borderRadius: 8, fontSize: 13 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>حالة النشر:</div>
+                  {(deleteItem?.publish_to_channel || deleteItem?.publishToChannel) && (
+                    <div style={{ color: 'var(--success)', marginBottom: 2 }}>✓ منشور على القناة الرسمية</div>
+                  )}
+                  {(deleteItem?.publish_to_groups || deleteItem?.publishToGroups) && (
+                    <div style={{ color: 'var(--success)', marginBottom: 2 }}>✓ منشور على الجروبات</div>
+                  )}
+                  {deleteItem?.group_message_ids && (
+                    <div style={{ color: 'var(--gray-500)', fontSize: 12 }}>
+                      عدد الجروبات: {(() => {
+                        try {
+                          const ids = typeof deleteItem.group_message_ids === 'string' 
+                            ? JSON.parse(deleteItem.group_message_ids) 
+                            : deleteItem.group_message_ids;
+                          return Object.keys(ids).length;
+                        } catch { return 0; }
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {deleteItem?.published && (deleteItem?.publish_to_channel || deleteItem?.publishToChannel) && (
                 <div className="form-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
