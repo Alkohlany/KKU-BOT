@@ -123,10 +123,40 @@ export default function Dashboard() {
   return (
     <>
       <div className="stats-grid">
-        <StatsCard icon="users" value={`${totalMembers.toLocaleString()} عضو | ${stats.banned} محظور`} label="إجمالي المستخدمين" trend={trends.users.value} trendDir={trends.users.direction} color="green" />
-        <StatsCard icon="newspaper" value={stats.totalNews} label="إجمالي المنشورات" trend={trends.totalNews.value} trendDir={trends.totalNews.direction} color="blue" />
-        <StatsCard icon="users" value={`${allConnections.length} متصل (${totalChannels} قناة + ${totalGroupsCount} جروب)`} label="القنوات والجروبات المتصلة" trend={`${activeItems} نشط`} trendDir="up" color="orange" />
-        <StatsCard icon="chat" value={stats.responses} label="الردود التلقائية" trend={trends.responses.value} trendDir={trends.responses.direction} color="green" />
+        <StatsCard
+          icon="users"
+          value={totalMembers.toLocaleString()}
+          label="إجمالي المستخدمين"
+          trend={trends.users.value}
+          trendDir={trends.users.direction}
+          color="green"
+          subStats={[`${stats.banned} محظور`, `${activeItems} نشط`]}
+        />
+        <StatsCard
+          icon="newspaper"
+          value={stats.totalNews}
+          label="إجمالي المنشورات"
+          trend={trends.totalNews.value}
+          trendDir={trends.totalNews.direction}
+          color="blue"
+        />
+        <StatsCard
+          icon="link"
+          value={allConnections.length}
+          label="القنوات والجروبات المتصلة"
+          trend={`${activeItems} نشط`}
+          trendDir="up"
+          color="orange"
+          subStats={[`${totalChannels} قناة`, `${totalGroupsCount} جروب`]}
+        />
+        <StatsCard
+          icon="chat"
+          value={stats.responses}
+          label="الردود التلقائية"
+          trend={trends.responses.value}
+          trendDir={trends.responses.direction}
+          color="green"
+        />
       </div>
 
       <div className="grid-3">
