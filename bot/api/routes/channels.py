@@ -4,7 +4,7 @@ from typing import Optional
 from telegram import Bot
 import os
 import json
-from ...models.models import News, ScheduledPost, StudyPlan
+from ...models.models import News, ScheduledPost, StudyPlan, ChannelGroup
 from ...services.database import (
     get_all_channel_groups, get_active_channel_groups, 
     add_channel_group, toggle_channel_group, 
@@ -50,12 +50,20 @@ async def count_posts_for_chat(chat_id):
         
         # 2. Count from Scheduled Posts (published)
         scheduled_result = await session.execute(
-            select(ScheduledPost.is_published, ScheduledPost.publish_to_channel, ScheduledPost.target_channels)
+            select(ScheduledPost.group_message_ids, ScheduledPost.is_published, ScheduledPost.target_channels)
         )
         for row in scheduled_result:
-            is_published, publish_to_channel, target_channels = row
+            group_msg_ids, is_published, target_channels = row
             if not is_published:
                 continue
+            if group_msg_ids:
+                try:
+                    group_ids = json.loads(group_msg_ids) if isinstance(group_msg_ids, str) else group_msg_ids
+                    if chat_id_str in group_ids:
+                        count += 1
+                        continue
+                except:
+                    pass
             if target_channels:
                 try:
                     targets = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
@@ -66,15 +74,29 @@ async def count_posts_for_chat(chat_id):
                     pass
         
         # 3. Count from Study Plans (published to channel)
+        channel_result = await session.execute(
+            select(ChannelGroup.chat_id).where(ChannelGroup.type == 'channel', ChannelGroup.is_active == True).limit(1)
+        )
+        channel_chat_id = channel_result.scalar_one_or_none()
+        channel_chat_id_str = str(channel_chat_id) if channel_chat_id else None
+        
         plans_result = await session.execute(
-            select(StudyPlan.channel_message_id, StudyPlan.is_active)
+            select(StudyPlan.channel_message_id, StudyPlan.is_active, StudyPlan.target_channels)
         )
         for row in plans_result:
-            channel_msg_id, is_active = row
-            if channel_msg_id and is_active:
-                # Study plans are published to the main channel
-                # We count them if the chat_id matches the channel
-                pass  # Already counted via News for the specific channel
+            channel_msg_id, is_active, target_channels = row
+            if not is_active:
+                continue
+            if target_channels:
+                try:
+                    targets = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
+                    if chat_id in targets or chat_id_str in [str(t) for t in targets]:
+                        count += 1
+                        continue
+                except:
+                    pass
+            if channel_msg_id and channel_chat_id_str and channel_chat_id_str == chat_id_str:
+                count += 1
         
         return count
 

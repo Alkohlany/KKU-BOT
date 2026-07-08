@@ -60,6 +60,7 @@ async def init_db():
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
         await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS target_channels TEXT"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
 
         # Add target_channels to news, scheduled_posts, study_plans
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
@@ -417,10 +418,18 @@ async def get_all_scheduled_posts():
         result = await session.execute(select(ScheduledPost).order_by(ScheduledPost.schedule_time.desc()))
         return result.scalars().all()
 
-async def mark_post_published(post_id):
+async def mark_post_published(post_id, group_message_ids=None):
     async with async_session() as session:
+        update_data = {
+            ScheduledPost.is_published: True,
+            ScheduledPost.published_at: func.now()
+        }
+        if group_message_ids:
+            update_data[ScheduledPost.group_message_ids] = group_message_ids
         await session.execute(
-            update(ScheduledPost).where(ScheduledPost.id == post_id).values(is_published=True, published_at=func.now())
+            update(ScheduledPost)
+            .where(ScheduledPost.id == post_id)
+            .values(**update_data)
         )
         await session.commit()
 

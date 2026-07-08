@@ -1,4 +1,5 @@
 import logging
+import json
 from datetime import datetime, timezone
 from bot.services.database import get_pending_posts, mark_post_published
 from bot.services.news_publisher import publish_to_groups
@@ -14,7 +15,7 @@ async def check_scheduled_posts(context):
         for post in pending:
             try:
                 logger.info(f"Publishing scheduled post ID={post.id}: {post.content[:50]}...")
-                sent = await publish_to_groups(
+                sent, channel_message_id, group_message_ids = await publish_to_groups(
                     text=post.content,
                     image_url=post.image_url,
                     file_url=post.file_url,
@@ -22,7 +23,7 @@ async def check_scheduled_posts(context):
                     as_document=post.as_document,
                     target_channels=post.target_channels
                 )
-                await mark_post_published(post.id)
+                await mark_post_published(post.id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)
                 logger.info(f"Published scheduled post ID={post.id}, sent to {sent} groups")
 
                 if post.is_recurring and post.recurring_interval:

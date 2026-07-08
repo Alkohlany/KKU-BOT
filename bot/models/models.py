@@ -127,6 +127,7 @@ class ScheduledPost(Base):
     publish_to_channel = Column(Boolean, default=False)
     as_document = Column(Boolean, default=False)
     target_channels = Column(Text, nullable=True)
+    group_message_ids = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
