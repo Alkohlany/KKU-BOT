@@ -4,7 +4,7 @@ from typing import Optional
 from telegram import Bot
 import os
 import json
-from ...models.models import News
+from ...models.models import News, ScheduledPost, StudyPlan
 from ...services.database import (
     get_all_channel_groups, get_active_channel_groups, 
     add_channel_group, toggle_channel_group, 
@@ -15,27 +15,67 @@ from ...services.database import (
 router = APIRouter()
 
 async def count_posts_for_chat(chat_id):
-    """Count how many posts are published to a specific chat_id"""
+    """Count how many posts are published to a specific chat_id from the dashboard"""
     async with async_session() as session:
         from sqlalchemy import select
-        news_result = await session.execute(select(News.group_message_ids, News.target_channels))
         count = 0
+        chat_id_str = str(chat_id)
+        
+        # 1. Count from News (published posts with group_message_ids)
+        news_result = await session.execute(
+            select(News.group_message_ids, News.channel_message_id, News.is_published, News.target_channels)
+        )
         for row in news_result:
-            if row[0]:
+            group_msg_ids, channel_msg_id, is_published, target_channels = row
+            if not is_published:
+                continue
+            # Check group_message_ids
+            if group_msg_ids:
                 try:
-                    group_ids = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-                    if str(chat_id) in group_ids:
+                    group_ids = json.loads(group_msg_ids) if isinstance(group_msg_ids, str) else group_msg_ids
+                    if chat_id_str in group_ids:
                         count += 1
                         continue
                 except:
                     pass
-            if row[1]:
+            # Check target_channels
+            if target_channels:
                 try:
-                    targets = json.loads(row[1]) if isinstance(row[1], str) else row[1]
-                    if chat_id in targets or str(chat_id) in [str(t) for t in targets]:
+                    targets = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
+                    if chat_id in targets or chat_id_str in [str(t) for t in targets]:
                         count += 1
+                        continue
                 except:
                     pass
+        
+        # 2. Count from Scheduled Posts (published)
+        scheduled_result = await session.execute(
+            select(ScheduledPost.is_published, ScheduledPost.publish_to_channel, ScheduledPost.target_channels)
+        )
+        for row in scheduled_result:
+            is_published, publish_to_channel, target_channels = row
+            if not is_published:
+                continue
+            if target_channels:
+                try:
+                    targets = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
+                    if chat_id in targets or chat_id_str in [str(t) for t in targets]:
+                        count += 1
+                        continue
+                except:
+                    pass
+        
+        # 3. Count from Study Plans (published to channel)
+        plans_result = await session.execute(
+            select(StudyPlan.channel_message_id, StudyPlan.is_active)
+        )
+        for row in plans_result:
+            channel_msg_id, is_active = row
+            if channel_msg_id and is_active:
+                # Study plans are published to the main channel
+                # We count them if the chat_id matches the channel
+                pass  # Already counted via News for the specific channel
+        
         return count
 
 class ChannelGroupCreate(BaseModel):
