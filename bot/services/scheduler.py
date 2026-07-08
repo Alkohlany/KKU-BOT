@@ -1,7 +1,7 @@
 import logging
 import json
 from datetime import datetime, timezone
-from bot.services.database import get_pending_posts, mark_post_published
+from bot.services.database import get_pending_posts, mark_post_published, log_activity
 from bot.services.news_publisher import publish_to_groups
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,11 @@ async def check_scheduled_posts(context):
                 )
                 await mark_post_published(post.id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)
                 logger.info(f"Published scheduled post ID={post.id}, sent to {sent} groups")
+                await log_activity(
+                    action="scheduled_post_published",
+                    details=f"نشر منشور مجدول: {post.content[:50]}...",
+                    performed_by=0
+                )
 
                 if post.is_recurring and post.recurring_interval:
                     from bot.services.database import reschedule_post

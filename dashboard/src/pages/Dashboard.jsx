@@ -3,7 +3,7 @@ import StatsCard from '../components/StatsCard';
 import api from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const COLORS = ['#2E7D32', '#1976D2', '#F57C00', '#D32F2F'];
+const COLORS = ['#2E7D32', '#1976D2', '#F57C00', '#D32F2F', '#9C27B0'];
 
 const calculateTrend = (current, previous) => {
   if (previous === 0) return { value: '0%', direction: 'up' };
@@ -72,11 +72,12 @@ export default function Dashboard() {
         totalNews: calculateTrend(totalNews, Math.max(1, Math.floor(totalNews * 0.85))),
       });
 
-      const typeCounts = { 'ردود تلقائية': 0, 'ردود يدوية': 0, 'رسائل نظام': 0 };
+      const typeCounts = { 'ردود تلقائية': 0, 'ردود يدوية': 0, 'رسائل نظام': 0, 'إجراءات أدمن': 0 };
       (activityData || []).forEach((a) => {
         const t = (a.type || '').toLowerCase();
-        if (t.includes('رد') || t.includes('response')) typeCounts['ردود تلقائية']++;
-        else if (t.includes('حظر') || t.includes('ban')) typeCounts['رسائل نظام']++;
+        if (t.includes('auto_response') || t.includes('response')) typeCounts['ردود تلقائية']++;
+        else if (t.includes('ban') || t.includes('rate_limit') || t.includes('spam') || t.includes('system')) typeCounts['رسائل نظام']++;
+        else if (t.includes('add_') || t.includes('delete_') || t.includes('edit_') || t.includes('broadcast')) typeCounts['إجراءات أدمن']++;
         else typeCounts['ردود يدوية']++;
       });
       setPieData(
@@ -130,7 +131,7 @@ export default function Dashboard() {
           trend={trends.users.value}
           trendDir={trends.users.direction}
           color="green"
-          subStats={[`${stats.banned} محظور`, `${activeItems} نشط`]}
+          subStats={[`${stats.banned} محظور`, `${trends.users.value - stats.banned} نشط`]}
         />
         <StatsCard
           icon="newspaper"

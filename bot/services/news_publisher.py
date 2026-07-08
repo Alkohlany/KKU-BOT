@@ -2,7 +2,7 @@ import logging
 import re
 import json
 from telegram import Bot
-from bot.services.database import get_active_channel_groups
+from bot.services.database import get_active_channel_groups, log_activity
 from bot.config import BOT_TOKEN
 from bot.services.cloud_storage import download_raw
 import asyncio
@@ -83,6 +83,13 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
                     channel_message_id = msg.message_id
             except Exception as e:
                 logger.error(f"Failed to send to channel {channel.chat_id}: {e}")
+
+    if sent > 0:
+        await log_activity(
+            action="news_published",
+            details=f"نشر خبر: {text[:50]}...",
+            performed_by=0
+        )
 
     return sent, channel_message_id, group_message_ids
 

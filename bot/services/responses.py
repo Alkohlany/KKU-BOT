@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
-from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage, get_news_by_id
+from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity
 from bot.services.responses_system import DEFAULT_RESPONSES
 import logging
 import unicodedata
@@ -135,6 +135,11 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 else:
                     await update.message.reply_text(best_match.response)
                 logger.info("AUTO_RESPONSE: sent successfully")
+                await log_activity(
+                    action="auto_response",
+                    details=f"رد تلقائي على: {text[:50]}...",
+                    performed_by=update.effective_user.id if update.effective_user else 0
+                )
             except Exception as e:
                 logger.warning(f"AUTO_RESPONSE: send error: {e}")
             return
@@ -186,6 +191,11 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                     await update.message.reply_text(f"❓ {question_result.question}\n\n✅ {question_result.answer}")
             except Exception as e:
                 logger.warning(f"Could not send question response: {e}")
+            await log_activity(
+                action="question_answer",
+                details=f"إجابة على سؤال: {text[:50]}...",
+                performed_by=update.effective_user.id if update.effective_user else 0
+            )
 
 
 auto_response_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_auto_response)
