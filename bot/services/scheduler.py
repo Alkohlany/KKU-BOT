@@ -25,11 +25,14 @@ async def check_scheduled_posts(context):
                 )
                 await mark_post_published(post.id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)
                 logger.info(f"Published scheduled post ID={post.id}, sent to {sent} groups")
-                await log_activity(
-                    action="scheduled_post_published",
-                    details=f"نشر منشور مجدول: {post.content[:50]}...",
-                    performed_by=0
-                )
+                try:
+                    await log_activity(
+                        action="scheduled_post_published",
+                        details=f"نشر منشور مجدول: {post.content[:50]}...",
+                        performed_by=0
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to log activity: {e}")
 
                 if post.is_recurring and post.recurring_interval:
                     from bot.services.database import reschedule_post
