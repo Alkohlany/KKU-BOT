@@ -5,19 +5,15 @@ import { useToast } from '../components/ToastContext';
 export default function Settings({ onLogout }) {
   const { showToast } = useToast();
   const [settings, setSettings] = useState({
-    botToken: '',
-    channelId: '',
     adminIds: '',
     welcomeMessage: true,
     antiSpam: true,
     antiFlood: true,
     floodLimit: 5,
     floodTime: 10,
-    logChannel: '',
     botLanguage: 'ar',
   });
 
-  const [showToken, setShowToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [botStatus, setBotStatus] = useState('checking');
 
@@ -63,15 +59,12 @@ export default function Settings({ onLogout }) {
 
   const handleReset = () => {
     setSettings({
-      botToken: '',
-      channelId: '',
       adminIds: '',
       welcomeMessage: true,
       antiSpam: true,
       antiFlood: true,
       floodLimit: 5,
       floodTime: 10,
-      logChannel: '',
       botLanguage: 'ar',
     });
     showToast('تمت إعادة التعيين', 'success');
@@ -105,48 +98,6 @@ export default function Settings({ onLogout }) {
         </div>
 
         <div className="settings-grid" style={{ marginBottom: 24 }}>
-          <div className="setting-group">
-            <h4>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              إعدادات الاتصال
-            </h4>
-            <div className="form-group">
-              <label>توكن البوت</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  className="form-input"
-                  type={showToken ? 'text' : 'password'}
-                  value={settings.botToken}
-                  onChange={(e) => setSettings({ ...settings, botToken: e.target.value })}
-                  style={{ flex: 1 }}
-                />
-                <button className="btn btn-secondary" type="button" onClick={() => setShowToken(!showToken)}>
-                  {showToken ? 'إخفاء' : 'إظهار'}
-                </button>
-              </div>
-            </div>
-            <div className="form-group">
-              <label>معرّف القناة الرسمية</label>
-              <input
-                className="form-input"
-                placeholder="@channel_username"
-                value={settings.channelId || ''}
-                onChange={(e) => setSettings({ ...settings, channelId: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label>معرّف قناة السجلات</label>
-              <input
-                className="form-input"
-                value={settings.logChannel}
-                onChange={(e) => setSettings({ ...settings, logChannel: e.target.value })}
-              />
-            </div>
-          </div>
-
           <div className="setting-group">
             <h4>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

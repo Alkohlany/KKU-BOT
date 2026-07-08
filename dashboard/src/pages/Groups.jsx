@@ -11,10 +11,8 @@ export default function Groups() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('channels');
   const [search, setSearch] = useState('');
-  const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ chat_id: '', title: '', type: 'channel', member_count: 0, invite_link: '' });
   const [editForm, setEditForm] = useState({ title: '', member_count: 0, invite_link: '' });
   const [saving, setSaving] = useState(false);
 
@@ -43,29 +41,6 @@ export default function Groups() {
   const groups = channelGroups.filter((g) => g.type === 'group');
   const totalMembers = channelGroups.reduce((sum, g) => sum + (g.member_count || 0), 0);
   const activeCount = channelGroups.filter((g) => g.is_active || g.isActive).length;
-
-  const handleAdd = async () => {
-    if (!form.chat_id) return;
-    setSaving(true);
-    try {
-      await api.post('/channels', {
-        chat_id: parseInt(form.chat_id),
-        title: form.title || `Chat ${form.chat_id}`,
-        type: form.type,
-        member_count: parseInt(form.member_count) || 0,
-        invite_link: form.invite_link || null
-      });
-      setShowModal(false);
-      setForm({ chat_id: '', title: '', type: 'channel', member_count: 0, invite_link: '' });
-      loadData();
-      showToast('تمت الإضافة بنجاح', 'success');
-    } catch (err) {
-      console.error('Failed to add:', err);
-      showToast('فشل الإضافة', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleEditSave = async () => {
     if (!editItem) return;
@@ -183,16 +158,7 @@ export default function Groups() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => { setForm({ chat_id: '', title: '', type: activeTab === 'channels' ? 'channel' : 'group', member_count: 0, invite_link: '' }); setShowModal(true); }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              {activeTab === 'channels' ? 'إضافة قناة' : 'إضافة جروب'}
-            </button>
+
           </div>
         </div>
 
@@ -330,109 +296,6 @@ export default function Groups() {
           )}
         </div>
       </div>
-
-      {/* Add Modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{activeTab === 'channels' ? 'إضافة قناة جديدة' : 'إضافة جروب جديد'}</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Chat ID <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input
-                  className="form-input"
-                  placeholder="مثال: -1001234567890"
-                  value={form.chat_id}
-                  onChange={(e) => setForm({ ...form, chat_id: e.target.value })}
-                />
-                <small style={{ color: 'var(--gray-500)', fontSize: 12, display: 'block', marginTop: 4 }}>
-                  احصل على Chat ID من @userinfobot أو @getidsbot داخل {form.type === 'channel' ? 'القناة' : 'الجروب'}
-                </small>
-              </div>
-              <div className="form-group">
-                <label>{form.type === 'channel' ? 'اسم القناة' : 'اسم الجروب'} (اختياري)</label>
-                <input
-                  className="form-input"
-                  placeholder={form.type === 'channel' ? 'مثال: قناة هندسة الحاسب' : 'مثال: قروب هندسة الحاسب'}
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>النوع</label>
-                <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                    <input
-                      type="radio"
-                      name="type"
-                      value="channel"
-                      checked={form.type === 'channel'}
-                      onChange={() => setForm({ ...form, type: 'channel' })}
-                      style={{ width: 16, height: 16 }}
-                    />
-                    قناة
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                    <input
-                      type="radio"
-                      name="type"
-                      value="group"
-                      checked={form.type === 'group'}
-                      onChange={() => setForm({ ...form, type: 'group' })}
-                      style={{ width: 16, height: 16 }}
-                    />
-                    جروب
-                  </label>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>عدد الأعضاء (اختياري)</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  placeholder="0"
-                  value={form.member_count}
-                  onChange={(e) => setForm({ ...form, member_count: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>رابط الدعوة (اختياري)</label>
-                <input
-                  className="form-input"
-                  placeholder="https://t.me/+..."
-                  value={form.invite_link}
-                  onChange={(e) => setForm({ ...form, invite_link: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <button
-                  className="btn btn-secondary"
-                  style={{ width: '100%' }}
-                  disabled={!form.chat_id}
-                  onClick={() => showToast('ميزة الجلب التلقائي قيد التطوير', 'info')}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                  </svg>
-                  جلب المعلومات تلقائياً
-                </button>
-                <small style={{ color: 'var(--gray-400)', fontSize: 12, display: 'block', marginTop: 4 }}>
-                  سيتم جلب اسم وعدد الأعضاء من تيليجرام (قريباً)
-                </small>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={handleAdd} disabled={saving || !form.chat_id}>
-                {saving ? 'جاري الإضافة...' : 'إضافة'}
-              </button>
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>إلغاء</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Edit Modal */}
       {showEditModal && (
