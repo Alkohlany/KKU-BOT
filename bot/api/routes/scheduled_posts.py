@@ -39,6 +39,7 @@ async def get_scheduled_posts():
             "isPublished": p.is_published,
             "publishToChannel": p.publish_to_channel,
             "asDocument": p.as_document,
+            "targetChannels": p.target_channels,
             "createdAt": p.created_at.isoformat() if p.created_at else None,
         }
         for p in items

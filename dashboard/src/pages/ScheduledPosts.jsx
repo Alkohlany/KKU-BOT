@@ -101,6 +101,7 @@ export default function ScheduledPosts() {
           is_recurring: form.recurring,
           publish_to_channel: form.publish_to_channel,
           as_document: form.as_document,
+          target_channels: JSON.stringify(selectedChannels),
         });
       }
       setPosts([...posts, newItem]);
@@ -124,6 +125,12 @@ export default function ScheduledPosts() {
       publish_to_channel: item.publishToChannel || false,
       as_document: item.asDocument || false,
     });
+    try {
+      const targets = item.targetChannels ? JSON.parse(item.targetChannels) : [];
+      setEditSelectedChannels(targets);
+    } catch {
+      setEditSelectedChannels([]);
+    }
     setEditUploadFile(null);
     setShowEditModal(true);
   };
@@ -150,6 +157,7 @@ export default function ScheduledPosts() {
           is_recurring: editForm.recurring,
           publish_to_channel: editForm.publish_to_channel,
           as_document: editForm.as_document,
+          target_channels: JSON.stringify(editSelectedChannels),
         });
       }
       setShowEditModal(false);
