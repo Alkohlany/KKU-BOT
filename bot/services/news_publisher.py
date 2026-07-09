@@ -138,7 +138,7 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
             if msg:
                 return msg.message_id
 
-        msg = await bot.send_message(chat_id=chat_id, text=text, parse_mode='HTML')
+        msg = await bot.send_message(chat_id=chat_id, text=text, parse_mode='HTML', disable_web_page_preview=True)
         return msg.message_id
     except Exception as e:
         logger.error(f"All send methods failed for {chat_id}: {e}")

@@ -468,7 +468,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         for group in groups:
             try:
-                await context.bot.send_message(chat_id=group.chat_id, text=message)
+                await context.bot.send_message(chat_id=group.chat_id, text=message, disable_web_page_preview=True)
                 sent += 1
             except Exception:
                 failed += 1
