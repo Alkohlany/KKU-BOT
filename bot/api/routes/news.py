@@ -126,6 +126,7 @@ async def create_news_with_file(
     content: str = Form(...),
     file: Optional[UploadFile] = File(None),
     as_document: bool = Form(False),
+    target_channels: Optional[str] = Form(None),
     selected_keywords: str = Form("[]"),
     selected_questions: str = Form("[]"),
 ):
@@ -147,7 +148,7 @@ async def create_news_with_file(
                     thumbnail_url = generate_pdf_thumbnail(file_url)
 
         n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                            as_document=as_document)
+                            as_document=as_document, target_channels=target_channels)
 
         import json
         try:
