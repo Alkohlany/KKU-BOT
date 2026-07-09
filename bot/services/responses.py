@@ -98,7 +98,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
             try:
                 search_reply = search_university_info(search_query)
                 if search_reply and search_reply.strip():
-                    await update.message.reply_text(search_reply.strip())
+                    await update.message.reply_text(search_reply.strip(), disable_web_page_preview=True)
                     await log_activity(
                         action="conversational_reply",
                         details=f"رد محادثة مع بحث على: {text[:50]}...",
@@ -134,7 +134,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                         elif news_post.file_url:
                             await update.message.reply_document(document=news_post.file_url, caption=content)
                         else:
-                            await update.message.reply_text(content)
+                            await update.message.reply_text(content, disable_web_page_preview=True)
                         logger.info("AUTO_RESPONSE: sent news post")
                         return
                 if not best_match.response and not best_match.file_tg_id and not best_match.file_url:
@@ -156,7 +156,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                     else:
                         await update.message.reply_document(document=best_match.file_url, caption=caption)
                 else:
-                    await update.message.reply_text(best_match.response)
+                    await update.message.reply_text(best_match.response, disable_web_page_preview=True)
                 logger.info("AUTO_RESPONSE: sent successfully")
                 await log_activity(
                     action="auto_response",
@@ -175,7 +175,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     for keyword, response in DEFAULT_RESPONSES.items():
         if keyword.lower() in normalized_text or normalized_text in keyword.lower():
             try:
-                await update.message.reply_text(response)
+                await update.message.reply_text(response, disable_web_page_preview=True)
             except Exception as e:
                 logger.warning(f"Could not send default response: {e}")
             return
@@ -199,7 +199,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                         elif news_post.file_url:
                             await update.message.reply_document(document=news_post.file_url, caption=content)
                         else:
-                            await update.message.reply_text(content)
+                            await update.message.reply_text(content, disable_web_page_preview=True)
                         return
                 if question_result.file_url:
                     if question_result.as_document:
@@ -211,7 +211,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                     else:
                         await update.message.reply_document(document=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
                 else:
-                    await update.message.reply_text(f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                    await update.message.reply_text(f"❓ {question_result.question}\n\n✅ {question_result.answer}", disable_web_page_preview=True)
             except Exception as e:
                 logger.warning(f"Could not send question response: {e}")
             await log_activity(
@@ -224,7 +224,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         ai_answer = search_university_info(text)
         if ai_answer and ai_answer.strip():
-            await update.message.reply_text(ai_answer.strip())
+            await update.message.reply_text(ai_answer.strip(), disable_web_page_preview=True)
             await log_activity(
                 action="ai_fallback",
                 details=f"رد AI على: {text[:50]}...",
