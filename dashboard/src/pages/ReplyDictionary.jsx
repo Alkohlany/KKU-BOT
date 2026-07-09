@@ -134,7 +134,7 @@ export default function ReplyDictionary() {
   const getNewsTitle = (newsId) => {
     if (!newsId) return null;
     const found = news.find((n) => n.id === newsId);
-    return found ? found.title : null;
+    return found ? (found.content || '').substring(0, 50) : null;
   };
 
   if (loading) {
@@ -391,7 +391,7 @@ export default function ReplyDictionary() {
                 >
                   <option value="">— بدون منشور —</option>
                   {news.map((n) => (
-                    <option key={n.id} value={n.id}>{n.title}</option>
+                    <option key={n.id} value={n.id}>{(n.content || '').substring(0, 60)}</option>
                   ))}
                 </select>
               </div>
