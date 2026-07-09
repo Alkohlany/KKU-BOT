@@ -1,4 +1,5 @@
 import logging
+import re
 import time as _time
 import base64
 
@@ -127,6 +128,53 @@ def _call_model_with_image(prompt: str, image_bytes: bytes, mime_type: str = "im
             break
 
     raise last_err or RuntimeError(f"API failed after {MAX_RETRIES} retries")
+
+
+def search_university_info(query: str) -> str:
+    import httpx
+
+    urls = [
+        "https://dar.kku.edu.sa/ar/",
+        "https://www.kku.edu.sa/ar",
+        "https://coop.kku.edu.sa/",
+    ]
+
+    all_content = []
+    for url in urls:
+        try:
+            logger.info(f"Fetching university content from: {url}")
+            resp = httpx.get(url, timeout=httpx.Timeout(15.0, read=15.0), follow_redirects=True)
+            if resp.status_code != 200:
+                logger.warning(f"Failed to fetch {url}: status {resp.status_code}")
+                continue
+            html = resp.text
+            text = re.sub('<[^<]+?>', ' ', html)
+            text = re.sub(r'\s+', ' ', text).strip()
+            text = text[:3000]
+            if text:
+                all_content.append(f"[من {url}]: {text}")
+                logger.info(f"Extracted {len(text)} chars from {url}")
+        except Exception as e:
+            logger.warning(f"Error fetching {url}: {e}")
+            continue
+
+    if not all_content:
+        logger.warning("All university sites failed to fetch")
+        return ""
+
+    combined = "\n\n".join(all_content)
+    prompt = f"""أنت مساعد في جامعة الملك خالد. استخدم المعلومات التالية من مواقع الجامعة للإجابة على سؤال الطالب:
+{combined}
+
+السؤال: {query}
+
+أجب بإيجاز (1-3 جمل). إذا لم تجد إجابة كافية قل: "لم أجد معلومات كافية" """
+
+    try:
+        return _call_model(prompt)
+    except Exception as e:
+        logger.warning(f"AI university search failed: {e}")
+        return ""
 
 
 BLOCKED_WORDS = {

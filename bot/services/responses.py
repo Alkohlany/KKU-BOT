@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity
 from bot.services.responses_system import DEFAULT_RESPONSES
+from bot.services.ai import search_university_info
 import logging
 import unicodedata
 from difflib import SequenceMatcher
@@ -196,6 +197,19 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 details=f"إجابة على سؤال: {text[:50]}...",
                 performed_by=update.effective_user.id if update.effective_user else 0
             )
+            return
+    
+    try:
+        ai_answer = search_university_info(text)
+        if ai_answer and ai_answer.strip():
+            await update.message.reply_text(ai_answer.strip())
+            await log_activity(
+                action="ai_fallback",
+                details=f"رد AI على: {text[:50]}...",
+                performed_by=update.effective_user.id if update.effective_user else 0
+            )
+    except Exception as e:
+        logger.warning(f"AI fallback error: {e}")
 
 
 auto_response_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_auto_response)

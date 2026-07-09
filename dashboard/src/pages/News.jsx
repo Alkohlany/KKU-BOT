@@ -101,6 +101,27 @@ export default function News() {
     }
   };
 
+  const handleEditEnhance = async () => {
+    if (!editForm.content) {
+      showToast('يرجى كتابة المحتوى أولاً', 'error');
+      return;
+    }
+    setEnhancingContent(true);
+    try {
+      const result = await api.post('/news/enhance', {
+        content: editForm.content,
+        title: ''
+      });
+      setEditForm({ ...editForm, content: result.enhanced?.enhanced_content || result.enhanced?.content || editForm.content });
+      showToast('تم تحسين المحتوى بنجاح', 'success');
+    } catch (err) {
+      console.error('Failed to enhance content:', err);
+      showToast('فشل تحسين المحتوى', 'error');
+    } finally {
+      setEnhancingContent(false);
+    }
+  };
+
   const handleGenerateAI = async () => {
     if (!form.content) {
       showToast('يرجى كتابة المحتوى أولاً', 'error');
@@ -669,7 +690,17 @@ export default function News() {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>المحتوى</label>
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  المحتوى
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleEditEnhance}
+                    disabled={enhancingContent || !editForm.content}
+                    style={{ fontSize: 12, padding: '4px 12px' }}
+                  >
+                    {enhancingContent ? 'جاري التحسين...' : editUploadFile ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                  </button>
+                </label>
                 <textarea
                   className="form-input"
                   placeholder="محتوى المنشور..."
