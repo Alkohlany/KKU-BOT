@@ -96,7 +96,6 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
             search_query = f"{text} جامعة الملك خالد"
             logger.info(f"CONVERSATIONAL: reply detected. bot_msg='{bot_message[:80]}...' user_reply='{text[:80]}...'")
             try:
-                from bot.services.ai import search_university_info
                 search_reply = search_university_info(search_query)
                 if search_reply and search_reply.strip():
                     await update.message.reply_text(search_reply.strip())
