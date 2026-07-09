@@ -93,21 +93,22 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         bot_message = update.message.reply_to_message.text or ""
         if bot_message:
             bot_message = bot_message[:500]
-            prompt = f"المستخدم يرد على إجابتك السابقة. رسالتك السابقة: {bot_message}. رد المستخدم: {text}. واصل المحادثة بشكل طبيعي ومفيد."
+            search_query = f"{text} جامعة الملك خالد"
             logger.info(f"CONVERSATIONAL: reply detected. bot_msg='{bot_message[:80]}...' user_reply='{text[:80]}...'")
             try:
-                ai_reply = _call_model(prompt)
-                if ai_reply and ai_reply.strip():
-                    await update.message.reply_text(ai_reply.strip())
+                from bot.services.ai import search_university_info
+                search_reply = search_university_info(search_query)
+                if search_reply and search_reply.strip():
+                    await update.message.reply_text(search_reply.strip())
                     await log_activity(
                         action="conversational_reply",
-                        details=f"رد محادثة على: {text[:50]}...",
+                        details=f"رد محادثة مع بحث على: {text[:50]}...",
                         performed_by=update.effective_user.id if update.effective_user else 0
                     )
-                    logger.info("CONVERSATIONAL: reply sent successfully")
+                    logger.info("CONVERSATIONAL: reply sent successfully with search")
                     return
             except Exception as e:
-                logger.warning(f"CONVERSATIONAL: AI error: {e}")
+                logger.warning(f"CONVERSATIONAL: search error: {e}")
         else:
             logger.info("CONVERSATIONAL: bot message had no text (media), skipping")
 
