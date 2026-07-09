@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import select
-from bot.models.models import StudyPlan, StudyPlanGroup
+from bot.models.models import StudyPlan, StudyPlanGroup, ChannelGroup
 from bot.services.database import (
     async_session, add_study_plan, get_all_study_plans, get_study_plans_by_faculty,
     delete_study_plan, get_all_study_plan_groups, get_study_plan_group_by_id,
@@ -27,6 +27,24 @@ async def _get_channel_id():
         if ch.type == 'channel':
             return ch.chat_id
     return None
+
+
+async def _get_channel_username():
+    """Get the channel username from the database for generating links"""
+    async with async_session() as session:
+        stmt = select(ChannelGroup).where(
+            ChannelGroup.type == 'channel',
+            ChannelGroup.is_active == True
+        ).order_by(ChannelGroup.created_at.desc()).limit(1)
+        result = await session.execute(stmt)
+        channel = result.scalar_one_or_none()
+        if channel and channel.invite_link:
+            link = channel.invite_link
+            if 't.me/' in link:
+                return link.split('t.me/')[-1].strip('/')
+        if channel:
+            return str(channel.chat_id)
+        return None
 
 
 def to_arabic_numerals(number: int) -> str:
@@ -55,7 +73,9 @@ async def update_group_post(group_id: int, force_new: bool = False):
             return
 
         channel_chat_id = await _get_channel_id()
-        channel_username = str(channel_chat_id).replace("@", "")
+        channel_username = await _get_channel_username()
+        if not channel_username:
+            return
 
         today = Hijri.today()
         arabic_year = to_arabic_numerals(today.year)

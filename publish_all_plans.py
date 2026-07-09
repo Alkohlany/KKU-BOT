@@ -22,8 +22,16 @@ async def publish_all():
     groups = await conn.fetch("SELECT id, title, description, group_tag, channel_message_id FROM study_plan_groups ORDER BY id")
     print(f"Found {len(groups)} groups\n")
 
-    channel_row = await conn.fetchrow("SELECT chat_id FROM channel_groups WHERE type = 'channel' AND is_active = true ORDER BY created_at DESC LIMIT 1")
+    channel_row = await conn.fetchrow("SELECT chat_id, invite_link FROM channel_groups WHERE type = 'channel' AND is_active = true ORDER BY created_at DESC LIMIT 1")
     CHANNEL_ID = str(channel_row["chat_id"]) if channel_row else None
+    CHANNEL_USERNAME = None
+    if channel_row:
+        invite_link = channel_row.get("invite_link")
+        if invite_link and 't.me/' in invite_link:
+            CHANNEL_USERNAME = invite_link.split('t.me/')[-1].strip('/')
+    if not CHANNEL_USERNAME and CHANNEL_ID:
+        CHANNEL_USERNAME = CHANNEL_ID
+
     if not CHANNEL_ID:
         print("No active channel found in database, aborting")
         return
@@ -101,7 +109,7 @@ async def publish_all():
                 await asyncio.sleep(1)
 
         if channel_msg_id:
-            channel_username = CHANNEL_ID.replace("@", "")
+            channel_username = CHANNEL_USERNAME
             all_plans = await conn.fetch(
                 "SELECT title, channel_message_id FROM study_plans WHERE group_id = $1 AND is_active = true ORDER BY id",
                 gid
@@ -137,7 +145,7 @@ async def publish_all():
                 else:
                     print(f"  ❌ Failed to update group post: {resp.status_code} {resp.text[:100]}")
         else:
-            channel_username = CHANNEL_ID.replace("@", "")
+            channel_username = CHANNEL_USERNAME
             text = f"📂 {title}\n"
             if group["description"]:
                 text += f"{group['description']}\n"

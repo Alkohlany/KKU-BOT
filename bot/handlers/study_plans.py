@@ -41,7 +41,11 @@ async def get_plans_text() -> str:
     if not channel:
         return "لا توجد قناة نشرة حالياً 📭"
 
-    channel_username = str(channel.chat_id).replace("@", "")
+    channel_username = None
+    if channel.invite_link and 't.me/' in channel.invite_link:
+        channel_username = channel.invite_link.split('t.me/')[-1].strip('/')
+    if not channel_username:
+        channel_username = str(channel.chat_id)
 
     text = "📚 محدث خطط التخصصات\n"
     text += "جامعة الملك خالد 1447هـ\n\n"
