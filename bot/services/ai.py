@@ -131,79 +131,48 @@ def _call_model_with_image(prompt: str, image_bytes: bytes, mime_type: str = "im
 
 
 def search_university_info(query: str) -> str:
-    import httpx
-
     search_results_text = ""
-    search_urls = []
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
         logger.info(f"Searching DuckDuckGo for: {query}")
-        with DDGS() as ddgs:
-            results = list(ddgs.text(f"{query} جامعة الملك خالد site:edu.sa", max_results=10))
+        results = DDGS().text(f"{query} جامعة الملك خالد site:edu.sa", max_results=5)
         if results:
             formatted = []
-            for r in results:
+            for r in results[:5]:
                 title = r.get("title", "")
                 body = r.get("body", "")
                 url = r.get("href", "")
                 formatted.append(f"- {title}: {body} (source: {url})")
-                if url and ("kku" in url or url.endswith(".edu.sa")):
-                    search_urls.append(url)
             search_results_text = "\n".join(formatted)
-            logger.info(f"DuckDuckGo returned {len(results)} results, {len(search_urls)} relevant URLs")
+            logger.info(f"DuckDuckGo returned {len(results)} results")
     except Exception as e:
         logger.warning(f"DuckDuckGo search failed: {e}")
 
-    fetched_content = []
-    for url in search_urls[:3]:
-        try:
-            logger.info(f"Fetching content from: {url}")
-            resp = httpx.get(url, timeout=httpx.Timeout(15.0, read=15.0), follow_redirects=True)
-            if resp.status_code != 200:
-                logger.warning(f"Failed to fetch {url}: status {resp.status_code}")
-                continue
-            html = resp.text
-            text = re.sub('<[^<]+?>', ' ', html)
-            text = re.sub(r'\s+', ' ', text).strip()
-            text = text[:3000]
-            if text:
-                fetched_content.append(f"[من {url}]: {text}")
-                logger.info(f"Extracted {len(text)} chars from {url}")
-        except Exception as e:
-            logger.warning(f"Error fetching {url}: {e}")
-            continue
+    if search_results_text:
+        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. استخدم نتائج البحث التالية للإجابة على سؤال الطالب:
 
-    combined = ""
-    if search_results_text and fetched_content:
-        combined = f"نتائج البحث:\n{search_results_text}\n\nمحتوى من صفحات النتائج:\n" + "\n\n".join(fetched_content)
-    elif search_results_text:
-        combined = f"نتائج البحث:\n{search_results_text}"
-    elif fetched_content:
-        combined = "محتوى من صفحات النتائج:\n" + "\n\n".join(fetched_content)
-
-    if combined:
-        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. استخدم المعلومات التالية للإجابة على سؤال الطالب:
-
-{combined}
+نتائج البحث:
+{search_results_text}
 
 السؤال: {query}
 
 تعليمات:
-- أجب بشكل مفيد ومفصل (5-8 جمل)
+- أجب بشكل مفيد ومفصل (5-8 جمل) بناءً على المعلومات في نتائج البحث
 - إذا كان السؤال عن مقارنة، قدم جدولاً أو قائمة مقارنة
 - إذا كان السؤال عن مكان أو عنوان، اذكر المعلومات المتاحة
-- اذكر مصادر المعلومات إذا أمكن
-- إذا لم تجد معلومات كافية، قل ذلك بوضوح واقترح طريقة للحصول عليها"""
+- اذكر رابط المصدر إذا أمكن
+- لا تقل "لا أستطيع البحث" - أنت تملك نتائج بحث حقيقية استخدمها"""
     else:
-        logger.warning("All sources failed, using AI knowledge")
-        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. أجب على سؤال الطالب التالي بناءً على معرفتك بجامعة الملك خالد والتخصصات المتوفرة فيها.
+        logger.warning("DuckDuckGo failed, using AI knowledge")
+        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. أجب على سؤال الطالب التالي.
 السؤال: {query}
 
 تعليمات:
-- أجب بشكل مفيد ومفصل (5-8 جمل)
+- أجب بشكل مفيد ومفصل (5-8 جمل) بناءً على معرفتك
 - إذا كان السؤال عن مقارنة، قدم جدولاً أو قائمة مقارنة
 - إذا كان السؤال عن مكان أو عنوان، اذكر المعلومات المتاحة
-- إذا لم تجد معلومات كافية، قل ذلك بوضوح واقترح طريقة للحصول عليها"""
+- لا تقل "لا أستطيع البحث" - قدم أفضل إجابة ممكنة
+- اذكر أن المعلومات من معرفة عامة وقد تحتاج تأكيد من الجامعة"""
 
     try:
         return _call_model(prompt)
