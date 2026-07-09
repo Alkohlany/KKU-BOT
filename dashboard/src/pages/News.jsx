@@ -33,6 +33,9 @@ export default function News() {
   const [generating, setGenerating] = useState(false);
   const [relinkItem, setRelinkItem] = useState(null);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingNewsId, setDeletingNewsId] = useState(null);
+
   const [selectedChannels, setSelectedChannels] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
   const [channelGroups, setChannelGroups] = useState([]);
@@ -215,16 +218,32 @@ export default function News() {
     }
   };
 
-  const handleDelete = async (id) => {
-    const ok = await confirm('هل أنت متأكد من حذف هذا المنشور؟ سيتم حذفه من القنوات أيضاً');
+  const handleDeleteNews = (id) => {
+    setDeletingNewsId(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleNewsResetPublish = async (id) => {
+    setShowDeleteModal(false);
+    try {
+      await api.delete(`/news/${id}/channel`);
+      setNews(news.map(n => n.id === id ? { ...n, published: false } : n));
+      showToast('تم حذف المنشور من القنوات بنجاح', 'success');
+    } catch (err) {
+      showToast('حدث خطأ أثناء الحذف', 'error');
+    }
+  };
+
+  const handleNewsPermanentDelete = async (id) => {
+    setShowDeleteModal(false);
+    const ok = await confirm('هل أنت متأكد من الحذف النهائي؟ سيتم حذف المنشور نهائياً.');
     if (!ok) return;
     try {
       await api.delete(`/news/${id}`);
       setNews(news.filter((n) => n.id !== id));
-      showToast('تم حذف المنشور بنجاح', 'success');
+      showToast('تم حذف المنشور نهائياً', 'success');
     } catch (err) {
-      console.error('Failed to delete news:', err);
-      showToast('فشل حذف المنشور', 'error');
+      showToast('حدث خطأ أثناء الحذف', 'error');
     }
   };
 
@@ -392,7 +411,7 @@ export default function News() {
                       <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)} title="إعادة ربط">
                         إعادة ربط
                       </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)} title="حذف">
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteNews(item.id)} title="حذف">
                         حذف
                       </button>
                     </div>
@@ -454,7 +473,7 @@ export default function News() {
                 <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)}>
                   إعادة ربط
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)}>
+                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteNews(item.id)}>
                   حذف
                 </button>
               </div>
@@ -784,6 +803,41 @@ export default function News() {
         </div>
       )}
 
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>خيارات حذف المنشور</h3>
+              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 14, color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 16 }}>
+                ماذا تريد أن تفعل بهذا المنشور؟
+              </p>
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', marginBottom: 10, justifyContent: 'center' }}
+                onClick={() => handleNewsResetPublish(deletingNewsId)}
+              >
+                حذف من القنوات فقط
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 16, textAlign: 'center' }}>
+                حذف المنشور من القنوات والقروبات مع الاحتفاظ به كمسودة
+              </p>
+              <button
+                className="btn btn-danger"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => handleNewsPermanentDelete(deletingNewsId)}
+              >
+                حذف نهائي
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 8, textAlign: 'center' }}>
+                حذف المنشور وجميع بياناته نهائياً
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   );
