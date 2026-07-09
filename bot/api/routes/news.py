@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages
-from bot.services.cloud_storage import upload_image
+
 from bot.models.models import News
 from bot.config import BOT_TOKEN
 import os
@@ -140,13 +140,7 @@ async def create_news_with_file(
             ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
             file_type = detect_file_type(file.filename)
             if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-                if as_document:
-                    file_url = save_file_locally(file_data, file.filename)
-                else:
-                    try:
-                        image_url = upload_image(file_data, folder="kku-bot/news")
-                    except Exception as e:
-                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
+                file_url = save_file_locally(file_data, file.filename)
             else:
                 file_url = save_file_locally(file_data, file.filename)
                 if ext == 'pdf':
