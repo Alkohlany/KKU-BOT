@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity
 from bot.services.responses_system import DEFAULT_RESPONSES
-from bot.services.ai import search_university_info
+from bot.services.ai import search_university_info, _call_model
 import logging
 import unicodedata
 from difflib import SequenceMatcher
@@ -88,7 +88,29 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     
     if not text or len(text) < 2:
         return
-    
+
+    if update.message.reply_to_message and update.message.reply_to_message.from_user.id == context.bot.id:
+        bot_message = update.message.reply_to_message.text or ""
+        if bot_message:
+            bot_message = bot_message[:500]
+            prompt = f"المستخدم يرد على إجابتك السابقة. رسالتك السابقة: {bot_message}. رد المستخدم: {text}. واصل المحادثة بشكل طبيعي ومفيد."
+            logger.info(f"CONVERSATIONAL: reply detected. bot_msg='{bot_message[:80]}...' user_reply='{text[:80]}...'")
+            try:
+                ai_reply = _call_model(prompt)
+                if ai_reply and ai_reply.strip():
+                    await update.message.reply_text(ai_reply.strip())
+                    await log_activity(
+                        action="conversational_reply",
+                        details=f"رد محادثة على: {text[:50]}...",
+                        performed_by=update.effective_user.id if update.effective_user else 0
+                    )
+                    logger.info("CONVERSATIONAL: reply sent successfully")
+                    return
+            except Exception as e:
+                logger.warning(f"CONVERSATIONAL: AI error: {e}")
+        else:
+            logger.info("CONVERSATIONAL: bot message had no text (media), skipping")
+
     if len(text) > 200:
         return
     
