@@ -35,6 +35,7 @@ export default function News() {
 
   const [selectedChannels, setSelectedChannels] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
+  const [channelGroups, setChannelGroups] = useState([]);
 
   useEffect(() => {
     loadNews();
@@ -42,6 +43,18 @@ export default function News() {
       loadNews();
     }, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const loadChannels = async () => {
+      try {
+        const data = await api.get('/channels/active');
+        setChannelGroups(data);
+      } catch (err) {
+        console.error('Failed to load channels:', err);
+      }
+    };
+    loadChannels();
   }, []);
 
   const loadNews = async () => {
@@ -53,6 +66,11 @@ export default function News() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getChannelName = (chatId) => {
+    const ch = channelGroups.find(c => c.chatId === parseInt(chatId) || c.chatId === chatId);
+    return ch ? ch.title : chatId;
   };
 
   const filtered = news.filter(
@@ -343,16 +361,24 @@ export default function News() {
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {(item.publish_to_channel || item.publishToChannel) && (
-                        <span className="status-badge active" style={{ fontSize: 11, padding: '2px 8px' }}>قناة</span>
-                      )}
-                      {(item.publish_to_groups || item.publishToGroups) && (
-                        <span className="status-badge active" style={{ fontSize: 11, padding: '2px 8px' }}>قروبات</span>
-                      )}
-                      {!item.published && (
-                        <span style={{ color: 'var(--gray-400)', fontSize: 12 }}>-</span>
-                      )}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {(() => {
+                        try {
+                          const targets = item.targetChannels 
+                            ? (typeof item.targetChannels === 'string' ? JSON.parse(item.targetChannels) : item.targetChannels)
+                            : [];
+                          if (targets.length === 0 && !item.published) {
+                            return <span style={{ color: 'var(--gray-400)', fontSize: 12 }}>-</span>;
+                          }
+                          return targets.map(id => (
+                            <span key={id} className="status-badge active" style={{ fontSize: 11, padding: '2px 8px' }}>
+                              {getChannelName(id)}
+                            </span>
+                          ));
+                        } catch {
+                          return <span style={{ color: 'var(--gray-400)', fontSize: 12 }}>-</span>;
+                        }
+                      })()}
                     </div>
                   </td>
                   <td>
@@ -398,16 +424,25 @@ export default function News() {
                 <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 0 }}>
                   {item.content?.substring(0, 100)}...
                 </p>
-                {(item.publish_to_channel || item.publishToChannel || item.publish_to_groups || item.publishToGroups) && (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                    {(item.publish_to_channel || item.publishToChannel) && (
-                      <span className="status-badge active" style={{ fontSize: 11 }}>قناة</span>
-                    )}
-                    {(item.publish_to_groups || item.publishToGroups) && (
-                      <span className="status-badge active" style={{ fontSize: 11 }}>قروبات</span>
-                    )}
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  {(() => {
+                    try {
+                      const targets = item.targetChannels 
+                        ? (typeof item.targetChannels === 'string' ? JSON.parse(item.targetChannels) : item.targetChannels)
+                        : [];
+                      if (targets.length === 0 && !item.published) {
+                        return <span style={{ color: 'var(--gray-400)', fontSize: 12 }}>-</span>;
+                      }
+                      return targets.map(id => (
+                        <span key={id} className="status-badge active" style={{ fontSize: 11 }}>
+                          {getChannelName(id)}
+                        </span>
+                      ));
+                    } catch {
+                      return <span style={{ color: 'var(--gray-400)', fontSize: 12 }}>-</span>;
+                    }
+                  })()}
+                </div>
               </div>
               <div className="mobile-card-meta" style={{ flexWrap: 'wrap', gap: 6 }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)}>
