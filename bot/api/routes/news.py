@@ -288,6 +288,20 @@ async def delete_from_channel_endpoint(news_id: int):
 
 @router.delete("/")
 async def delete_all_news_endpoint():
+    import json
+    items = await get_all_news()
+    for item in items:
+        if item.group_message_ids:
+            try:
+                group_ids = json.loads(item.group_message_ids)
+                await delete_from_groups(group_ids)
+            except:
+                pass
+        if item.channel_message_id:
+            try:
+                await delete_from_channel(item.channel_message_id)
+            except:
+                pass
     await delete_all_news()
     return {"status": "deleted_all"}
 
