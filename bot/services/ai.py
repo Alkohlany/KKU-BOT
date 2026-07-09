@@ -131,11 +131,16 @@ def _call_model_with_image(prompt: str, image_bytes: bytes, mime_type: str = "im
 
 
 def search_university_info(query: str) -> str:
+    import httpx
+    import re
+
     search_results_text = ""
+    fetched_content = []
+
     try:
         from ddgs import DDGS
         logger.info(f"Searching DuckDuckGo for: {query}")
-        results = DDGS().text(f"{query} جامعة الملك خالد site:edu.sa", max_results=5)
+        results = DDGS().text(f"{query} جامعة الملك خالد", max_results=5)
         if results:
             formatted = []
             for r in results[:5]:
@@ -143,36 +148,39 @@ def search_university_info(query: str) -> str:
                 body = r.get("body", "")
                 url = r.get("href", "")
                 formatted.append(f"- {title}: {body} (source: {url})")
+                if url and ("kku" in url or "edu.sa" in url):
+                    try:
+                        resp = httpx.get(url, timeout=httpx.Timeout(10.0, read=10.0), follow_redirects=True)
+                        if resp.status_code == 200:
+                            text = re.sub('<[^<]+?>', ' ', resp.text)
+                            text = re.sub(r'\s+', ' ', text).strip()
+                            text = text[:2000]
+                            if text:
+                                fetched_content.append(f"[من {url}]: {text}")
+                    except Exception:
+                        pass
             search_results_text = "\n".join(formatted)
-            logger.info(f"DuckDuckGo returned {len(results)} results")
+            logger.info(f"DuckDuckGo returned {len(results)} results, fetched {len(fetched_content)} pages")
     except Exception as e:
         logger.warning(f"DuckDuckGo search failed: {e}")
 
-    if search_results_text:
-        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. استخدم نتائج البحث التالية للإجابة على سؤال الطالب:
+    combined = ""
+    if search_results_text and fetched_content:
+        combined = f"نتائج البحث:\n{search_results_text}\n\nمحتوى من الصفحات:\n" + "\n\n".join(fetched_content)
+    elif search_results_text:
+        combined = f"نتائج البحث:\n{search_results_text}"
+    elif fetched_content:
+        combined = "محتوى من الصفحات:\n" + "\n\n".join(fetched_content)
 
-نتائج البحث:
-{search_results_text}
-
+    if combined:
+        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. استخدم المعلومات التالية للإجابة:
+{combined}
 السؤال: {query}
-
-تعليمات:
-- أجب بشكل مفيد ومفصل (5-8 جمل) بناءً على المعلومات في نتائج البحث
-- إذا كان السؤال عن مقارنة، قدم جدولاً أو قائمة مقارنة
-- إذا كان السؤال عن مكان أو عنوان، اذكر المعلومات المتاحة
-- اذكر رابط المصدر إذا أمكن
-- لا تقل "لا أستطيع البحث" - أنت تملك نتائج بحث حقيقية استخدمها"""
+أجب بشكل مفصل (5-8 جمل). اذكر المصادر والروابط."""
     else:
         logger.warning("DuckDuckGo failed, using AI knowledge")
-        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. أجب على سؤال الطالب التالي.
-السؤال: {query}
-
-تعليمات:
-- أجب بشكل مفيد ومفصل (5-8 جمل) بناءً على معرفتك
-- إذا كان السؤال عن مقارنة، قدم جدولاً أو قائمة مقارنة
-- إذا كان السؤال عن مكان أو عنوان، اذكر المعلومات المتاحة
-- لا تقل "لا أستطيع البحث" - قدم أفضل إجابة ممكنة
-- اذكر أن المعلومات من معرفة عامة وقد تحتاج تأكيد من الجامعة"""
+        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. السؤال: {query}
+أجب بناءً على معرفتك. لا تقل "لا أستطيع البحث"."""
 
     try:
         return _call_model(prompt)
