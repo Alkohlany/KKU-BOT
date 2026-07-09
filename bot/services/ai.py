@@ -133,6 +133,24 @@ def _call_model_with_image(prompt: str, image_bytes: bytes, mime_type: str = "im
 def search_university_info(query: str) -> str:
     import httpx
 
+    search_results_text = ""
+    try:
+        from duckduckgo_search import DDGS
+        logger.info(f"Searching DuckDuckGo for: {query}")
+        with DDGS() as ddgs:
+            results = list(ddgs.text(f"جامعة الملك خالد {query}", max_results=5))
+        if results:
+            formatted = []
+            for i, r in enumerate(results, 1):
+                title = r.get("title", "")
+                body = r.get("body", "")
+                url = r.get("href", "")
+                formatted.append(f"{i}. {title} - {body} (source: {url})")
+            search_results_text = "\n".join(formatted)
+            logger.info(f"DuckDuckGo returned {len(results)} results")
+    except Exception as e:
+        logger.warning(f"DuckDuckGo search failed: {e}")
+
     urls = [
         "https://dar.kku.edu.sa/ar/acadimic-program/category/acp_two",
         "https://dar.kku.edu.sa/ar/acadimic-program/category/acp_one",
@@ -159,16 +177,23 @@ def search_university_info(query: str) -> str:
             logger.warning(f"Error fetching {url}: {e}")
             continue
 
-    if all_content:
-        combined = "\n\n".join(all_content)
-        prompt = f"""أنت مساعد في جامعة الملك خالد. استخدم المعلومات التالية من مواقع الجامعة للإجابة على سؤال الطالب:
+    combined = ""
+    if search_results_text and all_content:
+        combined = f"نتائج البحث:\n{search_results_text}\n\nمحتوى من مواقع الجامعة:\n" + "\n\n".join(all_content)
+    elif search_results_text:
+        combined = f"نتائج البحث:\n{search_results_text}"
+    elif all_content:
+        combined = "محتوى من مواقع الجامعة:\n" + "\n\n".join(all_content)
+
+    if combined:
+        prompt = f"""أنت مساعد في جامعة الملك خالد. استخدم المعلومات التالية للإجابة على سؤال الطالب:
 {combined}
 
 السؤال: {query}
 
-أجب بإيجاز."""
+أجب على سؤال الطالب بناءً على هذه النتائج. أجب بإيجاز ومفيد (3-5 جمل)."""
     else:
-        logger.warning("All university sites failed to fetch, using AI knowledge")
+        logger.warning("All sources failed, using AI knowledge")
         prompt = f"""أنت مساعد في جامعة الملك خالد. أجب على سؤال الطالب التالي بناءً على معرفتك بجامعة الملك خالد والتخصصات المتوفرة فيها.
 السؤال: {query}
 
