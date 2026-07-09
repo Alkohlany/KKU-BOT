@@ -39,6 +39,8 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
         logger.error(f"Invalid target_channels JSON: {target_channels}")
         return sent, channel_message_id, group_message_ids
 
+    logger.info(f"target_chat_ids: {target_chat_ids}")
+
     for chat_id in target_chat_ids:
         chat_id_str = str(chat_id)
         try:
@@ -107,6 +109,7 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
 
 
 async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> int | None:
+    logger.info(f"Sending to {chat_id}, as_document={as_document}, file_url={file_url}, image_url={image_url}")
     try:
         if as_document:
             if file_url:
@@ -143,9 +146,11 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
 
 
 async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_filename: str = None):
+    logger.info(f"send_file: checking os.path.exists for {url}")
     if os.path.exists(url):
         try:
             filename = original_filename or os.path.basename(url)
+            logger.info(f"send_file: sending document to {chat_id} from local file {filename}")
             with open(url, 'rb') as f:
                 return await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
         except Exception as e:
@@ -154,15 +159,20 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
 
     if not original_filename:
         try:
+            logger.info(f"send_file: sending document to {chat_id} from URL")
             return await bot.send_document(chat_id=chat_id, document=url, caption=caption, parse_mode='HTML')
         except Exception as e:
             logger.warning(f"send_document URL failed for {chat_id}: {e}")
 
+    logger.info(f"send_file: calling download_raw for {url}")
     file_bytes = await asyncio.to_thread(download_raw, url)
+    logger.info(f"send_file: download_raw returned {len(file_bytes) if file_bytes else None} bytes")
     if file_bytes is None:
+        logger.info(f"send_file: trying httpx.get for {url}")
         async with httpx.AsyncClient() as client:
             try:
                 resp = await client.get(url, timeout=30)
+                logger.info(f"send_file: httpx returned {resp.status_code}")
                 if resp.status_code == 200:
                     file_bytes = resp.content
             except Exception as e2:
@@ -171,6 +181,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
     if file_bytes:
         try:
             filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
+            logger.info(f"send_file: sending document to {chat_id} from bytes, filename={filename}")
             return await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption, parse_mode='HTML')
         except Exception as e3:
             logger.warning(f"send_document bytes failed for {chat_id}: {e3}")
