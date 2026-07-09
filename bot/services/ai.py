@@ -134,34 +134,30 @@ def search_university_info(query: str) -> str:
     import httpx
 
     search_results_text = ""
+    search_urls = []
     try:
         from duckduckgo_search import DDGS
         logger.info(f"Searching DuckDuckGo for: {query}")
         with DDGS() as ddgs:
-            results = list(ddgs.text(f"جامعة الملك خالد {query}", max_results=5))
+            results = list(ddgs.text(f"{query} جامعة الملك خالد site:edu.sa", max_results=10))
         if results:
             formatted = []
-            for i, r in enumerate(results, 1):
+            for r in results:
                 title = r.get("title", "")
                 body = r.get("body", "")
                 url = r.get("href", "")
-                formatted.append(f"{i}. {title} - {body} (source: {url})")
+                formatted.append(f"- {title}: {body} (source: {url})")
+                if url and ("kku" in url or url.endswith(".edu.sa")):
+                    search_urls.append(url)
             search_results_text = "\n".join(formatted)
-            logger.info(f"DuckDuckGo returned {len(results)} results")
+            logger.info(f"DuckDuckGo returned {len(results)} results, {len(search_urls)} relevant URLs")
     except Exception as e:
         logger.warning(f"DuckDuckGo search failed: {e}")
 
-    urls = [
-        "https://dar.kku.edu.sa/ar/acadimic-program/category/acp_two",
-        "https://dar.kku.edu.sa/ar/acadimic-program/category/acp_one",
-        "https://www.kku.edu.sa/ar",
-        "https://coop.kku.edu.sa/",
-    ]
-
-    all_content = []
-    for url in urls:
+    fetched_content = []
+    for url in search_urls[:3]:
         try:
-            logger.info(f"Fetching university content from: {url}")
+            logger.info(f"Fetching content from: {url}")
             resp = httpx.get(url, timeout=httpx.Timeout(15.0, read=15.0), follow_redirects=True)
             if resp.status_code != 200:
                 logger.warning(f"Failed to fetch {url}: status {resp.status_code}")
@@ -171,33 +167,43 @@ def search_university_info(query: str) -> str:
             text = re.sub(r'\s+', ' ', text).strip()
             text = text[:3000]
             if text:
-                all_content.append(f"[من {url}]: {text}")
+                fetched_content.append(f"[من {url}]: {text}")
                 logger.info(f"Extracted {len(text)} chars from {url}")
         except Exception as e:
             logger.warning(f"Error fetching {url}: {e}")
             continue
 
     combined = ""
-    if search_results_text and all_content:
-        combined = f"نتائج البحث:\n{search_results_text}\n\nمحتوى من مواقع الجامعة:\n" + "\n\n".join(all_content)
+    if search_results_text and fetched_content:
+        combined = f"نتائج البحث:\n{search_results_text}\n\nمحتوى من صفحات النتائج:\n" + "\n\n".join(fetched_content)
     elif search_results_text:
         combined = f"نتائج البحث:\n{search_results_text}"
-    elif all_content:
-        combined = "محتوى من مواقع الجامعة:\n" + "\n\n".join(all_content)
+    elif fetched_content:
+        combined = "محتوى من صفحات النتائج:\n" + "\n\n".join(fetched_content)
 
     if combined:
-        prompt = f"""أنت مساعد في جامعة الملك خالد. استخدم المعلومات التالية للإجابة على سؤال الطالب:
+        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. استخدم المعلومات التالية للإجابة على سؤال الطالب:
+
 {combined}
 
 السؤال: {query}
 
-أجب على سؤال الطالب بناءً على هذه النتائج. أجب بإيجاز ومفيد (3-5 جمل)."""
+تعليمات:
+- أجب بشكل مفيد ومفصل (5-8 جمل)
+- إذا كان السؤال عن مقارنة، قدم جدولاً أو قائمة مقارنة
+- إذا كان السؤال عن مكان أو عنوان، اذكر المعلومات المتاحة
+- اذكر مصادر المعلومات إذا أمكن
+- إذا لم تجد معلومات كافية، قل ذلك بوضوح واقترح طريقة للحصول عليها"""
     else:
         logger.warning("All sources failed, using AI knowledge")
-        prompt = f"""أنت مساعد في جامعة الملك خالد. أجب على سؤال الطالب التالي بناءً على معرفتك بجامعة الملك خالد والتخصصات المتوفرة فيها.
+        prompt = f"""أنت مساعد ذكي في جامعة الملك خالد. أجب على سؤال الطالب التالي بناءً على معرفتك بجامعة الملك خالد والتخصصات المتوفرة فيها.
 السؤال: {query}
 
-أجب بشكل مفيد ومختصر (3-5 جمل)."""
+تعليمات:
+- أجب بشكل مفيد ومفصل (5-8 جمل)
+- إذا كان السؤال عن مقارنة، قدم جدولاً أو قائمة مقارنة
+- إذا كان السؤال عن مكان أو عنوان، اذكر المعلومات المتاحة
+- إذا لم تجد معلومات كافية، قل ذلك بوضوح واقترح طريقة للحصول عليها"""
 
     try:
         return _call_model(prompt)
