@@ -43,7 +43,7 @@ def find_best_match(text, responses):
     for response in responses:
         keyword_normalized = normalize_arabic(response.keyword.lower().strip())
         score = SequenceMatcher(None, normalized, keyword_normalized).ratio()
-        if score > best_score and score >= 0.4:
+        if score > best_score and score >= 0.6:
             best_score = score
             best_match = response
 
