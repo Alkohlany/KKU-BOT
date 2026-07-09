@@ -110,6 +110,28 @@ async def create_scheduled_post_with_file(
     }
 
 
+@router.delete("/{post_id}/channel")
+async def reset_post_publish(post_id: int):
+    from ...services.database import get_scheduled_post
+    from sqlalchemy import update
+    from ...models.models import ScheduledPost
+    from ...services.database import async_session
+
+    existing = await get_scheduled_post(post_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Scheduled post not found")
+
+    async with async_session() as session:
+        await session.execute(
+            update(ScheduledPost)
+            .where(ScheduledPost.id == post_id)
+            .values(is_published=False, target_channels=None)
+        )
+        await session.commit()
+
+    return {"status": "reset"}
+
+
 @router.delete("/{post_id}")
 async def delete_scheduled_post_endpoint(post_id: int):
     await delete_scheduled_post(post_id)

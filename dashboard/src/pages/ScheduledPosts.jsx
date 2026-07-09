@@ -22,16 +22,8 @@ export default function ScheduledPosts() {
   const [editUploadFile, setEditUploadFile] = useState(null);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteItem, setDeleteItem] = useState(null);
-  const [deleteOptions, setDeleteOptions] = useState({
-    fromChannels: false,
-    fromGroups: false,
-    deleteAll: false,
-    permanent: false,
-    channelIds: [],
-    groupIds: []
-  });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState(null);
 
   const [enhancing, setEnhancing] = useState(false);
 
@@ -175,36 +167,44 @@ export default function ScheduledPosts() {
     }
   };
 
-  const openDeleteDialog = (item) => {
-    setDeleteItem(item);
-    setDeleteOptions({
-      fromChannels: false,
-      fromGroups: false,
-      deleteAll: false,
-      permanent: false,
-      channelIds: [],
-      groupIds: []
-    });
-    setShowDeleteDialog(true);
+  const handleDeletePost = (id) => {
+    setDeletingPostId(id);
+    setShowDeleteModal(true);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!deleteItem) return;
+  const handlePostResetPublish = async (id) => {
+    setShowDeleteModal(false);
     try {
-      if (deleteOptions.deleteAll) {
-        await api.delete('/scheduled-posts');
-        setPosts([]);
-        showToast('تم حذف جميع المنشورات بنجاح', 'success');
-      } else {
-        await api.delete(`/scheduled-posts/${deleteItem.id}`);
-        setPosts(posts.filter((p) => p.id !== deleteItem.id));
-        showToast('تم حذف المنشور بنجاح', 'success');
-      }
-      setShowDeleteDialog(false);
-      setDeleteItem(null);
+      await api.delete(`/scheduled-posts/${id}/channel`);
+      setPosts(posts.map(p => p.id === id ? { ...p, isPublished: false } : p));
+      showToast('تم حذف المنشور من القنوات بنجاح', 'success');
     } catch (err) {
-      console.error('Failed to delete scheduled post:', err);
-      showToast('فشل حذف المنشور', 'error');
+      showToast('حدث خطأ أثناء الحذف', 'error');
+    }
+  };
+
+  const handlePostPermanentDelete = async (id) => {
+    setShowDeleteModal(false);
+    const ok = await confirm('هل أنت متأكد من الحذف النهائي؟');
+    if (!ok) return;
+    try {
+      await api.delete(`/scheduled-posts/${id}`);
+      setPosts(posts.filter((p) => p.id !== id));
+      showToast('تم حذف المنشور نهائياً', 'success');
+    } catch (err) {
+      showToast('حدث خطأ أثناء الحذف', 'error');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    const ok = await confirm('هل أنت متأكد من حذف جميع المنشورات المجدولة؟');
+    if (!ok) return;
+    try {
+      await api.delete('/scheduled-posts');
+      setPosts([]);
+      showToast('تم حذف جميع المنشورات بنجاح', 'success');
+    } catch (err) {
+      showToast('حدث خطأ أثناء الحذف', 'error');
     }
   };
 
@@ -252,6 +252,13 @@ export default function ScheduledPosts() {
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
               إضافة منشور جديد
+            </button>
+            <button className="btn btn-danger" onClick={handleDeleteAll}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              حذف الكل
             </button>
           </div>
 
@@ -304,7 +311,7 @@ export default function ScheduledPosts() {
                             تعديل
                           </button>
                         )}
-                        <button className="btn btn-danger btn-icon" onClick={() => openDeleteDialog(item)}>
+                        <button className="btn btn-danger btn-icon" onClick={() => handleDeletePost(item.id)}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -367,7 +374,7 @@ export default function ScheduledPosts() {
                       تعديل
                     </button>
                   )}
-                  <button className="btn btn-danger btn-sm" onClick={() => openDeleteDialog(item)}>
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDeletePost(item.id)}>
                     حذف
                   </button>
                 </div>
@@ -564,76 +571,37 @@ export default function ScheduledPosts() {
         </div>
       )}
 
-      {showDeleteDialog && (
-        <div className="modal-overlay" onClick={() => setShowDeleteDialog(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div className="modal-header">
-              <h3>حذف المنشور المجدول</h3>
-              <button className="modal-close" onClick={() => setShowDeleteDialog(false)}>✕</button>
+              <h3>خيارات حذف المنشور</h3>
+              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>✕</button>
             </div>
             <div className="modal-body">
-              <p style={{ marginBottom: 16, color: 'var(--gray-600)', fontSize: 14 }}>
-                هل أنت متأكد من حذف هذا المنشور المجدول؟
+              <p style={{ fontSize: 14, color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 16 }}>
+                ماذا تريد أن تفعل بهذا المنشور؟
               </p>
-              <div style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: 'var(--gray-700)', margin: 0 }}>
-                  {deleteItem?.content?.substring(0, 100)}...
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--gray-400)', margin: '4px 0 0' }}>
-                  الوقت: {formatDateTime(deleteItem?.scheduledTime)}
-                </p>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={deleteOptions.fromChannels}
-                    onChange={(e) => setDeleteOptions({ ...deleteOptions, fromChannels: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  حذف من القنوات
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={deleteOptions.fromGroups}
-                    onChange={(e) => setDeleteOptions({ ...deleteOptions, fromGroups: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  حذف من القروبات
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={deleteOptions.deleteAll}
-                    onChange={(e) => setDeleteOptions({ ...deleteOptions, deleteAll: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  حذف جميع المنشورات المجدولة
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={deleteOptions.permanent}
-                    onChange={(e) => setDeleteOptions({ ...deleteOptions, permanent: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  حذف نهائي (لا يمكن التراجع)
-                </label>
-              </div>
-              {deleteOptions.permanent && (
-                <div style={{ marginTop: 12, padding: 10, background: 'var(--danger-bg, #fff5f5)', borderRadius: 8, border: '1px solid var(--danger, #e53e3e)' }}>
-                  <p style={{ fontSize: 12, color: 'var(--danger, #e53e3e)', margin: 0 }}>
-                    ⚠️ هذا الإجراء لا يمكن التراجع عنه. سيتم حذف المنشور نهائياً من قاعدة البيانات.
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-danger" onClick={handleDeleteConfirm}>
-                {deleteOptions.deleteAll ? 'حذف الكل' : 'حذف'}
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', marginBottom: 10, justifyContent: 'center' }}
+                onClick={() => handlePostResetPublish(deletingPostId)}
+              >
+                حذف من القنوات فقط
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowDeleteDialog(false)}>إلغاء</button>
+              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 16, textAlign: 'center' }}>
+                حذف المنشور من القنوات مع الاحتفاظ به كمسودة
+              </p>
+              <button
+                className="btn btn-danger"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => handlePostPermanentDelete(deletingPostId)}
+              >
+                حذف نهائي
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 8, textAlign: 'center' }}>
+                حذف المنشور وجميع بياناته نهائياً
+              </p>
             </div>
           </div>
         </div>
