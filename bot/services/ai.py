@@ -134,7 +134,8 @@ def search_university_info(query: str) -> str:
     import httpx
 
     urls = [
-        "https://dar.kku.edu.sa/ar/",
+        "https://dar.kku.edu.sa/ar/acadimic-program/category/acp_two",
+        "https://dar.kku.edu.sa/ar/acadimic-program/category/acp_one",
         "https://www.kku.edu.sa/ar",
         "https://coop.kku.edu.sa/",
     ]
@@ -158,23 +159,26 @@ def search_university_info(query: str) -> str:
             logger.warning(f"Error fetching {url}: {e}")
             continue
 
-    if not all_content:
-        logger.warning("All university sites failed to fetch")
-        return ""
-
-    combined = "\n\n".join(all_content)
-    prompt = f"""أنت مساعد في جامعة الملك خالد. استخدم المعلومات التالية من مواقع الجامعة للإجابة على سؤال الطالب:
+    if all_content:
+        combined = "\n\n".join(all_content)
+        prompt = f"""أنت مساعد في جامعة الملك خالد. استخدم المعلومات التالية من مواقع الجامعة للإجابة على سؤال الطالب:
 {combined}
 
 السؤال: {query}
 
-أجب بإيجاز (1-3 جمل). إذا لم تجد إجابة كافية قل: "لم أجد معلومات كافية" """
+أجب بإيجاز."""
+    else:
+        logger.warning("All university sites failed to fetch, using AI knowledge")
+        prompt = f"""أنت مساعد في جامعة الملك خالد. أجب على سؤال الطالب التالي بناءً على معرفتك بجامعة الملك خالد والتخصصات المتوفرة فيها.
+السؤال: {query}
+
+أجب بشكل مفيد ومختصر (3-5 جمل)."""
 
     try:
         return _call_model(prompt)
     except Exception as e:
         logger.warning(f"AI university search failed: {e}")
-        return ""
+        return "عذراً، حدث خطأ أثناء البحث. حاول مرة أخرى."
 
 
 BLOCKED_WORDS = {
