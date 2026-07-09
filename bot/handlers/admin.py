@@ -8,7 +8,6 @@ from bot.services.database import (
     add_auto_response, get_all_auto_responses, remove_auto_response,
     add_question, get_all_questions, delete_question,
     get_all_news, get_news_by_id, delete_news,
-    add_news, publish_news,
     ban_user, get_all_banned, is_banned,
     get_active_channel_groups, log_activity, async_session
 )
@@ -134,72 +133,12 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await send_admin_message(context, user.id, f"❌ فشل إضافة الرد: {str(e)}")
         return
 
-    # Handle pending news content
-    if context.user_data.get('pending_news'):
-        try:
-            await update.message.delete()
-        except: pass
-
-        content = text or ""
-        image_url = None
-        file_url = None
-        file_type = None
-        file_id = None
-
-        # Check if it's a photo
-        if update.message.photo:
-            photo = update.message.photo[-1]
-            file_id = photo.file_id
-            image_url = f"tg://{file_id}"
-            content = update.message.caption or ""
-        # Check if it's a document
-        elif update.message.document:
-            doc = update.message.document
-            file_id = doc.file_id
-            file_url = f"tg://{file_id}"
-            file_type = doc.mime_type
-            content = update.message.caption or ""
-
-        if not content:
-            await send_admin_message(context, user.id, "❌ يجب أن يحتوي المنشور على نص")
-            context.user_data.pop('pending_news', None)
-            return
-
-        # Save to database
-        try:
-            news = await add_news(
-                content=content,
-                image_url=image_url,
-                file_url=file_url,
-                file_type=file_type,
-                file_id=file_id,
-                created_by=user.id
-            )
-            # Mark as published
-            await publish_news(news.id)
-
-            context.user_data.pop('pending_news', None)
-
-            # Show confirmation
-            response = f"✅ تمت إضافة المنشور ونشره\n\n"
-            response += f"📰 رقم المنشور: {news.id}\n"
-            response += f"📝 المحتوى: {content[:50]}...\n"
-            response += f"✅ الحالة: منشور"
-
-            await send_admin_message(context, user.id, response)
-            await log_activity("add_news", f"News ID: {news.id}", user.id)
-        except Exception as e:
-            await send_admin_message(context, user.id, f"❌ فشل إضافة المنشور: {str(e)}")
-            context.user_data.pop('pending_news', None)
-        return
-
     # Handle cancel for pending operations
-    if text.strip() == "إلغاء" and ('pending_keyword' in context.user_data or 'pending_news' in context.user_data):
+    if text.strip() == "إلغاء" and 'pending_keyword' in context.user_data:
         try:
             await update.message.delete()
         except: pass
         context.user_data.pop('pending_keyword', None)
-        context.user_data.pop('pending_news', None)
         await send_admin_message(context, user.id, "✅ تم الإلغاء")
         return
 
@@ -365,15 +304,41 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.delete()
         except: pass
 
-        # Store state for next message
-        context.user_data['pending_news'] = True
-        await send_admin_message(context, user.id,
-            "📝 أرسل محتوى المنشور\n\n"
-            "💡 يمكنك إرسال:\n"
-            "- نص فقط\n"
-            "- صورة مع تعليق\n"
-            "- ملف مع تعليق\n\n"
-            "⚠️ اكتب 'إلغاء' للإلغاء")
+        keywords_part = text.replace("اضافه منشور", "").replace("أضف منشور", "").strip()
+
+        if not keywords_part:
+            await send_admin_message(context, user.id,
+                "❌ الطريقة الصحيحة:\n"
+                "اضافه منشور [كلمة مفتاحية]\n\n"
+                "💡 مثال:\n"
+                "اضافه منشور نسبه الغياب\n\n"
+                "البوت يعرض لك قائمة المنشورات لتختار منها")
+            return
+
+        if 'pending_keyword' in context.user_data:
+            await send_admin_message(context, user.id, "❌ أكمل اختيار المنشور أولاً أو اكتب 'إلغاء' للبدء من جديد")
+            return
+
+        keyword = keywords_part.strip()
+
+        news_list = await get_all_news()
+        if not news_list:
+            await send_admin_message(context, user.id, "❌ لا توجد منشورات متاحة")
+            return
+
+        context.user_data['pending_keyword'] = keyword
+
+        news_text = "📰 **اختر المنشور بالرد على هذه الرسالة بالرقم:**\n\n"
+        for n in news_list[:10]:
+            status = "✅" if n.is_published else "📝"
+            news_text += f"{status} `{n.id}` - {n.content[:40]}\n"
+
+        if len(news_list) > 10:
+            news_text += f"\n... و {len(news_list) - 10} منشور آخر"
+
+        news_text += "\n\n💡 أرسل رقم المنشور المطلوب"
+
+        await send_admin_message(context, user.id, news_text)
         return
 
     elif text.startswith("احذف منشور") or text.startswith("احذف المنشور"):
