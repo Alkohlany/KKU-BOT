@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages
-from bot.services.cloud_storage import upload_image
+from bot.services.cloud_storage import upload_image, upload_raw
 from bot.models.models import News
 from bot.config import BOT_TOKEN
 import os
@@ -138,21 +138,18 @@ async def create_news_with_file(
         if file:
             file_data = await file.read()
             ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
-            if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-                file_type = detect_file_type(file.filename)
-                if as_document:
-                    file_url = save_file_locally(file_data, file.filename)
+            file_type = detect_file_type(file.filename)
+            try:
+                url = upload_raw(file_data, filename=file.filename, folder="kku-bot/news")
+                if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+                    if as_document:
+                        file_url = url
+                    else:
+                        image_url = url
                 else:
-                    try:
-                        url = upload_image(file_data, folder="kku-bot/news")
-                    except Exception as e:
-                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
-                    image_url = url
-            else:
-                file_url = save_file_locally(file_data, file.filename)
-                file_type = detect_file_type(file.filename)
-                if ext == 'pdf':
-                    thumbnail_url = generate_pdf_thumbnail(file_url)
+                    file_url = url
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"فشل رفع الملف لـ Cloudinary: {str(e)}")
 
         n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
                             as_document=as_document)
