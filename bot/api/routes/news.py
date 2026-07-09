@@ -223,6 +223,19 @@ async def publish_news_endpoint(news_id: int):
 
 @router.delete("/{news_id}")
 async def delete_news_endpoint(news_id: int):
+    import json
+    n = await get_news_by_id(news_id)
+    if n:
+        if n.group_message_ids:
+            try:
+                await delete_from_groups(n.group_message_ids)
+            except:
+                pass
+        if n.channel_message_id:
+            try:
+                await delete_from_channel(n.channel_message_id)
+            except:
+                pass
     await delete_news(news_id)
     return {"status": "deleted"}
 

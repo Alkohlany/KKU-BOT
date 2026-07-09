@@ -32,16 +32,7 @@ export default function News() {
   const [enhancingContent, setEnhancingContent] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [relinkItem, setRelinkItem] = useState(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteItem, setDeleteItem] = useState(null);
-  const [deleteOptions, setDeleteOptions] = useState({
-    fromChannels: false,
-    fromGroups: false,
-    deleteAll: false,
-    permanent: false,
-    channelIds: [],
-    groupIds: []
-  });
+
   const [selectedChannels, setSelectedChannels] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
 
@@ -207,7 +198,7 @@ export default function News() {
   };
 
   const handleDelete = async (id) => {
-    const ok = await confirm('هل أنت متأكد من حذف هذا المنشور نهائياً؟');
+    const ok = await confirm('هل أنت متأكد من حذف هذا المنشور؟ سيتم حذفه من القنوات أيضاً');
     if (!ok) return;
     try {
       await api.delete(`/news/${id}`);
@@ -216,82 +207,6 @@ export default function News() {
     } catch (err) {
       console.error('Failed to delete news:', err);
       showToast('فشل حذف المنشور', 'error');
-    }
-  };
-
-  const openDeleteDialog = (item) => {
-    setDeleteItem(item);
-    
-    // Auto-detect which channels/groups the post is published to
-    let publishedChannelIds = [];
-    let publishedGroupIds = [];
-    
-    // Parse group_message_ids to find published groups
-    if (item.group_message_ids) {
-      try {
-        const groupMsgIds = typeof item.group_message_ids === 'string' 
-          ? JSON.parse(item.group_message_ids) 
-          : item.group_message_ids;
-        publishedGroupIds = Object.keys(groupMsgIds).map(id => parseInt(id));
-      } catch (e) {
-        console.error('Failed to parse group_message_ids:', e);
-      }
-    }
-    
-    // Parse target_channels to find target channels/groups
-    if (item.target_channels) {
-      try {
-        const targets = typeof item.target_channels === 'string' 
-          ? JSON.parse(item.target_channels) 
-          : item.target_channels;
-        if (Array.isArray(targets)) {
-          // We need to check which are channels vs groups from the available data
-          publishedChannelIds = targets;
-        }
-      } catch (e) {
-        console.error('Failed to parse target_channels:', e);
-      }
-    }
-    
-    // Check if published to channel (has channel_message_id)
-    if (item.channel_message_id || item.channelMessageId) {
-      // The post is published to the main channel - we'll detect it from channel_groups
-    }
-    
-    setDeleteOptions({
-      fromChannels: publishedChannelIds.length > 0,
-      fromGroups: publishedGroupIds.length > 0,
-      deleteAll: false,
-      permanent: false,
-      channelIds: publishedChannelIds,
-      groupIds: publishedGroupIds
-    });
-    setShowDeleteDialog(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteItem) return;
-    try {
-      if (deleteOptions.permanent) {
-        await api.delete(`/news/${deleteItem.id}`);
-        setNews(news.filter((n) => n.id !== deleteItem.id));
-        showToast('تم الحذف النهائي بنجاح', 'success');
-      } else if (deleteOptions.deleteAll) {
-        await api.delete(`/news/${deleteItem.id}/channel`);
-        setNews(news.map(n => n.id === deleteItem.id ? { ...n, published: false, is_published: false } : n));
-        showToast('تم الحذف من الكل وجعله مسودة', 'success');
-      } else {
-        const payload = {};
-        if (deleteOptions.fromChannels) payload.channelIds = deleteOptions.channelIds;
-        if (deleteOptions.fromGroups) payload.groupIds = deleteOptions.groupIds;
-        await api.post(`/news/${deleteItem.id}/delete-from`, payload);
-        showToast('تم الحذف من المحدد بنجاح', 'success');
-      }
-      setShowDeleteDialog(false);
-      setDeleteItem(null);
-    } catch (err) {
-      console.error('Failed to delete:', err);
-      showToast('فشل الحذف', 'error');
     }
   };
 
@@ -451,7 +366,7 @@ export default function News() {
                       <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)} title="إعادة ربط">
                         إعادة ربط
                       </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => openDeleteDialog(item)} title="حذف">
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)} title="حذف">
                         حذف
                       </button>
                     </div>
@@ -504,7 +419,7 @@ export default function News() {
                 <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)}>
                   إعادة ربط
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={() => openDeleteDialog(item)}>
+                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(item.id)}>
                   حذف
                 </button>
               </div>
@@ -834,141 +749,7 @@ export default function News() {
         </div>
       )}
 
-      {showDeleteDialog && (
-        <div className="modal-overlay" onClick={() => { setShowDeleteDialog(false); setDeleteItem(null); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
-            <div className="modal-header">
-              <h3>خيارات الحذف</h3>
-              <button className="modal-close" onClick={() => { setShowDeleteDialog(false); setDeleteItem(null); }}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p style={{ marginBottom: 16, color: 'var(--gray-600)', fontSize: 14 }}>
-                اختر طريقة الحذف للمنشور: "{deleteItem?.content?.substring(0, 50)}..."
-              </p>
-              
-              {/* Show publication status */}
-              {deleteItem?.published && (
-                <div style={{ marginBottom: 16, padding: '10px 12px', background: 'var(--gray-50)', borderRadius: 8, fontSize: 13 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>حالة النشر:</div>
-                  {(deleteItem?.publish_to_channel || deleteItem?.publishToChannel) && (
-                    <div style={{ color: 'var(--success)', marginBottom: 2 }}>✓ منشور على القناة الرسمية</div>
-                  )}
-                  {(deleteItem?.publish_to_groups || deleteItem?.publishToGroups) && (
-                    <div style={{ color: 'var(--success)', marginBottom: 2 }}>✓ منشور على الجروبات</div>
-                  )}
-                  {deleteItem?.group_message_ids && (
-                    <div style={{ color: 'var(--gray-500)', fontSize: 12 }}>
-                      عدد الجروبات: {(() => {
-                        try {
-                          const ids = typeof deleteItem.group_message_ids === 'string' 
-                            ? JSON.parse(deleteItem.group_message_ids) 
-                            : deleteItem.group_message_ids;
-                          return Object.keys(ids).length;
-                        } catch { return 0; }
-                      })()}
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {deleteItem?.published && (deleteItem?.publish_to_channel || deleteItem?.publishToChannel) && (
-                <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                    <input
-                      type="checkbox"
-                      checked={deleteOptions.fromChannels}
-                      onChange={(e) => setDeleteOptions({ ...deleteOptions, fromChannels: e.target.checked })}
-                      style={{ width: 18, height: 18 }}
-                    />
-                    حذف من القنوات المحددة
-                  </label>
-                  {deleteOptions.fromChannels && (
-                    <div style={{ marginTop: 8, paddingRight: 28 }}>
-                      <ChannelGroupSelector
-                        selected={deleteOptions.channelIds}
-                        onChange={(ids) => setDeleteOptions({ ...deleteOptions, channelIds: ids })}
-                        label="اختر القنوات"
-                        type="channel"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {deleteItem?.published && (deleteItem?.publish_to_groups || deleteItem?.publishToGroups) && (
-                <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                    <input
-                      type="checkbox"
-                      checked={deleteOptions.fromGroups}
-                      onChange={(e) => setDeleteOptions({ ...deleteOptions, fromGroups: e.target.checked })}
-                      style={{ width: 18, height: 18 }}
-                    />
-                    حذف من الجروبات المحددة
-                  </label>
-                  {deleteOptions.fromGroups && (
-                    <div style={{ marginTop: 8, paddingRight: 28 }}>
-                      <ChannelGroupSelector
-                        selected={deleteOptions.groupIds}
-                        onChange={(ids) => setDeleteOptions({ ...deleteOptions, groupIds: ids })}
-                        label="اختر الجروبات"
-                        type="group"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {deleteItem?.published && (
-                <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                    <input
-                      type="checkbox"
-                      checked={deleteOptions.deleteAll}
-                      onChange={(e) => setDeleteOptions({ ...deleteOptions, deleteAll: e.target.checked })}
-                      style={{ width: 18, height: 18 }}
-                    />
-                    حذف من الكل + جعله مسودة
-                  </label>
-                  <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12, paddingRight: 28 }}>
-                    سيتم إزالة المنشور من جميع القنوات والجروبات وجعله مسودة
-                  </small>
-                </div>
-              )}
-
-              {!deleteItem?.published && (
-                <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--gray-500)' }}>
-                    <span style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📝</span>
-                    هذا المنشور مسودة (غير منشور)
-                  </label>
-                </div>
-              )}
-
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, color: 'var(--danger)' }}>
-                  <input
-                    type="checkbox"
-                    checked={deleteOptions.permanent}
-                    onChange={(e) => setDeleteOptions({ ...deleteOptions, permanent: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  حذف نهائي من قاعدة البيانات
-                </label>
-                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12, paddingRight: 28 }}>
-                  سيتم حذف المنشور نهائياً من قاعدة البيانات ولا يمكن التراجع عنه
-                </small>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-danger" onClick={handleDeleteConfirm}>
-                تأكيد الحذف
-              </button>
-              <button className="btn btn-secondary" onClick={() => { setShowDeleteDialog(false); setDeleteItem(null); }}>إلغاء</button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
