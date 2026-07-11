@@ -35,7 +35,7 @@ def find_best_match(text, responses):
 
     for response in responses:
         keyword_normalized = normalize_arabic(response.keyword.lower().strip())
-        if keyword_normalized in normalized:
+        if keyword_normalized in normalized or (len(normalized) >= 3 and normalized in keyword_normalized):
             return response
 
     best_match = None
@@ -177,7 +177,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     
     normalized_text = normalize_arabic(text.lower().strip())
     for keyword, response in DEFAULT_RESPONSES.items():
-        if keyword.lower() in normalized_text:
+        if keyword.lower() in normalized_text or (len(normalized_text) >= 3 and normalized_text in keyword.lower()):
             try:
                 await update.message.reply_text(response, disable_web_page_preview=True)
             except Exception as e:
