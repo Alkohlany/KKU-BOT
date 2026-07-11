@@ -451,13 +451,25 @@ async def edit_news_with_file(
 
 @router.delete("/{news_id}/channel")
 async def delete_from_channel_endpoint(news_id: int):
+    import json
     n = await get_news_by_id(news_id)
+    if not n:
+        raise HTTPException(status_code=404, detail="News not found")
+    # Delete from channel
     if n.channel_message_id:
-        await delete_from_channel(n.channel_message_id)
-        await update_news(news_id, channel_message_id=None, is_published=False)
-    elif n.group_message_ids:
-        await delete_from_groups(n.group_message_ids)
-        await update_news(news_id, group_message_ids=None, is_published=False)
+        try:
+            await delete_from_channel(n.channel_message_id)
+        except:
+            pass
+    # Delete from groups
+    if n.group_message_ids:
+        try:
+            group_ids = json.loads(n.group_message_ids) if isinstance(n.group_message_ids, str) else n.group_message_ids
+            await delete_from_groups(group_ids)
+        except:
+            pass
+    # Reset to draft
+    await update_news(news_id, channel_message_id=None, group_message_ids=None, is_published=False)
     return {"status": "deleted_from_channel"}
 
 
