@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 from bot.services.database import get_user, create_user, update_user_subscription, is_banned, get_official_channel
+from bot.config import ADMIN_IDS
 from datetime import datetime, timedelta
 import logging
 
@@ -144,3 +145,56 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
 
 
 check_subscription_handler = CallbackQueryHandler(check_subscription_callback, pattern="^check_subscription$")
+
+
+async def global_subscription_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.effective_user:
+        return
+
+    user = update.effective_user
+
+    if user.id == context.bot.id:
+        return
+    if user.id == ANONYMOUS_ADMIN_ID:
+        return
+    if user.id in ADMIN_IDS:
+        return
+    if await is_banned(user.id):
+        return
+
+    chat = update.effective_chat
+    if chat and chat.type in ("group", "supergroup"):
+        try:
+            member = await chat.get_member(user.id)
+            if member.status in ("administrator", "creator"):
+                return
+        except Exception:
+            return
+
+    channel = await get_subscription_channel()
+    if not channel:
+        return
+
+    if await verify_subscription(user.id, context):
+        return
+
+    if chat and chat.type == "private":
+        await update.message.reply_text(
+            _SUB_MSG.format(link=channel.invite_link),
+            reply_markup=await _ch_link_keyboard()
+        )
+    else:
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+        await chat.send_message(
+            f"📢 {user.first_name}، {_SUB_MSG.format(link=channel.invite_link)}",
+            reply_markup=await _ch_link_keyboard()
+        )
+
+
+global_subscription_handler = MessageHandler(
+    filters.ALL & ~filters.COMMAND & ~filters.StatusUpdate.NEW_CHAT_MEMBERS & ~filters.StatusUpdate.LEFT_CHAT_MEMBER,
+    global_subscription_check
+)

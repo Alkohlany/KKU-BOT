@@ -14,7 +14,7 @@ from bot.handlers.broadcast import broadcast_handler
 from bot.handlers.responses import responses_handler
 from bot.services.protection import protection_handler, protection_media_handler
 from bot.services.responses import auto_response_handler
-from bot.middleware.subscription import check_subscription_handler, group_subscription_handler
+from bot.middleware.subscription import check_subscription_handler, global_subscription_handler
 from bot.handlers.group_handler import group_chat_member_handler, group_new_members_handler, register_group_cmd
 from bot.services.scheduler import check_scheduled_posts
 
@@ -69,7 +69,7 @@ def main():
         application.add_handler(handler)
 
     application.add_handler(check_subscription_handler)
-    application.add_handler(group_subscription_handler)
+    application.add_handler(global_subscription_handler, group=-1)
     application.add_handler(group_chat_member_handler)
     application.add_handler(group_new_members_handler)
     application.add_handler(register_group_cmd)
