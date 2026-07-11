@@ -90,8 +90,8 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
                     await add_channel_group(chat.id, chat.title, "group", member_count, invite_link)
                     logger.info(f"Registered group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id}), members: {member_count}")
             else:
-                auto_greeting = await get_setting("autoGreeting")
-                if auto_greeting == "false":
+                welcome_enabled = (await get_setting("autoGreeting")) != "false"
+                if not welcome_enabled:
                     continue
                 welcome_msg = await get_setting("welcomeMessage")
                 if not welcome_msg:
