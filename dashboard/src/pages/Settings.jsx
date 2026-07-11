@@ -6,9 +6,9 @@ export default function Settings({ onLogout }) {
   const { showToast } = useToast();
   const [settings, setSettings] = useState({
     adminIds: '',
-    welcomeMessage: true,
-    antiSpam: true,
-    antiFlood: true,
+    welcomeMessage: "true",
+    antiSpam: "true",
+    antiFlood: "true",
     floodLimit: 5,
     floodTime: 10,
     botLanguage: 'ar',
@@ -60,12 +60,12 @@ export default function Settings({ onLogout }) {
   const handleReset = () => {
     setSettings({
       adminIds: '',
-      welcomeMessage: true,
-      antiSpam: true,
-      antiFlood: true,
-      floodLimit: 5,
-      floodTime: 10,
-      botLanguage: 'ar',
+    welcomeMessage: "true",
+    antiSpam: "true",
+    antiFlood: "true",
+    floodLimit: 5,
+    floodTime: 10,
+    botLanguage: 'ar',
     });
     showToast('تمت إعادة التعيين', 'success');
   };
@@ -108,8 +108,8 @@ export default function Settings({ onLogout }) {
               <label className="toggle-switch">
                 <input
                   type="checkbox"
-                  checked={settings.welcomeMessage}
-                  onChange={(e) => setSettings({ ...settings, welcomeMessage: e.target.checked })}
+                  checked={settings.welcomeMessage !== "false"}
+                  onChange={(e) => setSettings({ ...settings, welcomeMessage: e.target.checked ? "true" : "false" })}
                 />
                 <span className="toggle-slider" />
               </label>
@@ -122,8 +122,8 @@ export default function Settings({ onLogout }) {
               <label className="toggle-switch">
                 <input
                   type="checkbox"
-                  checked={settings.antiSpam}
-                  onChange={(e) => setSettings({ ...settings, antiSpam: e.target.checked })}
+                  checked={settings.antiSpam !== "false"}
+                  onChange={(e) => setSettings({ ...settings, antiSpam: e.target.checked ? "true" : "false" })}
                 />
                 <span className="toggle-slider" />
               </label>
@@ -136,8 +136,8 @@ export default function Settings({ onLogout }) {
               <label className="toggle-switch">
                 <input
                   type="checkbox"
-                  checked={settings.antiFlood}
-                  onChange={(e) => setSettings({ ...settings, antiFlood: e.target.checked })}
+                  checked={settings.antiFlood !== "false"}
+                  onChange={(e) => setSettings({ ...settings, antiFlood: e.target.checked ? "true" : "false" })}
                 />
                 <span className="toggle-slider" />
               </label>
