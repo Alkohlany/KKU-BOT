@@ -1,6 +1,6 @@
-from telegram import Update, ChatPermissions
+from telegram import Update
 from telegram.ext import ContextTypes, ChatMemberHandler, MessageHandler, filters, CommandHandler
-from bot.services.database import add_channel_group, get_channel_group_by_chat_id, update_channel_group, get_setting, get_active_channel_groups
+from bot.services.database import add_channel_group, get_channel_group_by_chat_id, update_channel_group, get_setting
 import logging
 
 logger = logging.getLogger(__name__)
@@ -91,33 +91,6 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
                     logger.info(f"Registered group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id}), members: {member_count}")
             else:
                 auto_greeting = await get_setting("autoGreeting")
-                require_sub = await get_setting("requireSubscription")
-
-                # Check channel subscription if required
-                if require_sub != "false":
-                    channels = await get_active_channel_groups()
-                    unsubscribed = []
-                    for ch in channels:
-                        if ch.type == "channel":
-                            try:
-                                member = await context.bot.get_chat_member(chat_id=ch.chat_id, user_id=member.id)
-                                if member.status in ("left", "kicked"):
-                                    unsubscribed.append(ch)
-                            except:
-                                unsubscribed.append(ch)
-                    if unsubscribed:
-                        ch_links = "\n".join([f"• [{ch.title}]({ch.invite_link})" for ch in unsubscribed if ch.invite_link])
-                        try:
-                            await chat.restrict_member(member.id, permissions=ChatPermissions(can_send_messages=False))
-                        except:
-                            pass
-                        await chat.send_message(
-                            f"مرحباً {member.first_name}! 👋\n\nللدخول إلى المجموعة يجب الاشتراك في القنوات التالية أولاً:\n\n{ch_links}\n\nبعد الاشتراك اضغط /تحقق",
-                            parse_mode='Markdown',
-                            disable_web_page_preview=True
-                        )
-                        return
-
                 if auto_greeting == "false":
                     continue
                 welcome_msg = await get_setting("welcomeMessage")
@@ -175,42 +148,6 @@ async def edit_chat_title(chat_id, new_title, context):
         return False
 
 
-async def verify_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if not chat or chat.type not in ("group", "supergroup"):
-        return
-    user = update.effective_user
-    require_sub = await get_setting("requireSubscription")
-    if require_sub == "false":
-        return
-
-    channels = await get_active_channel_groups()
-    unsubscribed = []
-    for ch in channels:
-        if ch.type == "channel":
-            try:
-                member = await context.bot.get_chat_member(chat_id=ch.chat_id, user_id=user.id)
-                if member.status in ("left", "kicked"):
-                    unsubscribed.append(ch)
-            except:
-                unsubscribed.append(ch)
-
-    if unsubscribed:
-        ch_links = "\n".join([f"• [{ch.title}]({ch.invite_link})" for ch in unsubscribed if ch.invite_link])
-        await update.message.reply_text(
-            f"❌ لم تشتهر بعد في:\n\n{ch_links}\n\nاشترك ثم اضغط /تحقق مرة أخرى",
-            parse_mode='Markdown',
-            disable_web_page_preview=True
-        )
-    else:
-        try:
-            await chat.restrict_member(user.id, permissions=ChatPermissions(can_send_messages=True, can_send_other_messages=True, can_add_web_page_previews=True))
-        except:
-            pass
-        await update.message.reply_text("✅ تم التحقق! يمكنك الآن التحدث في المجموعة")
-
-
 group_chat_member_handler = ChatMemberHandler(track_group_member, ChatMemberHandler.MY_CHAT_MEMBER)
 group_new_members_handler = MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, track_group_new_members)
 register_group_cmd = CommandHandler("registergroup", register_group_command)
-verify_subscription_cmd = CommandHandler("تحقق", verify_subscription)
