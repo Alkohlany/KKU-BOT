@@ -293,17 +293,11 @@ async def edit_news(news_id: int, data: NewsCreate):
         except:
             pass
 
-    # Update the news in database (only update fields that were provided)
-    update_kwargs = {"content": data.content}
-    if data.image_url is not None:
-        update_kwargs["image_url"] = data.image_url
-    if data.file_url is not None:
-        update_kwargs["file_url"] = data.file_url
-    if data.as_document is not None:
-        update_kwargs["as_document"] = data.as_document
-    if data.target_channels is not None:
-        update_kwargs["target_channels"] = data.target_channels
-    await update_news(news_id, **update_kwargs)
+    # Update the news in database
+    await update_news(news_id, content=data.content,
+                          image_url=data.image_url, file_url=data.file_url,
+                          as_document=data.as_document,
+                          target_channels=data.target_channels)
     
     # Fetch updated news
     updated = await get_news_by_id(news_id)
@@ -417,22 +411,12 @@ async def edit_news_with_file(
         file_name = first.filename
         thumbnail_url = files_json_data[0].get("thumbnail")
 
-    update_kwargs = {"content": content, "as_document": as_document}
-    if image_url is not None:
-        update_kwargs["image_url"] = image_url
-    if file_url is not None:
-        update_kwargs["file_url"] = file_url
-    if file_name is not None:
-        update_kwargs["file_name"] = file_name
-    if file_type is not None:
-        update_kwargs["file_type"] = file_type
-    if thumbnail_url is not None:
-        update_kwargs["thumbnail_url"] = thumbnail_url
-    if target_channels is not None:
-        update_kwargs["target_channels"] = target_channels
-    if files_json_data:
-        update_kwargs["files_json"] = json.dumps(files_json_data)
-    await update_news(news_id, **update_kwargs)
+    await update_news(news_id, content=content,
+                      image_url=image_url, file_url=file_url,
+                      file_name=file_name, file_type=file_type,
+                      thumbnail_url=thumbnail_url,
+                      as_document=as_document, target_channels=target_channels,
+                      files_json=json.dumps(files_json_data) if files_json_data else None)
 
     updated = await get_news_by_id(news_id)
 
