@@ -322,7 +322,7 @@ async def edit_news(news_id: int, data: NewsCreate):
             channel_message_id=n.channel_message_id,
             image_url=data.image_url or n.image_url,
             file_url=data.file_url or n.file_url,
-            as_document=data.as_document,
+            as_document=data.as_document if data.as_document is not None else n.as_document,
             file_name=n.file_name
         )
     
