@@ -3,6 +3,7 @@ import api from '../services/api';
 import { useConfirm } from '../components/ConfirmDialog';
 import { useToast } from '../components/ToastContext';
 import ChannelGroupSelector from '../components/ChannelGroupSelector';
+import FileUpload from '../components/FileUpload';
 
 export default function ScheduledPosts() {
   const { confirm } = useConfirm();
@@ -429,38 +430,12 @@ export default function ScheduledPosts() {
                   style={{ minHeight: 150 }}
                 />
               </div>
-              <div className="form-group">
-                <label>الملف المرفق (اختياري - يمكن اختيار عدة ملفات)</label>
-                <input
-                  type="file"
-                  className="form-input"
-                  multiple
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.files);
-                    setUploadFiles(selected);
-                    setUploadFile(selected[0] || null);
-                  }}
-                />
-                {uploadFiles.length > 0 && (
-                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                    {uploadFiles.length} ملف(ات) محددة: {uploadFiles.map(f => f.name).join(', ')}
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={form.as_document}
-                    onChange={(e) => setForm({ ...form, as_document: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  إرسال كملف مرفق (بدلاً من العرض المباشر)
-                </label>
-                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12 }}>
-                  عند التفعيل، سيتم إرسال الملف كمرفق قابل للتحميل بدلاً من عرضه مباشرة
-                </small>
-              </div>
+              <FileUpload
+                files={uploadFiles}
+                setFiles={(newFiles) => { setUploadFiles(newFiles); setUploadFile(newFiles[0] || null); }}
+                asDocument={form.as_document}
+                setAsDocument={(val) => setForm({ ...form, as_document: val })}
+              />
               <div className="form-group">
                 <label>وقت النشر</label>
                 <input
@@ -517,38 +492,12 @@ export default function ScheduledPosts() {
                   style={{ minHeight: 150 }}
                 />
               </div>
-              <div className="form-group">
-                <label>الملف المرفق (اختياري - يمكن اختيار عدة ملفات)</label>
-                <input
-                  type="file"
-                  className="form-input"
-                  multiple
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.files);
-                    setEditUploadFiles(selected);
-                    setEditUploadFile(selected[0] || null);
-                  }}
-                />
-                {editUploadFiles.length > 0 && (
-                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                    {editUploadFiles.length} ملف(ات) محددة: {editUploadFiles.map(f => f.name).join(', ')}
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={editForm.as_document}
-                    onChange={(e) => setEditForm({ ...editForm, as_document: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  إرسال كملف مرفق (بدلاً من العرض المباشر)
-                </label>
-                <small style={{ color: 'var(--gray-400)', marginTop: 4, display: 'block', fontSize: 12 }}>
-                  عند التفعيل، سيتم إرسال الملف كمرفق قابل للتحميل بدلاً من عرضه مباشرة
-                </small>
-              </div>
+              <FileUpload
+                files={editUploadFiles}
+                setFiles={(newFiles) => { setEditUploadFiles(newFiles); setEditUploadFile(newFiles[0] || null); }}
+                asDocument={editForm.as_document}
+                setAsDocument={(val) => setEditForm({ ...editForm, as_document: val })}
+              />
               <div className="form-group">
                 <label>وقت النشر</label>
                 <input

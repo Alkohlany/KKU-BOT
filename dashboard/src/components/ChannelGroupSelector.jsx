@@ -28,44 +28,55 @@ export default function ChannelGroupSelector({ selected = [], onChange, label = 
   };
 
   if (loading) {
-    return <div className="channel-selector">جاري تحميل القنوات والجروبات...</div>;
+    return <div style={{ padding: '10px 0', fontSize: 13, color: 'var(--gray-400)', textAlign: 'center' }}>جاري التحميل...</div>;
   }
 
   if (channelGroups.length === 0) {
     return (
-      <div className="channel-selector">
-        <div className="channel-selector-label">
-          <span>لا توجد قنوات أو جروبات مسجلة</span>
-        </div>
+      <div style={{ padding: '10px 0', fontSize: 13, color: 'var(--gray-400)', textAlign: 'center' }}>
+        لا توجد قنوات أو جروبات مسجلة
       </div>
     );
   }
 
   return (
-    <div className="channel-selector">
-      <div className="channel-selector-label">
-        <span>{label}</span>
-        <div className="channel-selector-actions">
-          <button type="button" onClick={() => onChange(channelGroups.map(g => g.chatId))}>تحديد الكل</button>
-          <button type="button" onClick={() => onChange([])}>إلغاء</button>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-700)' }}>{label}</span>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="button" onClick={() => onChange(channelGroups.map(g => g.chatId))} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 12 }}>تحديد الكل</button>
+          <button type="button" onClick={() => onChange([])} style={{ background: 'none', border: 'none', color: 'var(--gray-400)', cursor: 'pointer', fontSize: 12 }}>إلغاء</button>
         </div>
       </div>
-      <div className="channel-selector-list">
-        {channelGroups.map(group => (
-          <label key={group.id} className={`channel-selector-item ${selected.includes(group.chatId) ? 'active' : ''}`}>
-            <input
-              type="checkbox"
-              checked={selected.includes(group.chatId)}
-              onChange={() => toggleItem(group.chatId)}
-            />
-            <span>{group.type === 'channel' ? '📢' : '👥'}</span>
-            <span className="channel-selector-name">{group.title}</span>
-            {selected.includes(group.chatId) && <span className="channel-selector-check">✓</span>}
-          </label>
-        ))}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {channelGroups.map(group => {
+          const isActive = selected.includes(group.chatId);
+          return (
+            <span
+              key={group.id}
+              onClick={() => toggleItem(group.chatId)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 20,
+                fontSize: 13,
+                cursor: 'pointer',
+                background: isActive ? 'var(--primary)' : 'var(--gray-200)',
+                color: isActive ? 'white' : 'var(--gray-700)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                userSelect: 'none',
+              }}
+            >
+              <span style={{ fontSize: 14 }}>{group.type === 'channel' ? '📢' : '👥'}</span>
+              {group.title}
+            </span>
+          );
+        })}
       </div>
       {selected.length > 0 && (
-        <div className="channel-selector-footer">
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--gray-400)', textAlign: 'center' }}>
           {selected.length} من {channelGroups.length} محدد
         </div>
       )}
