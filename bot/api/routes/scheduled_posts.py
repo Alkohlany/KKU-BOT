@@ -127,7 +127,7 @@ async def create_scheduled_post_with_file(
     is_recurring: bool = Form(False),
     recurring_interval: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
-    files: Optional[list[UploadFile]] = File(None),
+    files: list[UploadFile] = File(default=[]),
     as_document: bool = Form(False),
     target_channels: Optional[str] = Form(None),
 ):
@@ -198,6 +198,78 @@ async def create_scheduled_post_with_file(
         "recurring": p.is_recurring, "isPublished": p.is_published,
         "asDocument": p.as_document, "filesJson": p.files_json
     }
+
+
+@router.put("/{post_id}/upload")
+async def update_scheduled_post_with_file(
+    post_id: int,
+    content: str = Form(...),
+    schedule_time: str = Form(...),
+    is_recurring: bool = Form(False),
+    recurring_interval: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    files: list[UploadFile] = File(default=[]),
+    as_document: bool = Form(False),
+    target_channels: Optional[str] = Form(None),
+):
+    from ...services.database import get_scheduled_post, update_scheduled_post as update_post
+    import json
+
+    existing = await get_scheduled_post(post_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Scheduled post not found")
+    if existing.is_published:
+        raise HTTPException(status_code=400, detail="Cannot edit a published post")
+
+    files_list = files or ([file] if file else [])
+    files_json_data = []
+
+    image_url = None
+    file_url = None
+    file_name = None
+    file_type = None
+    thumbnail_url = None
+
+    if files_list:
+        for f in files_list:
+            file_data = await f.read()
+            ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
+            ft = detect_file_type(f.filename)
+            local_url = save_file_locally(file_data, f.filename)
+
+            thumb = None
+            if ext == 'pdf' and local_url:
+                thumb = generate_pdf_thumbnail(local_url)
+
+            files_json_data.append({
+                "url": local_url,
+                "type": ft,
+                "name": f.filename,
+                "thumbnail": thumb,
+            })
+
+        first = files_list[0]
+        file_type = detect_file_type(first.filename)
+        file_url = files_json_data[0]["url"]
+        file_name = first.filename
+        thumbnail_url = files_json_data[0].get("thumbnail")
+
+    dt = datetime.fromisoformat(schedule_time)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    else:
+        riyadh_tz = ZoneInfo("Asia/Riyadh")
+        dt = dt.replace(tzinfo=riyadh_tz).astimezone(timezone.utc).replace(tzinfo=None)
+
+    updated = await update_post(
+        post_id, content=content, schedule_time=dt,
+        is_recurring=is_recurring, recurring_interval=recurring_interval,
+        as_document=as_document, target_channels=target_channels,
+        file_url=file_url, file_name=file_name, file_type=file_type,
+        thumbnail_url=thumbnail_url,
+        files_json=json.dumps(files_json_data) if files_json_data else existing.files_json,
+    )
+    return updated
 
 
 @router.delete("/{post_id}/channel")

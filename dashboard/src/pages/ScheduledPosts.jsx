@@ -153,7 +153,7 @@ export default function ScheduledPosts() {
         if (editSelectedChannels.length > 0) {
           formData.append('target_channels', JSON.stringify(editSelectedChannels));
         }
-        await api.uploadWithProgress(`/scheduled-posts/${editItem.id}/upload`, formData, () => {});
+        await api.uploadWithProgress(`/scheduled-posts/${editItem.id}/upload`, formData, () => {}, 'PUT');
       } else {
         await api.updateScheduledPost(editItem.id, {
           content: editForm.content,
