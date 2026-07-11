@@ -321,6 +321,109 @@ async def edit_news(news_id: int, data: NewsCreate):
             "editedMessages": edited_count, "failedMessages": failed_count}
 
 
+@router.put("/{news_id}/upload")
+async def edit_news_with_file(
+    news_id: int,
+    content: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+    files: list[UploadFile] = File(default=[]),
+    as_document: bool = Form(False),
+    target_channels: Optional[str] = Form(None),
+):
+    import json
+
+    existing = await get_news_by_id(news_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="News not found")
+
+    files_list = files or ([file] if file else [])
+    files_json_data = []
+
+    image_url = None
+    file_url = None
+    file_name = None
+    file_type = None
+    thumbnail_url = None
+
+    if files_list:
+        for f in files_list:
+            file_data = await f.read()
+            ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
+            ft = detect_file_type(f.filename)
+            local_url = None
+            remote_url = None
+
+            if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+                if as_document:
+                    local_url = save_file_locally(file_data, f.filename)
+                else:
+                    try:
+                        remote_url = upload_image(file_data, folder="kku-bot/news")
+                    except Exception as e:
+                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
+            else:
+                local_url = save_file_locally(file_data, f.filename)
+
+            thumb = None
+            if ext == 'pdf' and local_url:
+                thumb = generate_pdf_thumbnail(local_url)
+
+            url = remote_url or local_url
+            files_json_data.append({
+                "url": url,
+                "type": ft,
+                "name": f.filename,
+                "thumbnail": thumb,
+            })
+
+        first = files_list[0]
+        first_ext = first.filename.lower().split('.')[-1] if '.' in first.filename else ''
+        file_type = detect_file_type(first.filename)
+        if first_ext in ('jpg', 'jpeg', 'png', 'gif', 'webp') and not as_document:
+            image_url = files_json_data[0]["url"]
+        else:
+            file_url = files_json_data[0]["url"]
+        file_name = first.filename
+        thumbnail_url = files_json_data[0].get("thumbnail")
+
+    await update_news(news_id, content=content,
+                      image_url=image_url, file_url=file_url,
+                      file_name=file_name, file_type=file_type,
+                      thumbnail_url=thumbnail_url,
+                      as_document=as_document, target_channels=target_channels,
+                      files_json=json.dumps(files_json_data) if files_json_data else None)
+
+    updated = await get_news_by_id(news_id)
+
+    group_message_ids = {}
+    if existing.group_message_ids:
+        try:
+            group_message_ids = json.loads(existing.group_message_ids)
+        except:
+            pass
+
+    edited_count = 0
+    failed_count = 0
+    if group_message_ids or existing.channel_message_id:
+        edited_count, failed_count = await edit_published_messages(
+            text=content,
+            group_message_ids=group_message_ids,
+            channel_message_id=existing.channel_message_id,
+            image_url=image_url or existing.image_url,
+            file_url=file_url or existing.file_url,
+            as_document=as_document,
+            file_name=file_name or existing.file_name
+        )
+
+    return {"id": updated.id, "content": updated.content,
+            "imageUrl": updated.image_url, "fileUrl": updated.file_url,
+            "fileName": updated.file_name, "fileType": updated.file_type,
+            "thumbnailUrl": updated.thumbnail_url,
+            "asDocument": updated.as_document,
+            "filesJson": updated.files_json,
+            "editedMessages": edited_count, "failedMessages": failed_count}
+
+
 @router.delete("/{news_id}/channel")
 async def delete_from_channel_endpoint(news_id: int):
     n = await get_news_by_id(news_id)

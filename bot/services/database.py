@@ -278,7 +278,7 @@ async def get_news_by_id(news_id: int):
         result = await session.execute(select(News).where(News.id == news_id))
         return result.scalar_one_or_none()
 
-async def update_news(news_id, content=None, image_url=None, file_url=None, as_document=None, channel_message_id=None, group_message_ids=None, target_channels=None, is_published=None):
+async def update_news(news_id, content=None, image_url=None, file_url=None, as_document=None, channel_message_id=None, group_message_ids=None, target_channels=None, is_published=None, file_name=None, file_type=None, thumbnail_url=None, files_json=None):
     async with async_session() as session:
         update_data = {}
         if content is not None:
@@ -297,6 +297,14 @@ async def update_news(news_id, content=None, image_url=None, file_url=None, as_d
             update_data["target_channels"] = target_channels
         if is_published is not None:
             update_data["is_published"] = is_published
+        if file_name is not None:
+            update_data["file_name"] = file_name
+        if file_type is not None:
+            update_data["file_type"] = file_type
+        if thumbnail_url is not None:
+            update_data["thumbnail_url"] = thumbnail_url
+        if files_json is not None:
+            update_data["files_json"] = files_json
         if update_data:
             await session.execute(
                 update(News).where(News.id == news_id).values(**update_data)
