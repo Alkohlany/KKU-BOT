@@ -129,7 +129,7 @@ async def create_news(data: NewsCreate):
 async def create_news_with_file(
     content: str = Form(...),
     file: Optional[UploadFile] = File(None),
-    files: Optional[list[UploadFile]] = File(None),
+    files: list[UploadFile] = File(default=[]),
     as_document: bool = Form(False),
     target_channels: Optional[str] = Form(None),
     selected_keywords: str = Form("[]"),
