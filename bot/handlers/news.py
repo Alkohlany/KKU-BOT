@@ -42,7 +42,7 @@ async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await update.message.reply_document(document=news.file_url, caption=text)
         else:
-            await update.message.reply_text(text)
+            await update.message.reply_text(text, disable_web_page_preview=True)
 
 
 news_handler = CommandHandler("news", news_command)

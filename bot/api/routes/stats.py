@@ -115,6 +115,7 @@ async def get_settings(
         "requireSubscription": "true",
         "autoGreeting": "true",
         "linkFilter": "false",
+        "ai_fallback_enabled": "true",
     }
 
     for key, default in defaults.items():

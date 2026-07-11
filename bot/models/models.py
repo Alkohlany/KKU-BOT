@@ -86,6 +86,7 @@ class News(Base):
     channel_message_id = Column(Integer, nullable=True)
     as_document = Column(Boolean, default=False)
     group_message_ids = Column(Text, nullable=True)  # JSON string: {"chat_id": message_id, ...}
+    files_json = Column(Text, nullable=True)
     target_channels = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
@@ -114,6 +115,10 @@ class ScheduledPost(Base):
     content = Column(Text, nullable=False)
     image_url = Column(String(500))
     file_url = Column(String(500))
+    file_name = Column(String(255), nullable=True)
+    file_type = Column(String(50), nullable=True)
+    file_id = Column(String(200), nullable=True)
+    thumbnail_url = Column(String(500), nullable=True)
     schedule_time = Column(DateTime, nullable=False)
     is_recurring = Column(Boolean, default=False)
     recurring_interval = Column(String(50))
@@ -121,6 +126,7 @@ class ScheduledPost(Base):
     published_at = Column(DateTime)
     created_by = Column(BigInteger)
     as_document = Column(Boolean, default=False)
+    files_json = Column(Text, nullable=True)
     target_channels = Column(Text, nullable=True)
     group_message_ids = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())

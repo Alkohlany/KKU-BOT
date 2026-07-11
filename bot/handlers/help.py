@@ -65,9 +65,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if update.effective_user.id in ADMIN_IDS:
-        await update.message.reply_text(ADMIN_HELP_MESSAGE, parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(ADMIN_HELP_MESSAGE, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
     else:
-        await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
 help_handler = CommandHandler("help", help_command)

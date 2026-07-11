@@ -17,7 +17,9 @@ export default function News() {
   const [editItem, setEditItem] = useState(null);
 
   const [uploadFile, setUploadFile] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]);
   const [editUploadFile, setEditUploadFile] = useState(null);
+  const [editUploadFiles, setEditUploadFiles] = useState([]);
 
   const [aiKeywords, setAiKeywords] = useState([]);
   const [aiQuestions, setAiQuestions] = useState([]);
@@ -161,11 +163,12 @@ export default function News() {
     setUploadProgress(0);
     try {
       let newItem;
-      if (uploadFile) {
+      const allFiles = uploadFiles.length > 0 ? uploadFiles : (uploadFile ? [uploadFile] : []);
+      if (allFiles.length > 0) {
         const formData = new FormData();
         formData.append('title', '');
         formData.append('content', form.content);
-        formData.append('file', uploadFile);
+        allFiles.forEach(f => formData.append('files', f));
         formData.append('as_document', form.as_document);
         formData.append('target_channels', JSON.stringify(selectedChannels));
         formData.append('selected_keywords', JSON.stringify(selectedKeywords));
@@ -179,6 +182,7 @@ export default function News() {
       setNews([...news, newItem]);
       setForm({ content: '', as_document: false });
       setUploadFile(null);
+      setUploadFiles([]);
       setSelectedChannels([]);
       setShowModal(false);
       setShowAiPanel(false);
@@ -200,13 +204,14 @@ export default function News() {
     if (!editForm.content || !editItem) return;
     setSaving(true);
     try {
-      if (editUploadFile) {
+      const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
+      if (allEditFiles.length > 0) {
         const formData = new FormData();
         formData.append('title', '');
         formData.append('content', editForm.content);
         formData.append('as_document', editForm.as_document);
         formData.append('target_channels', JSON.stringify(editSelectedChannels));
-        formData.append('file', editUploadFile);
+        allEditFiles.forEach(f => formData.append('files', f));
         await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {});
       } else {
         await api.put(`/news/${editItem.id}`, { ...editForm, title: '', target_channels: JSON.stringify(editSelectedChannels) });
@@ -219,6 +224,7 @@ export default function News() {
       setShowEditModal(false);
       setEditItem(null);
       setEditUploadFile(null);
+      setEditUploadFiles([]);
       showToast('تم تعديل المنشور بنجاح', 'success');
     } catch (err) {
       console.error('Failed to edit news:', err);
@@ -324,6 +330,7 @@ export default function News() {
     });
     setEditSelectedChannels(item.target_channels ? (typeof item.target_channels === 'string' ? JSON.parse(item.target_channels) : item.target_channels) : []);
     setEditUploadFile(null);
+    setEditUploadFiles([]);
     setShowEditModal(true);
   };
 
@@ -369,7 +376,7 @@ export default function News() {
               </svg>
               حذف الكل
             </button>
-            <button className="btn btn-primary" onClick={() => { setForm({ content: '', as_document: false }); setUploadFile(null); setSelectedChannels([]); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ content: '', as_document: false }); setUploadFile(null); setUploadFiles([]); setSelectedChannels([]); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -529,7 +536,7 @@ export default function News() {
                     disabled={enhancingContent || !form.content}
                     style={{ fontSize: 12, padding: '4px 12px' }}
                   >
-                    {enhancingContent ? 'جاري التحسين...' : uploadFile ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                    {enhancingContent ? 'جاري التحسين...' : (uploadFiles.length > 0 || uploadFile) ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
                   </button>
                 </label>
                 <textarea
@@ -619,15 +626,20 @@ export default function News() {
                 </div>
               )}
               <div className="form-group">
-                <label>الملف المرفق (اختياري)</label>
+                <label>الملف المرفق (اختياري - يمكن اختيار عدة ملفات)</label>
                 <input
                   type="file"
                   className="form-input"
-                  onChange={(e) => setUploadFile(e.target.files[0])}
+                  multiple
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.files);
+                    setUploadFiles(selected);
+                    setUploadFile(selected[0] || null);
+                  }}
                 />
-                {uploadFile && (
+                {uploadFiles.length > 0 && (
                   <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                    {uploadFile.name}
+                    {uploadFiles.length} ملف(ات) محددة: {uploadFiles.map(f => f.name).join(', ')}
                   </small>
                 )}
               </div>
@@ -698,7 +710,7 @@ export default function News() {
                     disabled={enhancingContent || !editForm.content}
                     style={{ fontSize: 12, padding: '4px 12px' }}
                   >
-                    {enhancingContent ? 'جاري التحسين...' : editUploadFile ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                    {enhancingContent ? 'جاري التحسين...' : (editUploadFiles.length > 0 || editUploadFile) ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
                   </button>
                 </label>
                 <textarea
@@ -710,15 +722,20 @@ export default function News() {
                 />
               </div>
               <div className="form-group">
-                <label>الملف المرفق (اختياري)</label>
+                <label>الملف المرفق (اختياري - يمكن اختيار عدة ملفات)</label>
                 <input
                   type="file"
                   className="form-input"
-                  onChange={(e) => setEditUploadFile(e.target.files[0])}
+                  multiple
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.files);
+                    setEditUploadFiles(selected);
+                    setEditUploadFile(selected[0] || null);
+                  }}
                 />
-                {editUploadFile && (
+                {editUploadFiles.length > 0 && (
                   <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                    {editUploadFile.name}
+                    {editUploadFiles.length} ملف(ات) محددة: {editUploadFiles.map(f => f.name).join(', ')}
                   </small>
                 )}
               </div>

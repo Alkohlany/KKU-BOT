@@ -19,8 +19,12 @@ async def check_scheduled_posts(context):
                     text=post.content,
                     image_url=post.image_url,
                     file_url=post.file_url,
+                    file_id=post.file_id,
                     as_document=post.as_document,
-                    target_channels=post.target_channels
+                    file_name=post.file_name,
+                    thumbnail_url=post.thumbnail_url,
+                    target_channels=post.target_channels,
+                    files_json=post.files_json
                 )
                 if sent > 0:
                     await mark_post_published(post.id, group_message_ids=json.dumps(group_message_ids) if group_message_ids else None)

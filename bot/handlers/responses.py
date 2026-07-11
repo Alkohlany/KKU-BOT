@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 from bot.middleware.subscription import subscription_required
 from bot.services.database import get_auto_responses
+from bot.services.news_publisher import wrap_links_in_blockquote
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ async def responses_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     responses = await get_auto_responses()
     if not responses:
-        await update.message.reply_text("لا توجد ردود مخصصة حالياً 📭")
+        await update.message.reply_text("لا توجد ردود مخصصة حالياً 📭", disable_web_page_preview=True)
         return
 
     text = "💬 الردود المخصصة:\n\n"
@@ -23,7 +24,8 @@ async def responses_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"   ↳ {r.response[:80]}{'...' if len(r.response) > 80 else ''}\n\n"
 
     text += "\n💡 يمكنك إدارة الردود من الداشبورد"
-    await update.message.reply_text(text)
+    text = wrap_links_in_blockquote(text)
+    await update.message.reply_text(text, disable_web_page_preview=True)
 
 
 responses_handler = CommandHandler("responses", responses_command)

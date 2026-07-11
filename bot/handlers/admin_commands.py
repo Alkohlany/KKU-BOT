@@ -57,7 +57,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /groups - قائمة القروبات
 /broadcast \[رسالة\] - إرسال للجميع"""
 
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
 # ==================== الردود التلقائية ====================
@@ -91,7 +91,8 @@ async def response_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/r del \[رقم\] - حذف رد\n"
             "/r list - عرض الردود\n"
             "/r search \[كلمة\] - البحث في الردود",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
         )
 
 
@@ -123,7 +124,8 @@ async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/q del \[رقم\] - حذف سؤال\n"
             "/q list - عرض الاسئلة\n"
             "/q search \[كلمة\] - البحث في الاسئلة",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
         )
 
 
@@ -148,13 +150,14 @@ async def question_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💡 مثال:\n"
             "/q add كيف أسجل تسجيل,قوائم 5\n\n"
             "💡 يمكنك أيضاً استخدام:\n"
-            "اضافه سؤال [سؤال] [كلمات مفتاحية] [رقم المنشور]"
+            "اضافه سؤال [سؤال] [كلمات مفتاحية] [رقم المنشور]",
+            disable_web_page_preview=True
         )
         return
 
     parts = args_text.rsplit(None, 2)
     if len(parts) < 3:
-        await update.message.reply_text("❌ يجب تحديد: السؤال + كلمات مفتاحية + رقم المنشور")
+        await update.message.reply_text("❌ يجب تحديد: السؤال + كلمات مفتاحية + رقم المنشور", disable_web_page_preview=True)
         return
 
     question_text, keywords, news_id_str = parts[0], parts[1], parts[2]
@@ -162,7 +165,7 @@ async def question_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         news_id = int(news_id_str)
     except ValueError:
-        await update.message.reply_text("❌ رقم المنشور يجب أن يكون رقماً صحيحاً")
+        await update.message.reply_text("❌ رقم المنشور يجب أن يكون رقماً صحيحاً", disable_web_page_preview=True)
         return
 
     try:
@@ -173,10 +176,10 @@ async def question_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keywords=keywords,
             news_id=news_id
         )
-        await update.message.reply_text(f"✅ تمت إضافة السؤال\n🔗 المنشور المرتبط: {news_id}")
+        await update.message.reply_text(f"✅ تمت إضافة السؤال\n🔗 المنشور المرتبط: {news_id}", disable_web_page_preview=True)
         await log_activity("add_question", f"News ID: {news_id}", update.effective_user.id)
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل إضافة السؤال: {str(e)}")
+        await update.message.reply_text(f"❌ فشل إضافة السؤال: {str(e)}", disable_web_page_preview=True)
 
 
 # ==================== المنشورات ====================
@@ -216,7 +219,8 @@ async def news_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/n republish \[رقم\] - إعادة نشر المنشور\n"
             "/n delete-all - حذف جميع المنشورات\n"
             "/n channel-del \[رقم\] - حذف من القناة فقط",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
         )
 
 
@@ -231,7 +235,8 @@ async def news_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "3. ارفق الصورة أو الملف اختيارياً\n"
         "4. اكتب:\n/منشور اضافه\n\n"
         "💡 يمكنك أيضاً استخدام الداشبورد من الويب",
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.MARKDOWN,
+        disable_web_page_preview=True
     )
 
 
@@ -241,7 +246,7 @@ async def news_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     news = await get_all_news()
     if not news:
-        await update.message.reply_text("📭 لا توجد منشورات")
+        await update.message.reply_text("📭 لا توجد منشورات", disable_web_page_preview=True)
         return
 
     text = "📰 **المنشورات:**\n\n"
@@ -252,7 +257,7 @@ async def news_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(news) > 15:
         text += f"\n... و {len(news) - 15} منشور آخر"
 
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
 async def news_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -260,18 +265,18 @@ async def news_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور حذف \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور حذف \[رقم\]", parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
 
     try:
         news_id = int(context.args[0])
         await delete_news(news_id)
-        await update.message.reply_text(f"✅ تمت حذف المنشور رقم {news_id}")
+        await update.message.reply_text(f"✅ تمت حذف المنشور رقم {news_id}", disable_web_page_preview=True)
         await log_activity("delete_news", f"ID: {news_id}", update.effective_user.id)
     except ValueError:
-        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل حذف المنشور: {str(e)}")
+        await update.message.reply_text(f"❌ فشل حذف المنشور: {str(e)}", disable_web_page_preview=True)
 
 
 async def news_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -279,7 +284,7 @@ async def news_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور تعديل \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور تعديل \[رقم\]", parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
 
     try:
@@ -289,11 +294,12 @@ async def news_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "1. ارسل العنوان الجديد كرسالة\n"
             "2. رد عليها بالمحتوى الجديد\n"
             "3. ارفق صورة جديدة اختيارياً",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
         )
         await log_activity("edit_news", f"ID: {news_id}", update.effective_user.id)
     except ValueError:
-        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
 
 
 async def news_republish(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -301,17 +307,17 @@ async def news_republish(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور إعادة نشر \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور إعادة نشر \[رقم\]", parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
 
     try:
         news_id = int(context.args[0])
-        await update.message.reply_text(f"✅ تمت إعادة نشر المنشور رقم {news_id}")
+        await update.message.reply_text(f"✅ تمت إعادة نشر المنشور رقم {news_id}", disable_web_page_preview=True)
         await log_activity("republish_news", f"ID: {news_id}", update.effective_user.id)
     except ValueError:
-        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل إعادة نشر المنشور: {str(e)}")
+        await update.message.reply_text(f"❌ فشل إعادة نشر المنشور: {str(e)}", disable_web_page_preview=True)
 
 
 async def news_delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -323,10 +329,10 @@ async def news_delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
         count = len(news)
         for n in news:
             await delete_news(n.id)
-        await update.message.reply_text(f"✅ تم حذف جميع المنشورات ({count} منشور)")
+        await update.message.reply_text(f"✅ تم حذف جميع المنشورات ({count} منشور)", disable_web_page_preview=True)
         await log_activity("delete_all_news", f"Count: {count}", update.effective_user.id)
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل حذف المنشورات: {str(e)}")
+        await update.message.reply_text(f"❌ فشل حذف المنشورات: {str(e)}", disable_web_page_preview=True)
 
 
 async def news_channel_del(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -334,17 +340,17 @@ async def news_channel_del(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور حذف القناة \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/منشور حذف القناة \[رقم\]", parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
 
     try:
         news_id = int(context.args[0])
-        await update.message.reply_text(f"✅ تم حذف المنشور رقم {news_id} من القناة فقط")
+        await update.message.reply_text(f"✅ تم حذف المنشور رقم {news_id} من القناة فقط", disable_web_page_preview=True)
         await log_activity("channel_del_news", f"ID: {news_id}", update.effective_user.id)
     except ValueError:
-        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل حذف المنشور من القناة: {str(e)}")
+        await update.message.reply_text(f"❌ فشل حذف المنشور من القناة: {str(e)}", disable_web_page_preview=True)
 
 
 # ==================== إدارة المستخدمين ====================
@@ -356,7 +362,8 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
             "❌ الطريقة الصحيحة:\n/حظر \[رقم\] \[سبب\]",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
         )
         return
 
@@ -365,12 +372,12 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reason = ' '.join(context.args[1:]) if len(context.args) > 1 else "لا يوجد سبب"
 
         await ban_user(user_id, reason, update.effective_user.id)
-        await update.message.reply_text(f"🚫 تم حظر المستخدم `{user_id}`\n📋 السبب: {reason}")
+        await update.message.reply_text(f"🚫 تم حظر المستخدم `{user_id}`\n📋 السبب: {reason}", disable_web_page_preview=True)
         await log_activity("ban_user", f"User: {user_id}, Reason: {reason}", update.effective_user.id)
     except ValueError:
-        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل الحظر: {str(e)}")
+        await update.message.reply_text(f"❌ فشل الحظر: {str(e)}", disable_web_page_preview=True)
 
 
 async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -378,7 +385,7 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❌ الطريقة الصحيحة:\n/الغاء\_حظر \[رقم\]", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/الغاء\_حظر \[رقم\]", parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
 
     try:
@@ -391,12 +398,12 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await session.execute(sql_delete(BannedUser).where(BannedUser.telegram_id == user_id))
             await session.commit()
 
-        await update.message.reply_text(f"✅ تم رفع الحظر عن المستخدم `{user_id}`")
+        await update.message.reply_text(f"✅ تم رفع الحظر عن المستخدم `{user_id}`", disable_web_page_preview=True)
         await log_activity("unban_user", f"User: {user_id}", update.effective_user.id)
     except ValueError:
-        await update.message.reply_text("❌ يجب إدخال رقم صحيح")
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل رفع الحظر: {str(e)}")
+        await update.message.reply_text(f"❌ فشل رفع الحظر: {str(e)}", disable_web_page_preview=True)
 
 
 async def banned_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -405,14 +412,14 @@ async def banned_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     banned = await get_all_banned()
     if not banned:
-        await update.message.reply_text("✅ لا يوجد محظورين")
+        await update.message.reply_text("✅ لا يوجد محظورين", disable_web_page_preview=True)
         return
 
     text = "🚫 **قائمة المحظورين:**\n\n"
     for b in banned[:20]:
         text += f"`{b.telegram_id}` - {b.reason or 'لا يوجد سبب'}\n"
 
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
 # ==================== عام ====================
@@ -443,7 +450,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ❓ الاسئلة: {total_questions}
 📰 المنشورات: {total_news}"""
 
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
 async def groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -452,7 +459,7 @@ async def groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     groups = await get_active_channel_groups()
     if not groups:
-        await update.message.reply_text("📭 لا توجد قروبات مسجلة")
+        await update.message.reply_text("📭 لا توجد قروبات مسجلة", disable_web_page_preview=True)
         return
 
     text = "👥 **القروبات:**\n\n"
@@ -460,7 +467,7 @@ async def groups_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status = "✅" if g.is_active else "❌"
         text += f"{status} `{g.chat_id}` - {g.title or 'بدون عنوان'}\n"
 
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -468,14 +475,14 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❌ الطريقة الصحيحة:\n/اذاعة \[رسالة\]", parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/اذاعة \[رسالة\]", parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
         return
 
     message = ' '.join(context.args)
     groups = await get_active_channel_groups()
 
     if not groups:
-        await update.message.reply_text("📭 لا توجد قروبات لإرسال الرسالة")
+        await update.message.reply_text("📭 لا توجد قروبات لإرسال الرسالة", disable_web_page_preview=True)
         return
 
     sent = 0
@@ -483,12 +490,12 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for group in groups:
         try:
-            await context.bot.send_message(chat_id=group.chat_id, text=message)
+            await context.bot.send_message(chat_id=group.chat_id, text=message, disable_web_page_preview=True)
             sent += 1
         except Exception:
             failed += 1
 
-    await update.message.reply_text(f"✅ تم الإرسال\n📤 نجح: {sent}\n❌ فشل: {failed}")
+    await update.message.reply_text(f"✅ تم الإرسال\n📤 نجح: {sent}\n❌ فشل: {failed}", disable_web_page_preview=True)
     await log_activity("broadcast", f"Sent: {sent}, Failed: {failed}", update.effective_user.id)
 
 

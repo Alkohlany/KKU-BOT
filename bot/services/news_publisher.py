@@ -1,7 +1,7 @@
 import logging
 import re
 import json
-from telegram import Bot
+from telegram import Bot, InputMediaPhoto, InputMediaDocument, InputMediaVideo
 from bot.services.database import get_active_channel_groups, log_activity
 from bot.config import BOT_TOKEN
 from bot.services.cloud_storage import download_raw
@@ -23,7 +23,7 @@ def wrap_links_in_blockquote(text: str) -> str:
     return re.sub(url_pattern, replace_url, text)
 
 
-async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, target_channels: str = None) -> tuple[int, int | None, dict]:
+async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, target_channels: str = None, files_json: str = None) -> tuple[int, int | None, dict]:
     text = wrap_links_in_blockquote(text)
     sent = 0
     channel_message_id = None
@@ -44,7 +44,7 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
     for chat_id in target_chat_ids:
         chat_id_str = str(chat_id)
         try:
-            msg_id = await _send_to_chat_and_get_id(chat_id_str, text, image_url, file_url, file_id, as_document, file_name, thumbnail_url)
+            msg_id = await _send_to_chat_and_get_id(chat_id_str, text, image_url, file_url, file_id, as_document, file_name, thumbnail_url, files_json=files_json)
             if msg_id:
                 sent += 1
                 group_message_ids[chat_id_str] = msg_id
@@ -103,13 +103,39 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
     return False
 
 
-async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> bool:
-    msg_id = await _send_to_chat_and_get_id(chat_id, text, image_url, file_url, file_id, as_document, file_name, thumbnail_url)
+async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, files_json: str = None) -> bool:
+    msg_id = await _send_to_chat_and_get_id(chat_id, text, image_url, file_url, file_id, as_document, file_name, thumbnail_url, files_json=files_json)
     return msg_id is not None
 
 
-async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None) -> int | None:
+async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, files_json: str = None) -> int | None:
     logger.info(f"Sending to {chat_id}, as_document={as_document}, file_url={file_url}, image_url={image_url}")
+
+    if files_json:
+        try:
+            parsed_files = json.loads(files_json)
+        except (json.JSONDecodeError, TypeError):
+            parsed_files = []
+
+        if parsed_files:
+            if len(parsed_files) > 1:
+                return await _send_media_group(chat_id, text, parsed_files, as_document)
+            else:
+                file_obj = parsed_files[0]
+                file_url_item = file_obj.get("url")
+                file_type_item = file_obj.get("type", "document")
+                file_name_item = file_obj.get("name")
+                try:
+                    if file_type_item == "photo" and not as_document:
+                        msg = await bot.send_photo(chat_id=chat_id, photo=file_url_item, caption=text, parse_mode='HTML')
+                        return msg.message_id
+                    else:
+                        msg = await _send_file_and_get_id(chat_id, file_url_item, text, original_filename=file_name_item)
+                        if msg:
+                            return msg.message_id
+                except Exception as e:
+                    logger.warning(f"Failed to send file {file_name_item} to {chat_id}: {e}")
+
     try:
         if as_document:
             if file_url:
@@ -161,6 +187,33 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
             return await bot.send_document(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
         except Exception as e:
             logger.warning(f"send_document URL failed for {chat_id}: {e}")
+
+    return None
+
+
+async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_document: bool = False) -> int | None:
+    media_group = []
+    for i, file_obj in enumerate(parsed_files):
+        file_url_item = file_obj.get("url")
+        file_type_item = file_obj.get("type", "document")
+        item_caption = caption if i == 0 else None
+
+        if file_type_item == "photo" and not as_document:
+            media_group.append(InputMediaPhoto(media=file_url_item, caption=item_caption, parse_mode='HTML'))
+        elif file_type_item == "video":
+            media_group.append(InputMediaVideo(media=file_url_item, caption=item_caption, parse_mode='HTML'))
+        else:
+            media_group.append(InputMediaDocument(media=file_url_item, caption=item_caption, parse_mode='HTML'))
+
+    if not media_group:
+        return None
+
+    try:
+        messages = await bot.send_media_group(chat_id=chat_id, media=media_group)
+        if messages:
+            return messages[0].message_id
+    except Exception as e:
+        logger.warning(f"send_media_group failed for {chat_id}: {e}")
 
     return None
 

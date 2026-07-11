@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.constants import ChatMemberStatus, ParseMode
 from bot.config import ADMIN_IDS
 from bot.services.cloud_storage import upload_raw
+from bot.services.news_publisher import wrap_links_in_blockquote
 from bot.services.database import (
     get_auto_responses_by_source, remove_auto_responses_by_source,
     add_auto_response, get_all_auto_responses, remove_auto_response,
@@ -33,7 +34,7 @@ def is_admin(user_id: int) -> bool:
 
 async def send_admin_message(context: ContextTypes.DEFAULT_TYPE, user_id: int, text: str, parse_mode=None):
     try:
-        await context.bot.send_message(chat_id=user_id, text=text, parse_mode=parse_mode)
+        await context.bot.send_message(chat_id=user_id, text=wrap_links_in_blockquote(text), parse_mode=parse_mode, disable_web_page_preview=True)
     except Exception as e:
         logger.error(f"Failed to send private message to admin {user_id}: {e}")
 
@@ -500,7 +501,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         for group in groups:
             try:
-                await context.bot.send_message(chat_id=group.chat_id, text=message, disable_web_page_preview=True)
+                await context.bot.send_message(chat_id=group.chat_id, text=wrap_links_in_blockquote(message), disable_web_page_preview=True)
                 sent += 1
             except Exception:
                 failed += 1
@@ -570,8 +571,9 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         target_member = await chat.get_member(target_user_id)
         if target_member.status in [ChatMemberStatus.OWNER]:
-            await send_admin_message(context, user.id, "❌ لا يمكنك تنفيذ هذا الأمر على مالك القروب")
-            return
+            if user.id not in ADMIN_IDS:
+                await send_admin_message(context, user.id, "❌ لا يمكنك تنفيذ هذا الأمر على مالك القروب")
+                return
     except:
         pass
 

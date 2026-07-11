@@ -54,7 +54,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     markup = InlineKeyboardMarkup(FEATURES_KEYBOARD)
-    await update.message.reply_text(START_MESSAGE, reply_markup=markup)
+    await update.message.reply_text(START_MESSAGE, reply_markup=markup, disable_web_page_preview=True)
 
 
 async def feature_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -66,19 +66,19 @@ async def feature_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if feature == "news":
         from bot.handlers.news import get_news_text
         text = await get_news_text()
-        await query.edit_message_text(text, parse_mode="Markdown")
+        await query.edit_message_text(text, parse_mode="Markdown", disable_web_page_preview=True)
     elif feature == "questions":
         from bot.handlers.questions import get_questions_text
         text = await get_questions_text()
-        await query.edit_message_text(text, parse_mode="Markdown")
+        await query.edit_message_text(text, parse_mode="Markdown", disable_web_page_preview=True)
     elif feature == "plans":
         from bot.handlers.study_plans import get_plans_text
         text = await get_plans_text()
-        await query.edit_message_text(text, parse_mode="Markdown")
+        await query.edit_message_text(text, parse_mode="Markdown", disable_web_page_preview=True)
     elif feature == "responses":
         from bot.handlers.responses import get_responses_text
         text = await get_responses_text()
-        await query.edit_message_text(text, parse_mode="Markdown")
+        await query.edit_message_text(text, parse_mode="Markdown", disable_web_page_preview=True)
 
 
 start_handler = CommandHandler("start", start_command)

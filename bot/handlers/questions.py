@@ -40,22 +40,22 @@ async def questions_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await update.message.reply_document(document=result.file_url, caption=f"❓ {result.question}\n\n✅ {result.answer}")
                 except Exception as e:
                     logger.warning(f"Could not send question file: {e}")
-                    await update.message.reply_text(f"❓ {result.question}\n\n✅ {result.answer}")
+                    await update.message.reply_text(f"❓ {result.question}\n\n✅ {result.answer}", disable_web_page_preview=True)
             else:
-                await update.message.reply_text(f"❓ {result.question}\n\n✅ {result.answer}")
+                await update.message.reply_text(f"❓ {result.question}\n\n✅ {result.answer}", disable_web_page_preview=True)
         else:
-            await update.message.reply_text("لم أجد جواب على سؤالك، جرب أسئلة ثانية أو اسأل في القروب")
+            await update.message.reply_text("لم أجد جواب على سؤالك، جرب أسئلة ثانية أو اسأل في القروب", disable_web_page_preview=True)
     else:
         questions = await get_all_questions()
         if not questions:
-            await update.message.reply_text("لا توجد أسئلة مسجلة حالياً 📭")
+            await update.message.reply_text("لا توجد أسئلة مسجلة حالياً 📭", disable_web_page_preview=True)
             return
         
         text = "📚 الأسئلة الشائعة:\n\n"
         for q in questions[:10]:
             text += f"• {q.question}\n"
         text += "\n💡 اكتب سؤالك بعد الأمر مثل:\n/questions كيف أسجل مواد"
-        await update.message.reply_text(text)
+        await update.message.reply_text(text, disable_web_page_preview=True)
 
 
 questions_handler = CommandHandler("questions", questions_command)

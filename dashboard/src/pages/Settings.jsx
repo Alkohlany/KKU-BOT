@@ -181,6 +181,20 @@ export default function Settings({ onLogout }) {
                 <span className="toggle-slider" />
               </label>
             </div>
+            <div className="setting-row">
+              <div>
+                <div className="label">البحث بالذكاء الاصطناعي (AI)</div>
+                <div className="desc">تفعيل الرد بالذكاء الاصطناعي عندما لا توجد إجابة مطابقة</div>
+              </div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={settings.ai_fallback_enabled !== "false"}
+                  onChange={(e) => setSettings({ ...settings, ai_fallback_enabled: e.target.checked ? "true" : "false" })}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
           </div>
 
           <div className="setting-group">

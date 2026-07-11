@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
-from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity
+from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity, get_setting
 from bot.services.responses_system import DEFAULT_RESPONSES
 from bot.services.ai import search_university_info, _call_model
 import logging
@@ -96,6 +96,10 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
             search_query = f"{text} جامعة الملك خالد"
             logger.info(f"CONVERSATIONAL: reply detected. bot_msg='{bot_message[:80]}...' user_reply='{text[:80]}...'")
             try:
+                ai_fallback_enabled = await get_setting("ai_fallback_enabled")
+                if ai_fallback_enabled == "false":
+                    logger.info("CONVERSATIONAL: AI fallback disabled, skipping")
+                    return
                 search_reply = search_university_info(search_query)
                 if search_reply and search_reply.strip():
                     await update.message.reply_text(search_reply.strip(), disable_web_page_preview=True)
@@ -221,6 +225,10 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
     
+    ai_fallback_enabled = await get_setting("ai_fallback_enabled")
+    if ai_fallback_enabled == "false":
+        logger.info("AI fallback disabled by setting, skipping")
+        return
     try:
         ai_answer = search_university_info(text)
         if ai_answer and ai_answer.strip():

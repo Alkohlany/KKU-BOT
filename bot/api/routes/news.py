@@ -62,6 +62,7 @@ class NewsCreate(BaseModel):
     as_document: bool = False
     file_id: Optional[str] = None
     target_channels: Optional[str] = None
+    files_json: Optional[str] = None
 
 
 class NewsAnalyze(BaseModel):
@@ -91,6 +92,7 @@ async def get_news():
             "asDocument": n.as_document,
             "channelMessageId": n.channel_message_id,
             "targetChannels": n.target_channels,
+            "filesJson": n.files_json,
             "publishedAt": n.published_at.isoformat() if n.published_at else None,
             "createdAt": n.created_at.isoformat() if n.created_at else None,
         }
@@ -115,7 +117,8 @@ async def create_news(data: NewsCreate):
                          file_name=data.file_name,
                          as_document=data.as_document,
                          file_id=data.file_id,
-                         target_channels=data.target_channels)
+                         target_channels=data.target_channels,
+                         files_json=data.files_json)
     return {"id": n.id, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
             "published": n.is_published,
@@ -126,38 +129,67 @@ async def create_news(data: NewsCreate):
 async def create_news_with_file(
     content: str = Form(...),
     file: Optional[UploadFile] = File(None),
+    files: Optional[list[UploadFile]] = File(None),
     as_document: bool = Form(False),
     target_channels: Optional[str] = Form(None),
     selected_keywords: str = Form("[]"),
     selected_questions: str = Form("[]"),
 ):
     try:
+        import json
+
+        files_list = files or ([file] if file else [])
+        files_json_data = []
+
         image_url = None
         file_url = None
         thumbnail_url = None
         file_type = None
 
-        if file:
-            file_data = await file.read()
-            ext = file.filename.lower().split('.')[-1] if '.' in file.filename else ''
-            file_type = detect_file_type(file.filename)
-            if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-                if as_document:
-                    file_url = save_file_locally(file_data, file.filename)
+        if files_list:
+            for f in files_list:
+                file_data = await f.read()
+                ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
+                ft = detect_file_type(f.filename)
+                local_url = None
+                remote_url = None
+
+                if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+                    if as_document:
+                        local_url = save_file_locally(file_data, f.filename)
+                    else:
+                        try:
+                            remote_url = upload_image(file_data, folder="kku-bot/news")
+                        except Exception as e:
+                            raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
                 else:
-                    try:
-                        image_url = upload_image(file_data, folder="kku-bot/news")
-                    except Exception as e:
-                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
+                    local_url = save_file_locally(file_data, f.filename)
+
+                thumb = None
+                if ext == 'pdf' and local_url:
+                    thumb = generate_pdf_thumbnail(local_url)
+
+                url = remote_url or local_url
+                files_json_data.append({
+                    "url": url,
+                    "type": ft,
+                    "name": f.filename,
+                    "thumbnail": thumb,
+                })
+
+            first = files_list[0]
+            first_ext = first.filename.lower().split('.')[-1] if '.' in first.filename else ''
+            file_type = detect_file_type(first.filename)
+            if first_ext in ('jpg', 'jpeg', 'png', 'gif', 'webp') and not as_document:
+                image_url = files_json_data[0]["url"]
             else:
-                file_url = save_file_locally(file_data, file.filename)
-                if ext == 'pdf':
-                    thumbnail_url = generate_pdf_thumbnail(file_url)
+                file_url = files_json_data[0]["url"]
+            thumbnail_url = files_json_data[0].get("thumbnail")
 
-        n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=file.filename if file and file.filename else None, file_type=file_type,
-                            as_document=as_document, target_channels=target_channels)
+        n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=files_list[0].filename if files_list else None, file_type=file_type,
+                            as_document=as_document, target_channels=target_channels,
+                            files_json=json.dumps(files_json_data) if files_json_data else None)
 
-        import json
         try:
             keywords = json.loads(selected_keywords) if selected_keywords else []
         except:
@@ -190,7 +222,8 @@ async def create_news_with_file(
         return {"id": n.id, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
                 "published": n.is_published,
-                "asDocument": n.as_document}
+                "asDocument": n.as_document,
+                "filesJson": n.files_json}
     except HTTPException:
         raise
     except Exception as e:
@@ -211,7 +244,8 @@ async def publish_news_endpoint(news_id: int):
         sent, channel_message_id, group_message_ids = await publish_to_groups(text=text, image_url=news.image_url, file_url=news.file_url, file_id=news.file_id,
                                         as_document=as_document,
                                         file_name=news.file_name, thumbnail_url=news.thumbnail_url,
-                                        target_channels=news.target_channels)
+                                        target_channels=news.target_channels,
+                                        files_json=news.files_json)
 
         await publish_news(news_id)
         import json

@@ -62,6 +62,8 @@ async def init_db():
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
         await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS target_channels TEXT"))
         await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
+        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS files_json TEXT"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS files_json TEXT"))
 
         # Add target_channels to news, scheduled_posts, study_plans
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
@@ -131,6 +133,13 @@ async def add_auto_response(keyword: str, response: str, created_by: int, file_u
         await session.commit()
         await session.refresh(ar)
         return ar
+
+
+async def get_setting(key: str) -> str:
+    async with async_session() as session:
+        result = await session.execute(select(Settings.value).where(Settings.key == key))
+        row = result.scalar_one_or_none()
+        return row
 
 
 async def get_auto_responses() -> list[AutoResponse]:
@@ -234,11 +243,11 @@ async def log_activity(action: str, details: str = None, performed_by: int = Non
 
 
 # ==================== News ====================
-async def add_news(content, image_url=None, file_url=None, thumbnail_url=None, file_name=None, file_type=None, created_by=None, as_document=False, file_id=None, target_channels=None):
+async def add_news(content, image_url=None, file_url=None, thumbnail_url=None, file_name=None, file_type=None, created_by=None, as_document=False, file_id=None, target_channels=None, files_json=None):
     async with async_session() as session:
         news = News(content=content, image_url=image_url, 
                    file_url=file_url, thumbnail_url=thumbnail_url, file_name=file_name, file_type=file_type, created_by=created_by,
-                   as_document=as_document, file_id=file_id, target_channels=target_channels)
+                   as_document=as_document, file_id=file_id, target_channels=target_channels, files_json=files_json)
         session.add(news)
         await session.commit()
         return news
@@ -387,12 +396,16 @@ async def update_question(question_id: int, question: str = None, answer: str = 
 # ==================== Scheduled Posts ====================
 async def add_scheduled_post(content, schedule_time, image_url=None, file_url=None, 
                             is_recurring=False, recurring_interval=None, created_by=None,
-                            as_document=False, target_channels=None, title=None):
+                            as_document=False, target_channels=None, title=None,
+                            file_name=None, file_type=None, file_id=None, thumbnail_url=None,
+                            files_json=None):
     async with async_session() as session:
         post = ScheduledPost(content=content, schedule_time=schedule_time,
                             image_url=image_url, file_url=file_url, is_recurring=is_recurring,
                             recurring_interval=recurring_interval, created_by=created_by,
-                            as_document=as_document, target_channels=target_channels)
+                            as_document=as_document, target_channels=target_channels,
+                            file_name=file_name, file_type=file_type, file_id=file_id, thumbnail_url=thumbnail_url,
+                            files_json=files_json)
         session.add(post)
         await session.commit()
         return post
