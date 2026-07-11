@@ -47,7 +47,10 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
             msg_id = await _send_to_chat_and_get_id(chat_id_str, text, image_url, file_url, file_id, as_document, file_name, thumbnail_url, files_json=files_json)
             if msg_id:
                 sent += 1
-                group_message_ids[chat_id_str] = msg_id
+                if isinstance(msg_id, list):
+                    group_message_ids[chat_id_str] = msg_id
+                else:
+                    group_message_ids[chat_id_str] = msg_id
         except Exception as e:
             logger.error(f"Failed to send to {chat_id_str}: {e}")
 
@@ -108,7 +111,7 @@ async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url
     return msg_id is not None
 
 
-async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, files_json: str = None) -> int | None:
+async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, files_json: str = None) -> int | list | None:
     logger.info(f"Sending to {chat_id}, as_document={as_document}, file_url={file_url}, image_url={image_url}")
 
     if files_json:
@@ -191,7 +194,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
     return None
 
 
-async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_document: bool = False) -> int | None:
+async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_document: bool = False) -> list | None:
     media_group = []
     for i, file_obj in enumerate(parsed_files):
         file_url_item = file_obj.get("url")
@@ -218,7 +221,7 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         messages = await bot.send_media_group(chat_id=chat_id, media=media_group)
 
         if messages:
-            return messages[-1].message_id
+            return [msg.message_id for msg in messages]
     except Exception as e:
         logger.warning(f"send_media_group failed for {chat_id}: {e}")
     finally:
@@ -229,7 +232,7 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
     return None
 
 
-async def delete_from_channel(channel_message_id: int) -> bool:
+async def delete_from_channel(channel_message_id) -> bool:
     channel = None
     groups = await get_active_channel_groups()
     for ch in groups:
@@ -238,12 +241,15 @@ async def delete_from_channel(channel_message_id: int) -> bool:
             break
     if not channel:
         return False
-    try:
-        await bot.delete_message(chat_id=channel.chat_id, message_id=channel_message_id)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to delete message {channel_message_id} from channel {channel.chat_id}: {e}")
-        return False
+    ids_to_delete = channel_message_id if isinstance(channel_message_id, list) else [channel_message_id]
+    deleted = 0
+    for msg_id in ids_to_delete:
+        try:
+            await bot.delete_message(chat_id=channel.chat_id, message_id=msg_id)
+            deleted += 1
+        except Exception as e:
+            logger.error(f"Failed to delete message {msg_id} from channel {channel.chat_id}: {e}")
+    return deleted > 0
 
 
 async def delete_news_from_channel(channel_message_id: int) -> bool:
@@ -254,18 +260,19 @@ async def delete_from_groups(group_message_ids) -> bool:
     if not group_message_ids:
         return False
     if isinstance(group_message_ids, str):
-        import json
         try:
             group_message_ids = json.loads(group_message_ids)
         except:
             return False
     deleted = 0
-    for chat_id_str, message_id in group_message_ids.items():
-        try:
-            await bot.delete_message(chat_id=chat_id_str, message_id=message_id)
-            deleted += 1
-        except Exception as e:
-            logger.error(f"Failed to delete message {message_id} from group {chat_id_str}: {e}")
+    for chat_id_str, msg_ids in group_message_ids.items():
+        ids_to_delete = msg_ids if isinstance(msg_ids, list) else [msg_ids]
+        for message_id in ids_to_delete:
+            try:
+                await bot.delete_message(chat_id=chat_id_str, message_id=message_id)
+                deleted += 1
+            except Exception as e:
+                logger.error(f"Failed to delete message {message_id} from group {chat_id_str}: {e}")
     return deleted > 0
 
 
@@ -312,15 +319,17 @@ async def edit_published_messages(text: str, group_message_ids: dict, channel_me
     
     # Edit group messages
     if group_message_ids:
-        for chat_id_str, message_id in group_message_ids.items():
-            try:
-                if await edit_published_message(chat_id_str, message_id, text, image_url, file_url, as_document, file_name):
-                    edited += 1
-                else:
+        for chat_id_str, msg_ids in group_message_ids.items():
+            ids_to_edit = msg_ids if isinstance(msg_ids, list) else [msg_ids]
+            for message_id in ids_to_edit:
+                try:
+                    if await edit_published_message(chat_id_str, message_id, text, image_url, file_url, as_document, file_name):
+                        edited += 1
+                    else:
+                        failed += 1
+                except Exception as e:
+                    logger.error(f"Failed to edit message {message_id} in {chat_id_str}: {e}")
                     failed += 1
-            except Exception as e:
-                logger.error(f"Failed to edit message in {chat_id_str}: {e}")
-                failed += 1
     
     # Edit channel message
     if channel_message_id:
