@@ -204,22 +204,26 @@ export default function News() {
     if (!editForm.content || !editItem) return;
     setSaving(true);
     try {
-      const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
-      if (allEditFiles.length > 0) {
-        const formData = new FormData();
-        formData.append('title', '');
-        formData.append('content', editForm.content);
-        formData.append('as_document', editForm.as_document);
-        formData.append('target_channels', JSON.stringify(editSelectedChannels));
-        allEditFiles.forEach(f => formData.append('files', f));
-        await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {}, 'PUT');
+      if (editItem?.published) {
+        await api.put(`/news/${editItem.id}`, { content: editForm.content });
       } else {
-        await api.put(`/news/${editItem.id}`, { ...editForm, title: '', target_channels: JSON.stringify(editSelectedChannels) });
+        const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
+        if (allEditFiles.length > 0) {
+          const formData = new FormData();
+          formData.append('title', '');
+          formData.append('content', editForm.content);
+          formData.append('as_document', editForm.as_document);
+          formData.append('target_channels', JSON.stringify(editSelectedChannels));
+          allEditFiles.forEach(f => formData.append('files', f));
+          await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {}, 'PUT');
+        } else {
+          await api.put(`/news/${editItem.id}`, { ...editForm, title: '', target_channels: JSON.stringify(editSelectedChannels) });
+        }
       }
       setNews(news.map(n => n.id === editItem.id ? { 
         ...n, 
         content: editForm.content, 
-        as_document: editForm.as_document,
+        as_document: editItem?.published ? n.as_document : editForm.as_document,
       } : n));
       setShowEditModal(false);
       setEditItem(null);
@@ -721,41 +725,57 @@ export default function News() {
                   style={{ minHeight: 150 }}
                 />
               </div>
-              <div className="form-group">
-                <label>الملف المرفق (اختياري - يمكن اختيار عدة ملفات)</label>
-                <input
-                  type="file"
-                  className="form-input"
-                  multiple
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.files);
-                    setEditUploadFiles(selected);
-                    setEditUploadFile(selected[0] || null);
-                  }}
-                />
-                {editUploadFiles.length > 0 && (
-                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                    {editUploadFiles.length} ملف(ات) محددة: {editUploadFiles.map(f => f.name).join(', ')}
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={editForm.as_document}
-                    onChange={(e) => setEditForm({ ...editForm, as_document: e.target.checked })}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  إرسال كملف
-                </label>
-              </div>
-              <div className="form-group">
-                <ChannelGroupSelector
-                  selected={editSelectedChannels}
-                  onChange={setEditSelectedChannels}
-                />
-              </div>
+              {!editItem?.published && (
+                <>
+                  <div className="form-group">
+                    <label>الملف المرفق (اختياري - يمكن اختيار عدة ملفات)</label>
+                    <input
+                      type="file"
+                      className="form-input"
+                      multiple
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.files);
+                        setEditUploadFiles(selected);
+                        setEditUploadFile(selected[0] || null);
+                      }}
+                    />
+                    {editUploadFiles.length > 0 && (
+                      <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
+                        {editUploadFiles.length} ملف(ات) محددة: {editUploadFiles.map(f => f.name).join(', ')}
+                      </small>
+                    )}
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.as_document}
+                        onChange={(e) => setEditForm({ ...editForm, as_document: e.target.checked })}
+                        style={{ width: 18, height: 18 }}
+                      />
+                      إرسال كملف
+                    </label>
+                  </div>
+                  <div className="form-group">
+                    <ChannelGroupSelector
+                      selected={editSelectedChannels}
+                      onChange={setEditSelectedChannels}
+                    />
+                  </div>
+                </>
+              )}
+              {editItem?.published && editSelectedChannels.length > 0 && (
+                <div className="form-group">
+                  <label>المنشور في:</label>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                    {editSelectedChannels.map(id => (
+                      <span key={id} className="status-badge active" style={{ fontSize: 12, padding: '4px 10px' }}>
+                        {getChannelName(id)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleEditSave} disabled={saving}>
