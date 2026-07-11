@@ -64,6 +64,10 @@ async def init_db():
         await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS files_json TEXT"))
         await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS files_json TEXT"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS file_name VARCHAR(255)"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS file_id VARCHAR(200)"))
+        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS thumbnail_url VARCHAR(500)"))
 
         # Add target_channels to news, scheduled_posts, study_plans
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
