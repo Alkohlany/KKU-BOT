@@ -5,7 +5,8 @@ import { useToast } from '../components/ToastContext';
 export default function Settings({ onLogout }) {
   const { showToast } = useToast();
   const [settings, setSettings] = useState({
-    welcomeMessage: "true",
+    welcomeMessage: "مرحباً بك!",
+    autoGreeting: "true",
     antiSpam: "true",
     antiFlood: "true",
     floodLimit: 5,
@@ -58,7 +59,8 @@ export default function Settings({ onLogout }) {
 
   const handleReset = () => {
     setSettings({
-      welcomeMessage: "true",
+      welcomeMessage: "مرحباً بك!",
+      autoGreeting: "true",
       antiSpam: "true",
       antiFlood: "true",
       floodLimit: 5,
@@ -106,8 +108,8 @@ export default function Settings({ onLogout }) {
               <label className="toggle-switch">
                 <input
                   type="checkbox"
-                  checked={settings.welcomeMessage !== "false"}
-                  onChange={(e) => setSettings({ ...settings, welcomeMessage: e.target.checked ? "true" : "false" })}
+                  checked={settings.autoGreeting !== "false"}
+                  onChange={(e) => setSettings({ ...settings, autoGreeting: e.target.checked ? "true" : "false" })}
                 />
                 <span className="toggle-slider" />
               </label>
