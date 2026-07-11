@@ -212,7 +212,7 @@ export default function News() {
         formData.append('as_document', editForm.as_document);
         formData.append('target_channels', JSON.stringify(editSelectedChannels));
         allEditFiles.forEach(f => formData.append('files', f));
-        await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {});
+        await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {}, 'PUT');
       } else {
         await api.put(`/news/${editItem.id}`, { ...editForm, title: '', target_channels: JSON.stringify(editSelectedChannels) });
       }
