@@ -278,33 +278,21 @@ async def get_news_by_id(news_id: int):
         result = await session.execute(select(News).where(News.id == news_id))
         return result.scalar_one_or_none()
 
-async def update_news(news_id, content=None, image_url=None, file_url=None, as_document=None, channel_message_id=None, group_message_ids=None, target_channels=None, is_published=None, file_name=None, file_type=None, thumbnail_url=None, files_json=None):
+_NULL = object()
+
+async def update_news(news_id, content=_NULL, image_url=_NULL, file_url=_NULL, as_document=_NULL, channel_message_id=_NULL, group_message_ids=_NULL, target_channels=_NULL, is_published=_NULL, file_name=_NULL, file_type=_NULL, thumbnail_url=_NULL, files_json=_NULL):
     async with async_session() as session:
         update_data = {}
-        if content is not None:
-            update_data["content"] = content
-        if image_url is not None:
-            update_data["image_url"] = image_url
-        if file_url is not None:
-            update_data["file_url"] = file_url
-        if as_document is not None:
-            update_data["as_document"] = as_document
-        if channel_message_id is not None:
-            update_data["channel_message_id"] = channel_message_id
-        if group_message_ids is not None:
-            update_data["group_message_ids"] = group_message_ids
-        if target_channels is not None:
-            update_data["target_channels"] = target_channels
-        if is_published is not None:
-            update_data["is_published"] = is_published
-        if file_name is not None:
-            update_data["file_name"] = file_name
-        if file_type is not None:
-            update_data["file_type"] = file_type
-        if thumbnail_url is not None:
-            update_data["thumbnail_url"] = thumbnail_url
-        if files_json is not None:
-            update_data["files_json"] = files_json
+        fields = {
+            "content": content, "image_url": image_url, "file_url": file_url,
+            "as_document": as_document, "channel_message_id": channel_message_id,
+            "group_message_ids": group_message_ids, "target_channels": target_channels,
+            "is_published": is_published, "file_name": file_name, "file_type": file_type,
+            "thumbnail_url": thumbnail_url, "files_json": files_json,
+        }
+        for key, val in fields.items():
+            if val is not _NULL:
+                update_data[key] = val
         if update_data:
             await session.execute(
                 update(News).where(News.id == news_id).values(**update_data)
