@@ -196,7 +196,7 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
     for i, file_obj in enumerate(parsed_files):
         file_url_item = file_obj.get("url")
         file_type_item = file_obj.get("type", "document")
-        item_caption = None
+        item_caption = caption if i == len(parsed_files) - 1 else None
 
         if os.path.exists(file_url_item):
             media = open(file_url_item, 'rb')
@@ -204,12 +204,12 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
             media = file_url_item
 
         if file_type_item == "photo" and not as_document:
-            media_group.append(InputMediaPhoto(media=media, parse_mode='HTML'))
+            media_group.append(InputMediaPhoto(media=media, caption=item_caption, parse_mode='HTML'))
         elif file_type_item == "video":
-            media_group.append(InputMediaVideo(media=media, parse_mode='HTML'))
+            media_group.append(InputMediaVideo(media=media, caption=item_caption, parse_mode='HTML'))
         else:
             file_name_item = file_obj.get("name")
-            media_group.append(InputMediaDocument(media=media, parse_mode='HTML', filename=file_name_item))
+            media_group.append(InputMediaDocument(media=media, caption=item_caption, parse_mode='HTML', filename=file_name_item))
 
     if not media_group:
         return None
@@ -217,12 +217,8 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
     try:
         messages = await bot.send_media_group(chat_id=chat_id, media=media_group)
 
-        if caption:
-            text_msg = await bot.send_message(chat_id=chat_id, text=caption, parse_mode='HTML', disable_web_page_preview=True)
-            return text_msg.message_id
-
         if messages:
-            return messages[0].message_id
+            return messages[-1].message_id
     except Exception as e:
         logger.warning(f"send_media_group failed for {chat_id}: {e}")
     finally:

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 
-export default function ChannelGroupSelector({ selected = [], onChange, label = 'اختر القنوات والجروبات', type }) {
+export default function ChannelGroupSelector({ selected = [], onChange, label = 'اختر القنوات والجروبات' }) {
   const [channelGroups, setChannelGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,25 +27,14 @@ export default function ChannelGroupSelector({ selected = [], onChange, label = 
     onChange(newSelected);
   };
 
-  const selectAll = () => {
-    const allIds = channelGroups.map(g => g.chatId);
-    onChange(allIds);
-  };
-
-  const deselectAll = () => {
-    onChange([]);
-  };
-
-  const filtered = type ? channelGroups.filter(g => g.type === type) : channelGroups;
-
   if (loading) {
     return <div className="channel-group-selector loading">جاري تحميل القنوات والجروبات...</div>;
   }
 
-  if (filtered.length === 0) {
+  if (channelGroups.length === 0) {
     return (
       <div className="channel-group-selector empty">
-        <p>{type === 'channel' ? 'لا توجد قنوات مسجلة' : type === 'group' ? 'لا توجد جروبات مسجلة' : 'لا توجد قنوات أو جروبات مسجلة'}</p>
+        <p>لا توجد قنوات أو جروبات مسجلة</p>
         <p className="hint">قم بتسجيل القنوات والجروبات من صفحة إدارة القنوات أولاً</p>
       </div>
     );
@@ -56,12 +45,12 @@ export default function ChannelGroupSelector({ selected = [], onChange, label = 
       <div className="selector-header">
         <label>{label}</label>
         <div className="selector-actions">
-          <button type="button" onClick={() => onChange(filtered.map(g => g.chatId))} className="btn-link">تحديد الكل</button>
-          <button type="button" onClick={deselectAll} className="btn-link">إلغاء التحديد</button>
+          <button type="button" onClick={() => onChange(channelGroups.map(g => g.chatId))} className="btn-link">تحديد الكل</button>
+          <button type="button" onClick={() => onChange([])} className="btn-link">إلغاء التحديد</button>
         </div>
       </div>
       <div className="selector-list">
-        {filtered.map(group => (
+        {channelGroups.map(group => (
           <label key={group.id} className={`selector-item ${selected.includes(group.chatId) ? 'selected' : ''}`}>
             <input
               type="checkbox"
@@ -80,7 +69,7 @@ export default function ChannelGroupSelector({ selected = [], onChange, label = 
       </div>
       {selected.length > 0 && (
         <div className="selector-summary">
-          تم تحديد {selected.length} من {filtered.length}
+          تم تحديد {selected.length} من {channelGroups.length}
         </div>
       )}
     </div>

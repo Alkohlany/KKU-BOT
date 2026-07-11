@@ -332,7 +332,8 @@ export default function News() {
       content: item.content, 
       as_document: item.as_document || false,
     });
-    setEditSelectedChannels(item.target_channels ? (typeof item.target_channels === 'string' ? JSON.parse(item.target_channels) : item.target_channels) : []);
+    const channels = item.targetChannels || item.target_channels;
+    setEditSelectedChannels(channels ? (typeof channels === 'string' ? JSON.parse(channels) : channels) : []);
     setEditUploadFile(null);
     setEditUploadFiles([]);
     setShowEditModal(true);
