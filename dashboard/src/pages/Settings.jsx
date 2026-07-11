@@ -70,11 +70,6 @@ export default function Settings({ onLogout }) {
     showToast('تمت إعادة التعيين', 'success');
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    onLogout();
-  };
-
   return (
     <>
       <div className="settings-page">
@@ -94,40 +89,6 @@ export default function Settings({ onLogout }) {
             <span style={{ fontSize: 13, color: '#64748b' }}>
               {botStatus === 'online' ? 'البوت متصل' : botStatus === 'offline' ? 'البوت غير متصل' : 'جاري التحقق...'}
             </span>
-          </div>
-        </div>
-
-        <div className="settings-grid" style={{ marginBottom: 24 }}>
-          <div className="setting-group">
-            <h4>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              إدارة المسؤولين
-            </h4>
-            <div className="form-group">
-              <label>معرّفات المسؤولين (مفصولة بفواصل)</label>
-              <input
-                className="form-input"
-                value={settings.adminIds}
-                onChange={(e) => setSettings({ ...settings, adminIds: e.target.value })}
-                placeholder="123456789,987654321"
-              />
-            </div>
-            <div className="form-group">
-              <label>اللغة الافتراضية</label>
-              <select
-                className="form-input"
-                value={settings.botLanguage}
-                onChange={(e) => setSettings({ ...settings, botLanguage: e.target.value })}
-              >
-                <option value="ar">العربية</option>
-                <option value="en">English</option>
-              </select>
-            </div>
           </div>
         </div>
 
@@ -243,14 +204,6 @@ export default function Settings({ onLogout }) {
             {saving ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
           </button>
           <button className="btn btn-secondary" onClick={handleReset}>إعادة التعيين</button>
-          <button className="btn btn-secondary" onClick={handleLogout} style={{ marginRight: 'auto' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            تسجيل الخروج
-          </button>
         </div>
       </div>
     </>
