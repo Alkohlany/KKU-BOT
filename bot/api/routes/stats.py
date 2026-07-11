@@ -120,7 +120,6 @@ async def get_settings(
         "antiFlood": "true",
         "floodLimit": "5",
         "floodTime": "60",
-        "adminIds": "",
         "botLanguage": "ar",
     }
 

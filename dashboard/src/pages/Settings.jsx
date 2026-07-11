@@ -5,7 +5,6 @@ import { useToast } from '../components/ToastContext';
 export default function Settings({ onLogout }) {
   const { showToast } = useToast();
   const [settings, setSettings] = useState({
-    adminIds: '',
     welcomeMessage: "true",
     antiSpam: "true",
     antiFlood: "true",
@@ -59,13 +58,12 @@ export default function Settings({ onLogout }) {
 
   const handleReset = () => {
     setSettings({
-      adminIds: '',
-    welcomeMessage: "true",
-    antiSpam: "true",
-    antiFlood: "true",
-    floodLimit: 5,
-    floodTime: 10,
-    botLanguage: 'ar',
+      welcomeMessage: "true",
+      antiSpam: "true",
+      antiFlood: "true",
+      floodLimit: 5,
+      floodTime: 10,
+      botLanguage: 'ar',
     });
     showToast('تمت إعادة التعيين', 'success');
   };

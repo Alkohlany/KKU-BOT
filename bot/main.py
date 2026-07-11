@@ -2,7 +2,7 @@ import logging
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from telegram.error import Conflict
 from bot.config import BOT_TOKEN, ADMIN_IDS
-from bot.services.database import init_db, get_setting
+from bot.services.database import init_db
 from bot.handlers.start import start_handler, feature_handler
 from bot.handlers.help import help_handler
 from bot.handlers.admin import admin_text, admin_reply
@@ -28,12 +28,7 @@ logger = logging.getLogger(__name__)
 async def post_init(application):
     try:
         await init_db()
-        db_admins = await get_setting("adminIds")
-        env_admins = ADMIN_IDS.copy()
-        if db_admins:
-            db_admin_ids = [int(x.strip()) for x in db_admins.split(",") if x.strip().isdigit()]
-            env_admins.extend(db_admin_ids)
-        application.bot_data['admin_ids'] = list(set(env_admins))
+        application.bot_data['admin_ids'] = ADMIN_IDS.copy()
         application.job_queue.run_repeating(check_scheduled_posts, interval=60, first=10)
         logger.info("Database initialized and scheduler started")
     except Exception as e:
