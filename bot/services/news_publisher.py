@@ -305,15 +305,15 @@ async def edit_published_messages(text: str, group_message_ids: dict, channel_me
     if group_message_ids:
         for chat_id_str, msg_ids in group_message_ids.items():
             ids_to_edit = msg_ids if isinstance(msg_ids, list) else [msg_ids]
-            # For media groups, only edit the first message (has the caption)
-            first_id = ids_to_edit[0]
+            # For media groups, only edit the last message (has the caption)
+            last_id = ids_to_edit[-1]
             try:
-                if await edit_published_message(chat_id_str, first_id, text, image_url, file_url, as_document, file_name):
+                if await edit_published_message(chat_id_str, last_id, text, image_url, file_url, as_document, file_name):
                     edited += 1
                 else:
                     failed += 1
             except Exception as e:
-                logger.error(f"Failed to edit message {first_id} in {chat_id_str}: {e}")
+                logger.error(f"Failed to edit message {last_id} in {chat_id_str}: {e}")
                 failed += 1
 
     # Edit channel message
