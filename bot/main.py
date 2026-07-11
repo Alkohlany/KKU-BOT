@@ -15,7 +15,7 @@ from bot.handlers.responses import responses_handler
 from bot.services.protection import protection_handler, protection_media_handler
 from bot.services.responses import auto_response_handler
 from bot.middleware.subscription import check_subscription_handler, group_subscription_handler
-from bot.handlers.group_handler import group_chat_member_handler, group_new_members_handler, register_group_cmd
+from bot.handlers.group_handler import group_chat_member_handler, group_new_members_handler, register_group_cmd, verify_subscription_cmd
 from bot.services.scheduler import check_scheduled_posts
 
 logging.basicConfig(
@@ -73,6 +73,7 @@ def main():
     application.add_handler(group_chat_member_handler)
     application.add_handler(group_new_members_handler)
     application.add_handler(register_group_cmd)
+    application.add_handler(verify_subscription_cmd)
     application.add_handler(protection_handler, group=1)
     application.add_handler(protection_media_handler, group=1)
     application.add_handler(auto_response_handler, group=2)
