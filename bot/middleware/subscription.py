@@ -13,7 +13,7 @@ RATE_LIMIT = timedelta(seconds=5)
 _last_api: dict[int, datetime] = {}
 _last_result: dict[int, bool] = {}
 
-_SUB_MSG = "📢 لاستخدام البوت يجب الاشتراك في القناة أولاً\n\n🔗 {link}"
+_SUB_MSG = "• عذرآ يا {user_name}\n• عليك الاشتراك في قناه البوت للتمكن من التحدث هنا"
 
 
 async def get_subscription_channel():
@@ -75,10 +75,8 @@ async def subscription_required(update: Update, context: ContextTypes.DEFAULT_TY
         db_user = await create_user(telegram_id=user.id, username=user.username, first_name=user.first_name)
 
     if not await verify_subscription(user.id, context):
-        channel = await get_subscription_channel()
-        link = channel.invite_link if channel else ""
         await update.message.reply_text(
-            _SUB_MSG.format(link=link),
+            _SUB_MSG.format(user_name=user.first_name),
             reply_markup=await _ch_link_keyboard()
         )
         return False
@@ -114,10 +112,8 @@ async def group_subscription_check(update: Update, context: ContextTypes.DEFAULT
         except Exception:
             pass
 
-        channel = await get_subscription_channel()
-        link = channel.invite_link if channel else ""
         await update.effective_chat.send_message(
-            f"📢 {user.first_name}، {_SUB_MSG.format(link=link)}",
+            _SUB_MSG.format(user_name=user.first_name),
             reply_markup=await _ch_link_keyboard()
         )
 
@@ -180,7 +176,7 @@ async def global_subscription_check(update: Update, context: ContextTypes.DEFAUL
 
     if chat and chat.type == "private":
         await update.message.reply_text(
-            _SUB_MSG.format(link=channel.invite_link),
+            _SUB_MSG.format(user_name=user.first_name),
             reply_markup=await _ch_link_keyboard()
         )
     else:
@@ -189,7 +185,7 @@ async def global_subscription_check(update: Update, context: ContextTypes.DEFAUL
         except Exception:
             pass
         await chat.send_message(
-            f"📢 {user.first_name}، {_SUB_MSG.format(link=channel.invite_link)}",
+            _SUB_MSG.format(user_name=user.first_name),
             reply_markup=await _ch_link_keyboard()
         )
 

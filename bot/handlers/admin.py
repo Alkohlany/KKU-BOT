@@ -646,7 +646,6 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             await chat.ban_member(target_user_id)
             await chat.unban_member(target_user_id)
-            await update.message.reply_to_message.delete()
             await send_admin_message(context, user.id, f"👢 تم طرد {target_user.first_name}")
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل في طرد المستخدم: {e}")

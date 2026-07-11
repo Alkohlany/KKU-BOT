@@ -98,7 +98,7 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
                 if not welcome_msg or welcome_msg.strip().lower() == "false":
                     welcome_msg = "مرحباً بك في مجموعة الجامعة! 👋"
                 try:
-                    await chat.send_message(f"مرحباً {member.first_name}! {welcome_msg}")
+                    await chat.send_message(f"{member.first_name}! {welcome_msg}")
                 except Exception as e:
                     logger.warning(f"Could not send welcome message: {e}")
     except Exception as e:
