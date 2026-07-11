@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 
-from bot.services.database import is_banned, ban_user, log_activity, get_channel_group_by_chat_id
+from bot.services.database import is_banned, ban_user, log_activity, get_channel_group_by_chat_id, get_setting
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +81,12 @@ async def _ban_user(update, context, user, chat, reason: str, log_action: str, l
         logger.error(f"Error banning user {user.id}: {e}")
 
 
-def is_rate_limited(user_id, max_messages=5, time_window=60):
+def is_rate_limited(user_id, max_messages=None, time_window=None):
     """فحص Rate Limiting"""
+    if max_messages is None:
+        max_messages = 5
+    if time_window is None:
+        time_window = 60
     now = datetime.now()
     user_times = user_message_times[user_id]
     user_times[:] = [t for t in user_times if now - t < timedelta(seconds=time_window)]
@@ -113,6 +117,10 @@ async def check_text_content(update, context, text):
     chat = update.effective_chat
 
     if await _is_privileged(user.id, chat):
+        return
+
+    anti_spam = await get_setting("antiSpam")
+    if anti_spam == "false":
         return
 
     normalized = normalize_arabic(text.lower())
@@ -177,11 +185,15 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Database error checking ban status: {e}")
         return
 
-    if is_rate_limited(user.id):
-        if await _is_privileged(user.id, chat):
+    anti_flood = await get_setting("antiFlood")
+    if anti_flood != "false":
+        flood_limit = int(await get_setting("floodLimit") or "5")
+        flood_time = int(await get_setting("floodTime") or "60")
+        if is_rate_limited(user.id, max_messages=flood_limit, time_window=flood_time):
+            if await _is_privileged(user.id, chat):
+                return
+            await _ban_user(update, context, user, chat, "Rate limit exceeded", "rate_limit", "exceeded")
             return
-        await _ban_user(update, context, user, chat, "Rate limit exceeded", "rate_limit", "exceeded")
-        return
 
     await check_text_content(update, context, update.message.text)
 

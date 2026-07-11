@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ChatMemberHandler, MessageHandler, filters, CommandHandler
-from bot.services.database import add_channel_group, get_channel_group_by_chat_id, update_channel_group
+from bot.services.database import add_channel_group, get_channel_group_by_chat_id, update_channel_group, get_setting
 import logging
 
 logger = logging.getLogger(__name__)
@@ -89,6 +89,17 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
                     
                     await add_channel_group(chat.id, chat.title, "group", member_count, invite_link)
                     logger.info(f"Registered group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id}), members: {member_count}")
+            else:
+                auto_greeting = await get_setting("autoGreeting")
+                if auto_greeting == "false":
+                    continue
+                welcome_msg = await get_setting("welcomeMessage")
+                if not welcome_msg:
+                    welcome_msg = "مرحباً بك في مجموعة الجامعة! 👋"
+                try:
+                    await chat.send_message(f"مرحباً {member.first_name}! {welcome_msg}")
+                except Exception as e:
+                    logger.warning(f"Could not send welcome message: {e}")
     except Exception as e:
         logger.error(f"Error in track_group_new_members: {e}", exc_info=True)
 
