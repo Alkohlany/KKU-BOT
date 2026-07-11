@@ -629,7 +629,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل في حظر المستخدم: {e}")
 
-    elif text in ["الغاء حظر", "الغي حظر", "unban"]:
+    elif text in ["الغاء حظر", "الغاء الحظر", "الغي حظر", "unban"]:
         try:
             await update.message.delete()
         except: pass
