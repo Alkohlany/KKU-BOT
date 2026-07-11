@@ -23,6 +23,8 @@ export default function ScheduledPosts() {
   const [editForm, setEditForm] = useState({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false, as_document: false });
   const [editUploadFile, setEditUploadFile] = useState(null);
   const [editUploadFiles, setEditUploadFiles] = useState([]);
+  const [editExistingFiles, setEditExistingFiles] = useState([]);
+  const [editRemovedExisting, setEditRemovedExisting] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -133,6 +135,11 @@ export default function ScheduledPosts() {
     }
     setEditUploadFile(null);
     setEditUploadFiles([]);
+    try {
+      const fj = item.filesJson ? (typeof item.filesJson === 'string' ? JSON.parse(item.filesJson) : item.filesJson) : [];
+      setEditExistingFiles(Array.isArray(fj) ? fj : []);
+    } catch { setEditExistingFiles([]); }
+    setEditRemovedExisting([]);
     setShowEditModal(true);
   };
 
@@ -154,6 +161,7 @@ export default function ScheduledPosts() {
         if (editSelectedChannels.length > 0) {
           formData.append('target_channels', JSON.stringify(editSelectedChannels));
         }
+        formData.append('removed_existing', JSON.stringify(editRemovedExisting));
         await api.uploadWithProgress(`/scheduled-posts/${editItem.id}/upload`, formData, () => {}, 'PUT');
       } else {
         await api.updateScheduledPost(editItem.id, {
@@ -163,6 +171,7 @@ export default function ScheduledPosts() {
           publish_to_channel: editForm.publish_to_channel,
           as_document: editForm.as_document,
           target_channels: editSelectedChannels.length > 0 ? JSON.stringify(editSelectedChannels) : null,
+          removed_existing: JSON.stringify(editRemovedExisting),
         });
       }
       setShowEditModal(false);
@@ -497,6 +506,8 @@ export default function ScheduledPosts() {
                 setFiles={(newFiles) => { setEditUploadFiles(newFiles); setEditUploadFile(newFiles[0] || null); }}
                 asDocument={editForm.as_document}
                 setAsDocument={(val) => setEditForm({ ...editForm, as_document: val })}
+                existingFiles={editExistingFiles}
+                onRemoveExisting={setEditRemovedExisting}
               />
               <div className="form-group">
                 <label>وقت النشر</label>

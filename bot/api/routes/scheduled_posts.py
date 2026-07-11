@@ -64,6 +64,7 @@ class ScheduledPostCreate(BaseModel):
     as_document: bool = False
     target_channels: Optional[str] = None
     files_json: Optional[str] = None
+    removed_existing: Optional[str] = None
 
 
 @router.get("/")
@@ -211,6 +212,7 @@ async def update_scheduled_post_with_file(
     files: list[UploadFile] = File(default=[]),
     as_document: bool = Form(False),
     target_channels: Optional[str] = Form(None),
+    removed_existing: Optional[str] = Form(None),
 ):
     from ...services.database import get_scheduled_post, update_scheduled_post as update_post
     import json
@@ -222,7 +224,19 @@ async def update_scheduled_post_with_file(
         raise HTTPException(status_code=400, detail="Cannot edit a published post")
 
     files_list = files or ([file] if file else [])
-    files_json_data = []
+
+    # Handle removed existing files - keep non-removed existing files
+    kept_existing = []
+    if removed_existing:
+        try:
+            removed_indices = json.loads(removed_existing)
+            if existing.files_json:
+                old_files = json.loads(existing.files_json) if isinstance(existing.files_json, str) else (existing.files_json or [])
+                kept_existing = [f for i, f in enumerate(old_files) if i not in removed_indices]
+        except:
+            pass
+
+    files_json_data = list(kept_existing)
 
     image_url = None
     file_url = None
@@ -314,6 +328,18 @@ async def update_scheduled_post(post_id: int, post: ScheduledPostCreate):
     else:
         riyadh_tz = ZoneInfo("Asia/Riyadh")
         dt = dt.replace(tzinfo=riyadh_tz).astimezone(timezone.utc).replace(tzinfo=None)
+    # Handle removed existing files
+    if post.removed_existing:
+        try:
+            import json
+            removed_indices = json.loads(post.removed_existing)
+            if removed_indices and existing.files_json:
+                old_files = json.loads(existing.files_json) if isinstance(existing.files_json, str) else (existing.files_json or [])
+                kept = [f for i, f in enumerate(old_files) if i not in removed_indices]
+                await update_post(post_id, files_json=json.dumps(kept) if kept else None)
+        except:
+            pass
+
     updated = await update_post(post_id, content=post.content, schedule_time=dt, is_recurring=post.is_recurring, recurring_interval=post.recurring_interval, as_document=post.as_document, target_channels=post.target_channels, file_name=post.file_name, file_type=post.file_type, file_id=post.file_id, thumbnail_url=post.thumbnail_url)
     return updated
 
