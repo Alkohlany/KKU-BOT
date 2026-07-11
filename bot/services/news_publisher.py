@@ -198,12 +198,17 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         file_type_item = file_obj.get("type", "document")
         item_caption = caption if i == 0 else None
 
-        if file_type_item == "photo" and not as_document:
-            media_group.append(InputMediaPhoto(media=file_url_item, caption=item_caption, parse_mode='HTML'))
-        elif file_type_item == "video":
-            media_group.append(InputMediaVideo(media=file_url_item, caption=item_caption, parse_mode='HTML'))
+        if os.path.exists(file_url_item):
+            media = open(file_url_item, 'rb')
         else:
-            media_group.append(InputMediaDocument(media=file_url_item, caption=item_caption, parse_mode='HTML'))
+            media = file_url_item
+
+        if file_type_item == "photo" and not as_document:
+            media_group.append(InputMediaPhoto(media=media, caption=item_caption, parse_mode='HTML'))
+        elif file_type_item == "video":
+            media_group.append(InputMediaVideo(media=media, caption=item_caption, parse_mode='HTML'))
+        else:
+            media_group.append(InputMediaDocument(media=media, caption=item_caption, parse_mode='HTML'))
 
     if not media_group:
         return None
@@ -214,6 +219,10 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
             return messages[0].message_id
     except Exception as e:
         logger.warning(f"send_media_group failed for {chat_id}: {e}")
+    finally:
+        for item in media_group:
+            if hasattr(item.media, 'close'):
+                item.media.close()
 
     return None
 

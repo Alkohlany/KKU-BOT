@@ -15,6 +15,9 @@ async def check_scheduled_posts(context):
         for post in pending:
             try:
                 logger.info(f"Publishing scheduled post ID={post.id}: {post.content[:50]}...")
+                if not post.target_channels:
+                    logger.warning(f"Scheduled post ID={post.id} has no target_channels, skipping")
+                    continue
                 sent, channel_message_id, group_message_ids = await publish_to_groups(
                     text=post.content,
                     image_url=post.image_url,
