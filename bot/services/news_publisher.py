@@ -278,36 +278,20 @@ async def delete_from_groups(group_message_ids) -> bool:
 
 async def edit_published_message(chat_id: str, message_id: int, text: str, image_url: str = None, file_url: str = None, as_document: bool = False, file_name: str = None) -> bool:
     """Edit an already published message in a group or channel"""
-    try:
-        if as_document:
-            if file_url:
-                try:
-                    await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text, parse_mode='HTML')
-                    return True
-                except Exception as e:
-                    logger.warning(f"edit_message_caption failed for {chat_id}: {e}")
-            if image_url:
-                try:
-                    await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text, parse_mode='HTML')
-                    return True
-                except Exception as e:
-                    logger.warning(f"edit_message_caption failed for {chat_id}: {e}")
-        
-        if image_url and not as_document:
-            try:
-                await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text, parse_mode='HTML')
-                return True
-            except Exception as e:
-                logger.warning(f"edit_message_caption failed for {chat_id}: {e}")
-
+    has_media = image_url or file_url
+    # Try edit_message_caption for messages with media (photos, videos, documents)
+    if has_media:
         try:
-            await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, parse_mode='HTML')
+            await bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=text, parse_mode='HTML')
             return True
         except Exception as e:
-            logger.warning(f"edit_message_text failed for {chat_id}: {e}")
-            return False
+            logger.warning(f"edit_message_caption failed for {chat_id} msg {message_id}: {e}")
+    # Try edit_message_text for text-only messages
+    try:
+        await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, parse_mode='HTML')
+        return True
     except Exception as e:
-        logger.error(f"Failed to edit message {message_id} in {chat_id}: {e}")
+        logger.warning(f"edit_message_text failed for {chat_id} msg {message_id}: {e}")
         return False
 
 
@@ -316,21 +300,22 @@ async def edit_published_messages(text: str, group_message_ids: dict, channel_me
     text = wrap_links_in_blockquote(text)
     edited = 0
     failed = 0
-    
+
     # Edit group messages
     if group_message_ids:
         for chat_id_str, msg_ids in group_message_ids.items():
             ids_to_edit = msg_ids if isinstance(msg_ids, list) else [msg_ids]
-            for message_id in ids_to_edit:
-                try:
-                    if await edit_published_message(chat_id_str, message_id, text, image_url, file_url, as_document, file_name):
-                        edited += 1
-                    else:
-                        failed += 1
-                except Exception as e:
-                    logger.error(f"Failed to edit message {message_id} in {chat_id_str}: {e}")
+            # For media groups, only edit the first message (has the caption)
+            first_id = ids_to_edit[0]
+            try:
+                if await edit_published_message(chat_id_str, first_id, text, image_url, file_url, as_document, file_name):
+                    edited += 1
+                else:
                     failed += 1
-    
+            except Exception as e:
+                logger.error(f"Failed to edit message {first_id} in {chat_id_str}: {e}")
+                failed += 1
+
     # Edit channel message
     if channel_message_id:
         channel = None
@@ -348,5 +333,5 @@ async def edit_published_messages(text: str, group_message_ids: dict, channel_me
             except Exception as e:
                 logger.error(f"Failed to edit channel message: {e}")
                 failed += 1
-    
+
     return edited, failed

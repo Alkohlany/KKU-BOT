@@ -59,7 +59,7 @@ class NewsCreate(BaseModel):
     image_url: Optional[str] = None
     file_url: Optional[str] = None
     file_name: Optional[str] = None
-    as_document: bool = False
+    as_document: Optional[bool] = None
     file_id: Optional[str] = None
     target_channels: Optional[str] = None
     files_json: Optional[str] = None
@@ -436,7 +436,7 @@ async def edit_news_with_file(
             channel_message_id=existing.channel_message_id,
             image_url=image_url or existing.image_url,
             file_url=file_url or existing.file_url,
-            as_document=as_document,
+            as_document=as_document if as_document is not None else existing.as_document,
             file_name=file_name or existing.file_name
         )
 
