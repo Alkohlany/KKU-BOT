@@ -383,10 +383,26 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         try:
             await update.message.delete()
         except: pass
+
+        # Via reply
+        if update.message.reply_to_message and update.message.reply_to_message.from_user:
+            target_id = update.message.reply_to_message.from_user.id
+            parts = text.replace("حظر", "").strip().split(None, 1)
+            reason = parts[0] if parts else "لا يوجد سبب"
+
+            if await is_banned(target_id):
+                await send_admin_message(context, user.id, "⚠️ هذا المستخدم محظور بالفعل.")
+                return
+
+            await ban_user(target_id, reason, user.id)
+            await send_admin_message(context, user.id, f"🚫 تم حظر المستخدم `{target_id}`\n📋 السبب: {reason}")
+            await log_activity("ban_user", f"User: {target_id}, Reason: {reason}", user.id)
+            return
+
+        # Via ID
         id_part = text.replace("حظر", "").strip()
-        
         if not id_part:
-            await send_admin_message(context, user.id, "❌ يجب كتابة رقم المستخدم\n\nمثال: حظر 12345678 سبب الحظر")
+            await send_admin_message(context, user.id, "❌ يجب التأشير على المستخدم أو كتابة رقمID\n\nمثال: رد على رسالة المستخدم بكلمة حظر")
             return
 
         parts = id_part.split(None, 1)
@@ -410,10 +426,26 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         try:
             await update.message.delete()
         except: pass
+
+        # Via reply
+        if update.message.reply_to_message and update.message.reply_to_message.from_user:
+            target_id = update.message.reply_to_message.from_user.id
+
+            from sqlalchemy import delete as sql_delete
+            from bot.models.models import BannedUser
+
+            async with async_session() as session:
+                await session.execute(sql_delete(BannedUser).where(BannedUser.telegram_id == target_id))
+                await session.commit()
+
+            await send_admin_message(context, user.id, f"✅ تم رفع الحظر عن المستخدم `{target_id}`")
+            await log_activity("unban_user", f"User: {target_id}", user.id)
+            return
+
+        # Via ID
         id_part = text.replace("الغاء حظر", "").replace("إلغاء حظر", "").strip()
-        
         if not id_part:
-            await send_admin_message(context, user.id, "❌ يجب كتابة رقم المستخدم\n\nمثال: الغاء حظر 12345678")
+            await send_admin_message(context, user.id, "❌ يجب التأشير على المستخدم أو كتابة رقمID\n\nمثال: رد على رسالة المستخدم بكلمة الغاء حظر")
             return
 
         try:
@@ -627,11 +659,14 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل في تثبيت الرسالة: {e}")
 
-    elif text.startswith("اضافه رد") or text.startswith("أضف رد") or text.startswith("اضف رد") or text.startswith("ضف رد"):
+    elif text in ["الغاء تثبيت", "الغي تثبيت", "unpin"]:
         try:
-            await update.message.delete()
-        except: pass
-        
+            await update.message.reply_to_message.unpin()
+            await send_admin_message(context, user.id, f"📌 تم الغاء تثبيت رسالة {target_user.first_name}")
+        except Exception as e:
+            await send_admin_message(context, user.id, f"❌ فشل في الغاء تثبيت الرسالة: {e}")
+
+    elif text.startswith("اضافه رد") or text.startswith("أضف رد") or text.startswith("اضف رد") or text.startswith("ضف رد"):
         keywords_part = text.replace("اضافه رد", "").replace("أضف رد", "").replace("اضف رد", "").replace("ضف رد", "").strip()
         replied = update.message.reply_to_message
         
