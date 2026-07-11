@@ -9,7 +9,8 @@ from ...services.database import (
     get_all_channel_groups, get_active_channel_groups, 
     add_channel_group, toggle_channel_group, 
     update_channel_group, delete_channel_group,
-    get_channel_group_by_chat_id, async_session
+    get_channel_group_by_chat_id, async_session,
+    set_official_channel
 )
 
 router = APIRouter()
@@ -127,6 +128,7 @@ async def get_channel_groups():
             "memberCount": g.member_count,
             "inviteLink": g.invite_link,
             "isActive": g.is_active,
+            "isOfficial": g.is_official,
             "postCount": post_count,
             "createdAt": g.created_at.isoformat() if g.created_at else None
         })
@@ -205,6 +207,22 @@ async def toggle_channel_group_endpoint(group_id: int):
         "title": group.title,
         "type": group.type,
         "isActive": group.is_active,
+    }
+
+@router.post("/{group_id}/official")
+async def set_official_channel_endpoint(group_id: int):
+    result = await set_official_channel(group_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Channel/Group not found")
+    if result is False:
+        raise HTTPException(status_code=400, detail="Only channels (type='channel') can be set as official")
+    return {
+        "id": result.id,
+        "chatId": result.chat_id,
+        "title": result.title,
+        "type": result.type,
+        "isActive": result.is_active,
+        "isOfficial": result.is_official,
     }
 
 @router.delete("/{group_id}")

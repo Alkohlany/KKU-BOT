@@ -107,6 +107,20 @@ const api = {
   updateChannel: (id, data) => api.put(`/channels/${id}`, data),
   toggleChannel: (id) => api.put(`/channels/${id}/toggle`),
   deleteChannel: (id) => api.delete(`/channels/${id}`),
+  setOfficialChannel: async (id) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}/channels/${id}/official`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (handle401(res)) return;
+    if (!res.ok) {
+      const err = new Error(`POST /channels/${id}/official failed`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  },
   getBannedUsers: () => api.get('/users/banned'),
   banUser: (data) => api.post('/users/banned', data),
   unbanUser: (id) => api.delete(`/users/banned/${id}`),

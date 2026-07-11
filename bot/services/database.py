@@ -88,6 +88,8 @@ async def init_db():
             )
         """))
 
+        await conn.execute(text("ALTER TABLE channel_groups ADD COLUMN IF NOT EXISTS is_official BOOLEAN DEFAULT FALSE"))
+
         result = await conn.execute(select(StudyPlan).limit(1))
         if not result.scalar_one_or_none():
             for plan_data in [
@@ -766,3 +768,34 @@ async def get_channel_group_by_chat_id(chat_id):
     async with async_session() as session:
         result = await session.execute(select(ChannelGroup).where(ChannelGroup.chat_id == chat_id))
         return result.scalar_one_or_none()
+
+
+async def get_official_channel():
+    async with async_session() as session:
+        result = await session.execute(
+            select(ChannelGroup).where(
+                ChannelGroup.type == 'channel',
+                ChannelGroup.is_official == True,
+                ChannelGroup.is_active == True
+            )
+        )
+        return result.scalar_one_or_none()
+
+
+async def set_official_channel(group_id: int):
+    async with async_session() as session:
+        result = await session.execute(select(ChannelGroup).where(ChannelGroup.id == group_id))
+        group = result.scalar_one_or_none()
+        if not group:
+            return None
+        if group.type != 'channel':
+            return False
+        await session.execute(
+            update(ChannelGroup)
+            .where(ChannelGroup.type == 'channel')
+            .values(is_official=False)
+        )
+        group.is_official = True
+        await session.commit()
+        await session.refresh(group)
+        return group

@@ -73,6 +73,25 @@ export default function Groups() {
     }
   };
 
+  const handleSetOfficial = async (item) => {
+    try {
+      await api.setOfficialChannel(item.id);
+      setChannelGroups(channelGroups.map((g) =>
+        g.type === 'channel' ? { ...g, isOfficial: g.id === item.id } : g
+      ));
+      showToast('تم تعيين القناة كرسمية', 'success');
+    } catch (err) {
+      console.error('Failed to set official channel:', err);
+      if (err.status === 400) {
+        showToast('يمكن تعيين القنوات فقط كقناة رسمية', 'error');
+      } else if (err.status === 404) {
+        showToast('القناة غير موجودة', 'error');
+      } else {
+        showToast('فشل تعيين القناة الرسمية', 'error');
+      }
+    }
+  };
+
   const handleDelete = async (item) => {
     const label = item.type === 'channel' ? 'القناة' : 'الجروب';
     const ok = await confirm(`هل أنت متأكد من حذف ${label} "${item.title}"؟`);
@@ -175,7 +194,14 @@ export default function Groups() {
             <tbody>
               {filtered.map((item) => (
                 <tr key={item.id}>
-                  <td><strong>{item.title || 'بدون عنوان'}</strong></td>
+                  <td>
+                    <strong>{item.title || 'بدون عنوان'}</strong>
+                    {item.type === 'channel' && item.isOfficial && (
+                      <span className="status-badge active" style={{ marginRight: 8, fontSize: 11, padding: '2px 8px' }}>
+                        رسمية
+                      </span>
+                    )}
+                  </td>
                   <td><code style={{ fontSize: 12 }}>{item.chatId}</code></td>
                   <td>{(item.memberCount || 0).toLocaleString()}</td>
                   <td>{(item.postCount || 0).toLocaleString()}</td>
@@ -205,6 +231,16 @@ export default function Groups() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {item.type === 'channel' && (
+                        <label className="toggle-switch" title="تعيين كقناة رسمية">
+                          <input
+                            type="checkbox"
+                            checked={item.isOfficial || false}
+                            onChange={() => handleSetOfficial(item)}
+                          />
+                          <span className="toggle-slider" />
+                        </label>
+                      )}
                       <button className="btn btn-secondary btn-icon" onClick={() => openEditModal(item)} title="تعديل">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -239,17 +275,36 @@ export default function Groups() {
         <div className="mobile-cards">
           {filtered.map((item) => (
             <div key={item.id} className="mobile-card">
-              <div className="mobile-card-header">
-                <strong style={{ fontSize: 14 }}>{item.title || 'بدون عنوان'}</strong>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={item.is_active || item.isActive || false}
-                    onChange={() => handleToggle(item)}
-                  />
-                  <span className="toggle-slider" />
-                </label>
-              </div>
+               <div className="mobile-card-header">
+                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                   <strong style={{ fontSize: 14 }}>{item.title || 'بدون عنوان'}</strong>
+                   {item.type === 'channel' && item.isOfficial && (
+                     <span className="status-badge active" style={{ fontSize: 11, padding: '2px 8px' }}>
+                       رسمية
+                     </span>
+                   )}
+                 </span>
+                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                   {item.type === 'channel' && (
+                     <label className="toggle-switch" title="تعيين كقناة رسمية">
+                       <input
+                         type="checkbox"
+                         checked={item.isOfficial || false}
+                         onChange={() => handleSetOfficial(item)}
+                       />
+                       <span className="toggle-slider" />
+                     </label>
+                   )}
+                   <label className="toggle-switch">
+                     <input
+                       type="checkbox"
+                       checked={item.is_active || item.isActive || false}
+                       onChange={() => handleToggle(item)}
+                     />
+                     <span className="toggle-slider" />
+                   </label>
+                 </span>
+               </div>
               <div className="mobile-card-body">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -28,6 +28,7 @@ class ChannelGroup(Base):
     member_count = Column(Integer, default=0)
     invite_link = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
+    is_official = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 

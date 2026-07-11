@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
-from bot.services.database import get_user, create_user, update_user_subscription, is_banned, get_active_channel_groups
+from bot.services.database import get_user, create_user, update_user_subscription, is_banned, get_official_channel
 from datetime import datetime, timedelta
 import logging
 
@@ -16,12 +16,14 @@ _SUB_MSG = "📢 لاستخدام البوت يجب الاشتراك في الق
 
 
 async def get_subscription_channel():
-    """Get the first active channel from database"""
-    channels = await get_active_channel_groups()
-    for ch in channels:
-        if ch.type == 'channel':
-            return ch
-    return None
+    """Get the single official subscription channel.
+
+    Returns the active channel marked as official (type='channel',
+    is_official=true, is_active=true). Returns None when no official
+    channel is configured. Callers must handle None explicitly rather
+    than assuming subscription is satisfied.
+    """
+    return await get_official_channel()
 
 
 async def _ch_link_keyboard():
@@ -53,7 +55,7 @@ async def verify_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) 
         return is_subscribed
     except Exception as e:
         logger.error(f"Subscription check error for user={user_id} channel={channel.chat_id}: {e}")
-        return True
+        return False
 
 
 async def subscription_required(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:

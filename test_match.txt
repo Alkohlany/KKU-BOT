@@ -1,0 +1,6 @@
+Keyword normalized: [نسبه الغياب]
+Text normalized: [هلا]
+Exact match: False
+Substring (kw in txt): False
+Substring (txt in kw): False
+Fuzzy score: 0.42857142857142855
