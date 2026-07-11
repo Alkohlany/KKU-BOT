@@ -28,48 +28,45 @@ export default function ChannelGroupSelector({ selected = [], onChange, label = 
   };
 
   if (loading) {
-    return <div className="channel-group-selector loading">جاري تحميل القنوات والجروبات...</div>;
+    return <div className="channel-selector">جاري تحميل القنوات والجروبات...</div>;
   }
 
   if (channelGroups.length === 0) {
     return (
-      <div className="channel-group-selector empty">
-        <p>لا توجد قنوات أو جروبات مسجلة</p>
-        <p className="hint">قم بتسجيل القنوات والجروبات من صفحة إدارة القنوات أولاً</p>
+      <div className="channel-selector">
+        <div className="channel-selector-label">
+          <span>لا توجد قنوات أو جروبات مسجلة</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="channel-group-selector">
-      <div className="selector-header">
-        <label>{label}</label>
-        <div className="selector-actions">
-          <button type="button" onClick={() => onChange(channelGroups.map(g => g.chatId))} className="btn-link">تحديد الكل</button>
-          <button type="button" onClick={() => onChange([])} className="btn-link">إلغاء التحديد</button>
+    <div className="channel-selector">
+      <div className="channel-selector-label">
+        <span>{label}</span>
+        <div className="channel-selector-actions">
+          <button type="button" onClick={() => onChange(channelGroups.map(g => g.chatId))}>تحديد الكل</button>
+          <button type="button" onClick={() => onChange([])}>إلغاء</button>
         </div>
       </div>
-      <div className="selector-list">
+      <div className="channel-selector-list">
         {channelGroups.map(group => (
-          <label key={group.id} className={`selector-item ${selected.includes(group.chatId) ? 'selected' : ''}`}>
+          <label key={group.id} className={`channel-selector-item ${selected.includes(group.chatId) ? 'active' : ''}`}>
             <input
               type="checkbox"
               checked={selected.includes(group.chatId)}
               onChange={() => toggleItem(group.chatId)}
             />
-            <span className={`type-badge ${group.type}`}>
-              {group.type === 'channel' ? '📢' : '👥'}
-            </span>
-            <span className="item-info">
-              <span className="item-title">{group.title}</span>
-              <span className="item-meta">{group.memberCount || 0} عضو</span>
-            </span>
+            <span>{group.type === 'channel' ? '📢' : '👥'}</span>
+            <span className="channel-selector-name">{group.title}</span>
+            {selected.includes(group.chatId) && <span className="channel-selector-check">✓</span>}
           </label>
         ))}
       </div>
       {selected.length > 0 && (
-        <div className="selector-summary">
-          تم تحديد {selected.length} من {channelGroups.length}
+        <div className="channel-selector-footer">
+          {selected.length} من {channelGroups.length} محدد
         </div>
       )}
     </div>
