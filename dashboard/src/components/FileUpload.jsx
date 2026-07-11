@@ -1,4 +1,8 @@
-export default function FileUpload({ files, setFiles, asDocument, setAsDocument, label = 'الملفات المرفقة' }) {
+import { useState } from 'react';
+
+export default function FileUpload({ files, setFiles, asDocument, setAsDocument, label = 'الملفات المرفقة', existingFiles = [], onRemoveExisting }) {
+  const [removedExisting, setRemovedExisting] = useState([]);
+
   const handleFileChange = (e) => {
     const selected = Array.from(e.target.files);
     setFiles(prev => [...prev, ...selected]);
@@ -7,6 +11,14 @@ export default function FileUpload({ files, setFiles, asDocument, setAsDocument,
   const removeFile = (index) => {
     setFiles(files.filter((_, i) => i !== index));
   };
+
+  const removeExisting = (index) => {
+    const newRemoved = [...removedExisting, index];
+    setRemovedExisting(newRemoved);
+    if (onRemoveExisting) onRemoveExisting(newRemoved);
+  };
+
+  const visibleExisting = existingFiles.filter((_, i) => !removedExisting.includes(i));
 
   return (
     <div style={{ border: '1px solid var(--gray-200)', borderRadius: 8, overflow: 'hidden' }}>
@@ -23,21 +35,54 @@ export default function FileUpload({ files, setFiles, asDocument, setAsDocument,
         </label>
       </div>
       <div style={{ padding: 12 }}>
+        {visibleExisting.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--gray-400)', marginBottom: 6 }}>الملفات الحالية:</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {visibleExisting.map((file, i) => (
+                <div key={`existing-${i}`} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 10px',
+                  background: 'rgba(46,125,50,0.04)',
+                  border: '1px solid rgba(46,125,50,0.15)',
+                  borderRadius: 6,
+                  fontSize: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                    <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
+                    <span style={{ color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                    <span style={{ fontSize: 10, color: 'var(--primary)', background: 'rgba(46,125,50,0.1)', padding: '1px 6px', borderRadius: 4, flexShrink: 0 }}>حالي</span>
+                  </div>
+                  {onRemoveExisting && (
+                    <button
+                      type="button"
+                      onClick={() => removeExisting(i)}
+                      style={{ background: 'none', border: 'none', color: 'var(--danger, #dc3545)', cursor: 'pointer', fontSize: 14, padding: '0 4px', flexShrink: 0 }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <label style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: 6,
-          padding: '16px',
+          padding: '14px',
           border: '2px dashed var(--gray-300)',
           borderRadius: 8,
           cursor: 'pointer',
           transition: 'all 0.2s',
           background: 'var(--gray-50)',
         }}>
-          <span style={{ fontSize: 24, color: 'var(--gray-400)' }}>📎</span>
-          <span style={{ fontSize: 13, color: 'var(--gray-500)' }}>اضغط لاختيار ملفات</span>
-          <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>يدعم صور وفيديو وملفات</span>
+          <span style={{ fontSize: 20, color: 'var(--gray-400)' }}>📎</span>
+          <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>اضغط لاختيار ملفات جديدة</span>
           <input
             type="file"
             multiple
@@ -47,8 +92,9 @@ export default function FileUpload({ files, setFiles, asDocument, setAsDocument,
         </label>
         {files.length > 0 && (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>ملفات جديدة:</div>
             {files.map((file, i) => (
-              <div key={i} style={{
+              <div key={`new-${i}`} style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',

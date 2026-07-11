@@ -63,6 +63,7 @@ class NewsCreate(BaseModel):
     file_id: Optional[str] = None
     target_channels: Optional[str] = None
     files_json: Optional[str] = None
+    removed_existing: Optional[str] = None
 
 
 class NewsAnalyze(BaseModel):
@@ -281,6 +282,17 @@ async def edit_news(news_id: int, data: NewsCreate):
     if not n:
         raise HTTPException(status_code=404, detail="News not found")
     
+    # Handle removed existing files
+    if data.removed_existing:
+        try:
+            removed_indices = json.loads(data.removed_existing)
+            if removed_indices and n.files_json:
+                existing = json.loads(n.files_json) if isinstance(n.files_json, str) else (n.files_json or [])
+                existing = [f for i, f in enumerate(existing) if i not in removed_indices]
+                await update_news(news_id, files_json=json.dumps(existing))
+        except:
+            pass
+
     # Update the news in database
     await update_news(news_id, content=data.content,
                           image_url=data.image_url, file_url=data.file_url,
@@ -329,6 +341,7 @@ async def edit_news_with_file(
     files: list[UploadFile] = File(default=[]),
     as_document: bool = Form(False),
     target_channels: Optional[str] = Form(None),
+    removed_existing: Optional[str] = Form(None),
 ):
     import json
 
@@ -337,7 +350,19 @@ async def edit_news_with_file(
         raise HTTPException(status_code=404, detail="News not found")
 
     files_list = files or ([file] if file else [])
-    files_json_data = []
+
+    # Handle removed existing files - keep non-removed existing files
+    kept_existing = []
+    if removed_existing:
+        try:
+            removed_indices = json.loads(removed_existing)
+            if existing.files_json:
+                old_files = json.loads(existing.files_json) if isinstance(existing.files_json, str) else (existing.files_json or [])
+                kept_existing = [f for i, f in enumerate(old_files) if i not in removed_indices]
+        except:
+            pass
+
+    files_json_data = list(kept_existing)
 
     image_url = None
     file_url = None

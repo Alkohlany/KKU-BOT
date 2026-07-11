@@ -21,6 +21,8 @@ export default function News() {
   const [uploadFiles, setUploadFiles] = useState([]);
   const [editUploadFile, setEditUploadFile] = useState(null);
   const [editUploadFiles, setEditUploadFiles] = useState([]);
+  const [editExistingFiles, setEditExistingFiles] = useState([]);
+  const [editRemovedExisting, setEditRemovedExisting] = useState([]);
 
   const [aiKeywords, setAiKeywords] = useState([]);
   const [aiQuestions, setAiQuestions] = useState([]);
@@ -215,10 +217,11 @@ export default function News() {
           formData.append('content', editForm.content);
           formData.append('as_document', editForm.as_document);
           formData.append('target_channels', JSON.stringify(editSelectedChannels));
+          formData.append('removed_existing', JSON.stringify(editRemovedExisting));
           allEditFiles.forEach(f => formData.append('files', f));
           await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {}, 'PUT');
         } else {
-          await api.put(`/news/${editItem.id}`, { ...editForm, title: '', target_channels: JSON.stringify(editSelectedChannels) });
+          await api.put(`/news/${editItem.id}`, { ...editForm, title: '', target_channels: JSON.stringify(editSelectedChannels), removed_existing: JSON.stringify(editRemovedExisting) });
         }
       }
       setNews(news.map(n => n.id === editItem.id ? { 
@@ -337,6 +340,11 @@ export default function News() {
     setEditSelectedChannels(channels ? (typeof channels === 'string' ? JSON.parse(channels) : channels) : []);
     setEditUploadFile(null);
     setEditUploadFiles([]);
+    try {
+      const fj = item.filesJson ? (typeof item.filesJson === 'string' ? JSON.parse(item.filesJson) : item.filesJson) : [];
+      setEditExistingFiles(Array.isArray(fj) ? fj : []);
+    } catch { setEditExistingFiles([]); }
+    setEditRemovedExisting([]);
     setShowEditModal(true);
   };
 
@@ -708,6 +716,8 @@ export default function News() {
                     setFiles={(newFiles) => { setEditUploadFiles(newFiles); setEditUploadFile(newFiles[0] || null); }}
                     asDocument={editForm.as_document}
                     setAsDocument={(val) => setEditForm({ ...editForm, as_document: val })}
+                    existingFiles={editExistingFiles}
+                    onRemoveExisting={setEditRemovedExisting}
                   />
                   <div className="form-group">
                     <ChannelGroupSelector
