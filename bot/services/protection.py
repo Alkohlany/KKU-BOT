@@ -3,6 +3,8 @@
 import re
 import logging
 import unicodedata
+import asyncio
+import hashlib
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -10,37 +12,36 @@ from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 
 from bot.services.database import is_banned, ban_user, log_activity, get_channel_group_by_chat_id, get_setting
+from bot.services.ai import _call_model
 
 logger = logging.getLogger(__name__)
 
 SPAM_KEYWORDS = [
-    # تسويق/إعلان
-    "خصم", "توصيل",
-    "إعلان", "إعلانات", "تسويق", "ربح", "دخل",
+    # روابط مختصرة
     "taplink", "linktr", "bit.ly", "tinyurl",
-    "casino", "bet", "gambling",
+    "cutt.ly", "shorturl.at", "rb.gy", "is.gd", "ow.ly",
     # محتوى إباحي
-    "عري", "عارية",
-    "sex", "sexy", "nude", "naked",
     "xxx", "porn", "porno",
     "محتوى اباحي", "إباحي", "إباحية",
-    # كراهية
-    "كافر", "كافرين", "مرتد", "مرتدين", "ملحد", "ملحدين",
-    "يهودي", "يهود", "نصراني", "نصارى",
-    "طائفي", "طائفية", "sectarian",
     # مخدرات
     "مخدر", "مخدرات", "حشيش", "بانجو",
     "drugs", "cannabis", "marijuana",
     # نصب
-    "نصب", "احتيال", "غش", "خديعة",
-    "scam", "fraud", "hack", "hacking",
-    "احصل على", "free money",
+    "احتيال", "خديعة",
+    "scam", "fraud",
+    # خدمات مشبوهة
+    "سكليف", "اجازة مرضية", "تقرير طبي", "شهادة صحيه", "حذف ملاحظة",
+    # كلمات تجارية مشبوهة
+    "للبيع", "رابط واتساب", "رقم واتساب", "رابط تيليجرام", "يتوفر مكان",
 ]
 
 SUSPICIOUS_PATTERNS = [
     r"(https?://\S+){3,}",
     r"@[\w+]{15,}",
-    r"\+?\d{10,}",
+    r"https?://\S*(?:wa\.me|whatsapp|chat\.whatsapp|t\.me|joinchat)\S*",
+    r"(?:^|\s)(?:\+?967)?[71]\d{7}(?:\s|$)",
+    r"(?:^|\s)05\d{8}(?:\s|$)",
+    r"\+\d{10,}",
 ]
 
 
@@ -63,6 +64,9 @@ def normalize_arabic(text):
         text = text.replace(old, new)
     return text
 
+
+_ai_cache: dict[str, tuple[bool, float]] = {}
+_AI_CACHE_TTL = 60
 
 user_message_times = defaultdict(list)
 
@@ -103,6 +107,28 @@ def log_protection(user_id, chat_id, reason, detail):
     )
 
 
+async def check_with_ai(text: str) -> bool:
+    cache_key = hashlib.md5(text.encode()).hexdigest()
+    now = datetime.now().timestamp()
+    cached = _ai_cache.get(cache_key)
+    if cached and (now - cached[1]) < _AI_CACHE_TTL:
+        return cached[0]
+
+    prompt = f"""هل هذه الرسالة إعلان تجاري أو ترويجي؟
+الرسالة: "{text}"
+أجب بكلمة واحدة فقط: نعم أو لا."""
+
+    try:
+        response = await asyncio.to_thread(_call_model, prompt)
+        response = response.strip().lower()
+        result = "نعم" in response or "yes" in response
+    except Exception:
+        return False
+
+    _ai_cache[cache_key] = (result, now)
+    return result
+
+
 async def _is_privileged(user_id: int, chat) -> bool:
     try:
         member = await chat.get_member(user_id)
@@ -124,16 +150,27 @@ async def check_text_content(update, context, text):
         return
 
     normalized = normalize_arabic(text.lower())
+    keyword_match = None
+    pattern_match = None
 
     for keyword in SPAM_KEYWORDS:
-        if keyword.lower() in normalized:
-            await _ban_user(update, context, user, chat, f"Spam keyword: {keyword}", "spam_keyword", keyword)
-            return
+        normalized_keyword = normalize_arabic(keyword.lower())
+        if normalized_keyword in normalized:
+            keyword_match = keyword
+            break
 
-    for pattern in SUSPICIOUS_PATTERNS:
-        if re.search(pattern, text):
-            await _ban_user(update, context, user, chat, f"Suspicious pattern: {pattern}", "suspicious_pattern", pattern)
-            return
+    if not keyword_match:
+        for pattern in SUSPICIOUS_PATTERNS:
+            if re.search(pattern, text):
+                pattern_match = pattern
+                break
+
+    if keyword_match or pattern_match:
+        reason = f"Spam keyword: {keyword_match}" if keyword_match else f"Suspicious pattern: {pattern_match}"
+        detail = keyword_match or pattern_match
+        if await check_with_ai(text):
+            await _ban_user(update, context, user, chat, reason, "ai_confirmed_spam", detail)
+        return
 
 
 async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
