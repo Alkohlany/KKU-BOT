@@ -14,7 +14,8 @@ from bot.services.database import (
 )
 import cloudinary.uploader
 import logging
-from bot.models.models import AutoResponse
+from sqlalchemy import delete as sql_delete
+from bot.models.models import AutoResponse, BannedUser
 
 logger = logging.getLogger(__name__)
 
@@ -634,8 +635,21 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.delete()
         except: pass
         try:
-            await chat.unban_member(target_user_id)
-            await send_admin_message(context, user.id, f"✅ تم إلغاء حظر {target_user.first_name}")
+            async with async_session() as session:
+                await session.execute(sql_delete(BannedUser).where(BannedUser.telegram_id == target_user_id))
+                await session.commit()
+
+            groups = await get_active_channel_groups()
+            unbanned_count = 0
+            for group in groups:
+                try:
+                    await context.bot.unban_member(chat_id=group.chat_id, user_id=target_user_id)
+                    unbanned_count += 1
+                except Exception:
+                    pass
+
+            await send_admin_message(context, user.id, f"✅ تم إلغاء حظر {target_user.first_name} من {unbanned_count} مجموعة")
+            await log_activity("unban_user", f"User: {target_user_id}", user.id)
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل في إلغاء الحظر: {e}")
 
