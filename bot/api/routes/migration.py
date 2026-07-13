@@ -41,6 +41,38 @@ def get_ext(url):
     parts = clean.rsplit(".", 1)
     return f".{parts[1]}" if len(parts) == 2 and len(parts[1]) <= 5 else ".bin"
 
+@router.get("/cloudinary-urls")
+async def list_cloudinary_urls(current_user: dict = Depends(get_current_user)):
+    if current_user.get("sub") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    async with async_session() as session:
+        results = []
+        tables = [
+            (AutoResponse, ["file_url"], None),
+            (News, ["image_url", "file_url", "thumbnail_url"], "files_json"),
+            (Question, ["file_url"], None),
+            (ScheduledPost, ["image_url", "file_url", "thumbnail_url"], "files_json"),
+            (StudyPlan, ["plan_url", "file_url"], None),
+        ]
+
+        for model, cols, fjson_col in tables:
+            result = await session.execute(select(model))
+            for row in result.scalars().all():
+                for col in cols:
+                    val = getattr(row, col, None)
+                    if val and is_cloudinary_url(val):
+                        results.append({"table": model.__tablename__, "id": row.id, "col": col, "url": val})
+                if fjson_col:
+                    val = getattr(row, fjson_col, None)
+                    if val:
+                        for u in extract_from_json(val):
+                            if is_cloudinary_url(u):
+                                results.append({"table": model.__tablename__, "id": row.id, "col": fjson_col, "url": u})
+
+        return {"total": len(results), "results": results}
+
+
 @router.post("/migrate-from-cloudinary")
 async def migrate_from_cloudinary(current_user: dict = Depends(get_current_user)):
     if current_user.get("sub") != "admin":
