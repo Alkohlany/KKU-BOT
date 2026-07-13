@@ -43,7 +43,7 @@ def get_ext(url):
 
 @router.post("/migrate-from-cloudinary")
 async def migrate_from_cloudinary(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "admin":
+    if current_user.get("sub") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
 
     async with async_session() as session:
