@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.constants import ChatMemberStatus, ParseMode
 from bot.config import ADMIN_IDS
-from bot.services.cloud_storage import upload_raw
+from bot.services.cloud_storage import upload_raw, upload_image, upload_file
 from bot.services.news_publisher import wrap_links_in_blockquote
 from bot.services.database import (
     get_auto_responses_by_source, remove_auto_responses_by_source,
@@ -12,7 +12,6 @@ from bot.services.database import (
     ban_user, get_all_banned, is_banned,
     get_active_channel_groups, log_activity, async_session
 )
-import cloudinary.uploader
 import logging
 from sqlalchemy import delete as sql_delete
 from bot.models.models import AutoResponse, BannedUser
@@ -642,17 +641,14 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 file_tg_id = file_obj.file_id
                 tg_file = await file_obj.get_file()
                 file_bytes = await tg_file.download_as_bytearray()
-                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/news", resource_type="image")
-                file_url = result["secure_url"]
-                thumbnail_url = result.get("thumbnail_url")
+                file_url = upload_image(bytes(file_bytes), folder="kku-bot/news")
             elif replied.video:
                 file_obj = replied.video
                 file_type = "video"
                 file_tg_id = file_obj.file_id
                 tg_file = await file_obj.get_file()
                 file_bytes = await tg_file.download_as_bytearray()
-                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/news", resource_type="video")
-                file_url = result["secure_url"]
+                file_url = upload_file(bytes(file_bytes), folder="kku-bot/news")
             elif replied.document:
                 file_obj = replied.document
                 file_type = "document"
@@ -672,6 +668,18 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.warning(f"Could not upload file from replied message: {e}")
 
         try:
+            import json
+            target_channels = json.dumps([str(chat.id)])
+
+            files_json_data = []
+            if file_url:
+                files_json_data.append({
+                    "url": file_url,
+                    "type": file_type or "document",
+                    "name": file_name or "file",
+                    "thumbnail": thumbnail_url,
+                })
+
             news = await add_news(
                 content=content,
                 image_url=file_url if file_type == "photo" else None,
@@ -681,7 +689,9 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 file_type=file_type,
                 created_by=user.id,
                 file_id=file_tg_id,
-                as_document=(file_type == "document")
+                as_document=(file_type == "document"),
+                target_channels=target_channels,
+                files_json=json.dumps(files_json_data) if files_json_data else None
             )
 
             if keywords_part:
@@ -828,16 +838,14 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 file_tg_id = file_obj.file_id
                 tg_file = await file_obj.get_file()
                 file_bytes = await tg_file.download_as_bytearray()
-                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="image")
-                file_url = result["secure_url"]
+                file_url = upload_image(bytes(file_bytes), folder="kku-bot/responses")
             elif replied.video:
                 file_obj = replied.video
                 file_type = "video"
                 file_tg_id = file_obj.file_id
                 tg_file = await file_obj.get_file()
                 file_bytes = await tg_file.download_as_bytearray()
-                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/responses", resource_type="video")
-                file_url = result["secure_url"]
+                file_url = upload_file(bytes(file_bytes), folder="kku-bot/responses")
             elif replied.document:
                 file_obj = replied.document
                 file_type = "document"

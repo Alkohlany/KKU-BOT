@@ -162,7 +162,7 @@ async def create_news_with_file(
                         try:
                             remote_url = upload_image(file_data, folder="kku-bot/news")
                         except Exception as e:
-                            raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
+                            raise HTTPException(status_code=500, detail=f"فشل رفع الصورة للتخزين السحابي: {str(e)}")
                 else:
                     local_url = save_file_locally(file_data, f.filename)
 
@@ -385,7 +385,7 @@ async def edit_news_with_file(
                     try:
                         remote_url = upload_image(file_data, folder="kku-bot/news")
                     except Exception as e:
-                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة لـ Cloudinary: {str(e)}")
+                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة للتخزين السحابي: {str(e)}")
             else:
                 local_url = save_file_locally(file_data, f.filename)
 

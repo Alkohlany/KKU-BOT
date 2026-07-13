@@ -2,11 +2,11 @@ import os
 import sys
 import unicodedata
 import difflib
+import uuid
 from pathlib import Path
 
 import psycopg2
-import cloudinary
-import cloudinary.uploader
+import boto3
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if not DATABASE_URL:
@@ -16,17 +16,22 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")
-if not CLOUDINARY_URL:
-    print("FATAL: CLOUDINARY_URL not set")
-    sys.exit(1)
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "7f114137d67493306040c9aba1a3010b")
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "e8b31da9213b528278ae296d37539afc")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY", "34ced3bca598d8445f216f6d0361970f1dee48638d20c71d2f7c2a291a17e4e4")
+R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME", "kku-bot")
+R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL", "https://pub-d6f603d5fe754c03a6c8f7d10c4a0186.r2.dev")
 
-cloudinary.config(
-    cloud_name="kcjltbov",
-    api_key="437369531767286",
-    api_secret="GGV9VGXQac0LIJmDMfBkNwbLd9k",
-    secure=True,
-)
+s3 = boto3.client("s3",
+    endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+    aws_access_key_id=R2_ACCESS_KEY_ID,
+    aws_secret_access_key=R2_SECRET_ACCESS_KEY)
+
+def upload_file(data, filename, folder="kku-bot/plans"):
+    ext = os.path.splitext(filename)[1]
+    key = f"{folder}/{uuid.uuid4().hex}{ext}"
+    s3.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=data)
+    return f"{R2_PUBLIC_URL}/{key}"
 
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
 
@@ -99,20 +104,9 @@ def main():
 
         print(f"  Uploading ({len(file_bytes)} bytes)...")
         try:
-            result = cloudinary.uploader.upload(
-                file_bytes,
-                folder="kku-bot/plans",
-                resource_type="raw",
-                access_control=[{"access_type": "anonymous"}],
-            )
+            new_url = upload_file(file_bytes, file_path.name)
         except Exception as e:
             print(f"  !! Upload failed: {e}")
-            fail += 1
-            continue
-
-        new_url = result.get("secure_url")
-        if not new_url:
-            print(f"  !! No secure_url in response")
             fail += 1
             continue
 

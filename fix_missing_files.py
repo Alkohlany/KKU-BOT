@@ -3,11 +3,11 @@ import sys
 import asyncio
 import logging
 import unicodedata
+import uuid
 from pathlib import Path
 
 import asyncpg
-import cloudinary
-import cloudinary.uploader
+import boto3
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,10 +27,23 @@ if DATABASE_URL.startswith("postgres://"):
 elif DATABASE_URL.startswith("postgresql+asyncpg://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
 
-CLOUDINARY_URL = os.getenv("CLOUDINARY_URL", "")
-if not CLOUDINARY_URL:
-    logger.error("CLOUDINARY_URL not set. Exiting.")
-    sys.exit(1)
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "7f114137d67493306040c9aba1a3010b")
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "e8b31da9213b528278ae296d37539afc")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY", "34ced3bca598d8445f216f6d0361970f1dee48638d20c71d2f7c2a291a17e4e4")
+R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME", "kku-bot")
+R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL", "https://pub-d6f603d5fe754c03a6c8f7d10c4a0186.r2.dev")
+
+s3 = boto3.client("s3",
+    endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+    aws_access_key_id=R2_ACCESS_KEY_ID,
+    aws_secret_access_key=R2_SECRET_ACCESS_KEY)
+
+def upload_file(data, filename, folder="kku-bot/plans"):
+    ext = os.path.splitext(filename)[1]
+    key = f"{folder}/{uuid.uuid4().hex}{ext}"
+    s3.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=data)
+    return f"{R2_PUBLIC_URL}/{key}"
+
 
 # (plan_title_in_db, filename_on_disk)
 MISSING_PLANS = [
@@ -42,27 +55,6 @@ MISSING_PLANS = [
     ("الإدارة المالية", "الإدارة المالية.pdf"),
     ("دبلوم إدارة أعمال", "دبلوم أدارة اعمال .pdf"),
 ]
-
-
-def configure_cloudinary():
-    cloudinary.config(
-        cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", ""),
-        api_key=os.getenv("CLOUDINARY_API_KEY", ""),
-        api_secret=os.getenv("CLOUDINARY_API_SECRET", ""),
-        secure=True,
-    )
-    if not cloudinary.config().cloud_name and CLOUDINARY_URL.startswith("cloudinary://"):
-        parts = CLOUDINARY_URL.replace("cloudinary://", "").split("@")
-        if len(parts) == 2:
-            api_key_secret = parts[0].split(":")
-            if len(api_key_secret) == 2:
-                cloudinary.config(
-                    cloud_name=parts[1],
-                    api_key=api_key_secret[0],
-                    api_secret=api_key_secret[1],
-                    secure=True,
-                )
-    return True
 
 
 def normalize_arabic(s: str) -> str:
@@ -84,27 +76,18 @@ def find_file_on_disk(filename: str) -> Path | None:
     return None
 
 
-def upload_to_cloudinary(plan_title: str, file_path: Path) -> str | None:
-    public_id = plan_title.replace(" ", "_")
+def upload_to_r2(plan_title: str, file_path: Path) -> str | None:
     try:
-        result = cloudinary.uploader.upload(
-            str(file_path),
-            folder="kku-bot/plans",
-            resource_type="raw",
-            public_id=public_id,
-            access_control=[{"access_type": "anonymous"}],
-        )
-        url = result.get("secure_url")
+        data = file_path.read_bytes()
+        url = upload_file(data, file_path.name)
         logger.info(f"  Uploaded: {file_path.name} -> {url}")
         return url
     except Exception as e:
-        logger.error(f"  Cloudinary upload failed: {e}")
+        logger.error(f"  Upload failed: {e}")
         return None
 
 
 async def main():
-    configure_cloudinary()
-
     logger.info("Connecting to database...")
     conn = await asyncpg.connect(DATABASE_URL)
     try:
@@ -139,8 +122,7 @@ async def main():
                 fail_count += 1
                 continue
 
-            # Upload to Cloudinary
-            file_url = upload_to_cloudinary(plan_title, file_path)
+            file_url = upload_to_r2(plan_title, file_path)
             if not file_url:
                 fail_count += 1
                 continue

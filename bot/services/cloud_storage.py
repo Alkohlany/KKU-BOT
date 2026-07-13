@@ -1,94 +1,43 @@
-import cloudinary
-import cloudinary.uploader
+import boto3
 import os
+import uuid
 import logging
-from bot.config import CLOUDINARY_URL
+import httpx
+from bot.config import R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL
 
 logger = logging.getLogger(__name__)
 
-cloudinary.config(secure=True)
+endpoint = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
+s3 = boto3.client(
+    "s3",
+    endpoint_url=endpoint,
+    aws_access_key_id=R2_ACCESS_KEY_ID,
+    aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+)
 
 def upload_file(file_bytes: bytes, folder: str = "kku-bot") -> str:
-    result = cloudinary.uploader.upload(file_bytes, folder=folder, timeout=120)
-    return result["secure_url"]
-
+    ext = ".bin"
+    key = f"{folder}/{uuid.uuid4().hex}{ext}"
+    s3.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=file_bytes)
+    return f"{R2_PUBLIC_URL}/{key}"
 
 def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
-    result = cloudinary.uploader.upload(file_bytes, folder=folder, resource_type="image", timeout=120)
-    return result["secure_url"]
-
+    key = f"{folder}/{uuid.uuid4().hex}.jpg"
+    s3.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=file_bytes, ContentType="image/jpeg")
+    return f"{R2_PUBLIC_URL}/{key}"
 
 def upload_raw(file_bytes: bytes, filename: str = "", folder: str = "kku-bot") -> str:
-    import tempfile, os
-    try:
-        suffix = os.path.splitext(filename)[1] if filename else ""
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
-            f.write(file_bytes)
-            temp_path = f.name
-    except Exception as e:
-        logger.error(f"Temp file creation failed: {e}", exc_info=True)
-        raise
-
-    try:
-        result = cloudinary.uploader.upload_large(temp_path, folder=folder, chunk_size=6_000_000)
-        return result["secure_url"]
-    except Exception as e:
-        logger.error(f"Cloudinary upload_large failed: {e}", exc_info=True)
-        raise
-    finally:
-        try:
-            os.unlink(temp_path)
-        except Exception:
-            pass
-
+    ext = os.path.splitext(filename)[1] if filename else ""
+    key = f"{folder}/{uuid.uuid4().hex}{ext}"
+    s3.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=file_bytes)
+    return f"{R2_PUBLIC_URL}/{key}"
 
 def download_raw(file_url: str) -> bytes | None:
-    import urllib.parse
-    import requests
     try:
-        path = urllib.parse.urlparse(file_url).path
-        path_decoded = urllib.parse.unquote(path)
-        
-        resource_type = "raw"
-        upload_marker = "/raw/upload/"
-        if upload_marker not in path_decoded:
-            upload_marker = "/image/upload/"
-            resource_type = "image"
-            if upload_marker not in path_decoded:
-                upload_marker = "/video/upload/"
-                resource_type = "video"
-                if upload_marker not in path_decoded:
-                    logger.warning(f"download_raw: unknown URL format: {file_url}")
-                    return None
-
-        parts = path_decoded.split(upload_marker)
-        if len(parts) != 2:
-            return None
-        path_after = parts[1]
-        slash_idx = path_after.find("/")
-        if slash_idx == -1:
-            return None
-        full_public_id = path_after[slash_idx + 1:]
-
-        api_url = f"https://api.cloudinary.com/v1_1/kcjltbov/{resource_type}/download"
-        # Try full public_id first, then strip extension for image/video URLs
-        candidates = [full_public_id]
-        if resource_type in ("image", "video"):
-            root, _ = os.path.splitext(full_public_id)
-            if root != full_public_id:
-                candidates.append(root)
-
-        for pid in candidates:
-            resp = requests.get(
-                api_url,
-                params={"public_id": pid, "type": "upload"},
-                auth=("437369531767286", "GGV9VGXQac0LIJmDMfBkNwbLd9k"),
-                timeout=90
-            )
-            if resp.status_code == 200:
-                return resp.content
-        return None
+        resp = httpx.get(file_url, timeout=90)
+        if resp.status_code == 200:
+            return resp.content
     except Exception as e:
-        print(f"Cloudinary download_raw exception: {e}")
-        return None
+        logger.error(f"Download failed: {e}")
+    return None

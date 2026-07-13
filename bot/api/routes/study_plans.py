@@ -357,10 +357,10 @@ async def publish_group_plans(group_id: int):
                                 break
                             else:
                                 last_status = file_resp.status_code
-                                print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
+                                print(f"تحميل attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
                         except Exception as e:
                             last_status = 0
-                            print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
+                            print(f"تحميل attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
                         if dl_attempt < 2:
                             await asyncio.sleep(2)
 
@@ -475,10 +475,10 @@ async def publish_single_plan(plan_id: int):
                         break
                     else:
                         last_status = file_resp.status_code
-                        print(f"Cloudinary download attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
+                        print(f"تحميل attempt {dl_attempt+1} failed: status={file_resp.status_code}, url={plan.file_url[:100]}")
                 except Exception as e:
                     last_status = 0
-                    print(f"Cloudinary download attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
+                    print(f"تحميل attempt {dl_attempt+1} exception: {e}, url={plan.file_url[:100]}")
                 if dl_attempt < 2:
                     await asyncio.sleep(2)
 
@@ -486,7 +486,7 @@ async def publish_single_plan(plan_id: int):
                 pdf_content = await asyncio.to_thread(download_raw, plan.file_url)
 
             if not pdf_content:
-                return {"error": f"فشل تحميل الملف من Cloudinary (status: {last_status})"}
+                return {"error": f"فشل تحميل الملف من الخدمة السحابية (status: {last_status})"}
 
             caption = ""
             if group and group.group_tag:
@@ -529,7 +529,7 @@ async def publish_single_plan(plan_id: int):
 
 @router.get("/file/{filename}")
 async def get_study_plan_file(filename: str):
-    raise HTTPException(status_code=404, detail="Files are stored on Cloudinary. Use the file_url from the API response.")
+    raise HTTPException(status_code=404, detail="Use the file_url from the API response.")
 
 
 @router.put("/{plan_id}")
