@@ -615,6 +615,94 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     target_user = update.message.reply_to_message.from_user
     target_user_id = target_user.id
 
+    if text.startswith("اضافه منشور") or text.startswith("أضف منشور") or text.startswith("اضافة منشور"):
+        try:
+            await update.message.delete()
+        except: pass
+
+        keywords_part = text.replace("اضافه منشور", "").replace("أضف منشور", "").replace("اضافة منشور", "").strip()
+        replied = update.message.reply_to_message
+
+        content = replied.text or replied.caption or ""
+
+        if not content and not (replied.photo or replied.video or replied.document or replied.voice or replied.audio):
+            await send_admin_message(context, user.id, "❌ الرسالة المُشار إليها لا تحتوي على محتوى")
+            return
+
+        file_url = None
+        file_type = None
+        file_tg_id = None
+        thumbnail_url = None
+        file_name = None
+
+        try:
+            if replied.photo:
+                file_obj = replied.photo[-1]
+                file_type = "photo"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/news", resource_type="image")
+                file_url = result["secure_url"]
+                thumbnail_url = result.get("thumbnail_url")
+            elif replied.video:
+                file_obj = replied.video
+                file_type = "video"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/news", resource_type="video")
+                file_url = result["secure_url"]
+            elif replied.document:
+                file_obj = replied.document
+                file_type = "document"
+                file_tg_id = file_obj.file_id
+                file_name = file_obj.file_name
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                file_url = upload_raw(bytes(file_bytes), filename=file_name or "file", folder="kku-bot/news")
+            elif replied.voice or replied.audio:
+                file_obj = replied.voice or replied.audio
+                file_type = "document"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/news")
+        except Exception as e:
+            logger.warning(f"Could not upload file from replied message: {e}")
+
+        try:
+            news = await add_news(
+                content=content,
+                image_url=file_url if file_type == "photo" else None,
+                file_url=file_url if file_type != "photo" else None,
+                thumbnail_url=thumbnail_url,
+                file_name=file_name,
+                file_type=file_type,
+                created_by=user.id,
+                file_id=file_tg_id,
+                as_document=(file_type == "document")
+            )
+
+            if keywords_part:
+                keyword = keywords_part.strip()
+                await add_auto_response(
+                    keyword=keyword,
+                    response="تم الرد عبر المنشور",
+                    created_by=user.id,
+                    news_id=news.id,
+                    file_url=file_url,
+                    file_type=file_type
+                )
+                await send_admin_message(context, user.id, f"✅ تمت إضافة المنشور\n\n🔑 الكلمة: {keyword}\n📰 المنشور: {news.id}")
+            else:
+                await send_admin_message(context, user.id, f"✅ تمت إضافة المنشور رقم {news.id}")
+
+            await log_activity("add_news", f"ID: {news.id}, Keyword: {keywords_part}", user.id)
+        except Exception as e:
+            await send_admin_message(context, user.id, f"❌ فشل إضافة المنشور: {str(e)}")
+        return
+
     try:
         target_member = await chat.get_member(target_user_id)
         if target_member.status in [ChatMemberStatus.OWNER]:
@@ -793,94 +881,6 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}{file_info}")
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
-        return
-
-    elif text.startswith("اضافه منشور") or text.startswith("أضف منشور") or text.startswith("اضافة منشور"):
-        try:
-            await update.message.delete()
-        except: pass
-
-        keywords_part = text.replace("اضافه منشور", "").replace("أضف منشور", "").replace("اضافة منشور", "").strip()
-        replied = update.message.reply_to_message
-
-        content = replied.text or replied.caption or ""
-
-        if not content and not (replied.photo or replied.video or replied.document or replied.voice or replied.audio):
-            await send_admin_message(context, user.id, "❌ الرسالة المُشار إليها لا تحتوي على محتوى")
-            return
-
-        file_url = None
-        file_type = None
-        file_tg_id = None
-        thumbnail_url = None
-        file_name = None
-
-        try:
-            if replied.photo:
-                file_obj = replied.photo[-1]
-                file_type = "photo"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/news", resource_type="image")
-                file_url = result["secure_url"]
-                thumbnail_url = result.get("thumbnail_url")
-            elif replied.video:
-                file_obj = replied.video
-                file_type = "video"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                result = cloudinary.uploader.upload(bytes(file_bytes), folder="kku-bot/news", resource_type="video")
-                file_url = result["secure_url"]
-            elif replied.document:
-                file_obj = replied.document
-                file_type = "document"
-                file_tg_id = file_obj.file_id
-                file_name = file_obj.file_name
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                file_url = upload_raw(bytes(file_bytes), filename=file_name or "file", folder="kku-bot/news")
-            elif replied.voice or replied.audio:
-                file_obj = replied.voice or replied.audio
-                file_type = "document"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/news")
-        except Exception as e:
-            logger.warning(f"Could not upload file from replied message: {e}")
-
-        try:
-            news = await add_news(
-                content=content,
-                image_url=file_url if file_type == "photo" else None,
-                file_url=file_url if file_type != "photo" else None,
-                thumbnail_url=thumbnail_url,
-                file_name=file_name,
-                file_type=file_type,
-                created_by=user.id,
-                file_id=file_tg_id,
-                as_document=(file_type == "document")
-            )
-
-            if keywords_part:
-                keyword = keywords_part.strip()
-                await add_auto_response(
-                    keyword=keyword,
-                    response="تم الرد عبر المنشور",
-                    created_by=user.id,
-                    news_id=news.id,
-                    file_url=file_url,
-                    file_type=file_type
-                )
-                await send_admin_message(context, user.id, f"✅ تمت إضافة المنشور\n\n🔑 الكلمة: {keyword}\n📰 المنشور: {news.id}")
-            else:
-                await send_admin_message(context, user.id, f"✅ تمت إضافة المنشور رقم {news.id}")
-
-            await log_activity("add_news", f"ID: {news.id}, Keyword: {keywords_part}", user.id)
-        except Exception as e:
-            await send_admin_message(context, user.id, f"❌ فشل إضافة المنشور: {str(e)}")
         return
 
     elif text.strip() in ["ازاله الرد", "ازالة الرد", "ازل رد"]:
