@@ -439,6 +439,13 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await session.execute(sql_delete(BannedUser).where(BannedUser.telegram_id == target_id))
                 await session.commit()
 
+            groups = await get_active_channel_groups()
+            for group in groups:
+                try:
+                    await context.bot.unban_chat_member(chat_id=group.chat_id, user_id=target_id)
+                except Exception:
+                    pass
+
             await send_admin_message(context, user.id, f"✅ تم رفع الحظر عن المستخدم `{target_id}`")
             await log_activity("unban_user", f"User: {target_id}", user.id)
             return
@@ -451,13 +458,20 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         try:
             target_id = int(id_part)
-            
+
             from sqlalchemy import delete as sql_delete
             from bot.models.models import BannedUser
 
             async with async_session() as session:
                 await session.execute(sql_delete(BannedUser).where(BannedUser.telegram_id == target_id))
                 await session.commit()
+
+            groups = await get_active_channel_groups()
+            for group in groups:
+                try:
+                    await context.bot.unban_chat_member(chat_id=group.chat_id, user_id=target_id)
+                except Exception:
+                    pass
 
             await send_admin_message(context, user.id, f"✅ تم رفع الحظر عن المستخدم `{target_id}`")
             await log_activity("unban_user", f"User: {target_id}", user.id)
@@ -643,12 +657,15 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             unbanned_count = 0
             for group in groups:
                 try:
-                    await context.bot.unban_member(chat_id=group.chat_id, user_id=target_user_id)
+                    await context.bot.unban_chat_member(chat_id=group.chat_id, user_id=target_user_id)
                     unbanned_count += 1
                 except Exception:
                     pass
 
-            await send_admin_message(context, user.id, f"✅ تم إلغاء حظر {target_user.first_name} من {unbanned_count} مجموعة")
+            if unbanned_count > 0:
+                await send_admin_message(context, user.id, f"✅ تم رفع الحظر عن {target_user.first_name} من {unbanned_count} قروب")
+            else:
+                await send_admin_message(context, user.id, f"✅ تم رفع الحظر عن {target_user.first_name}")
             await log_activity("unban_user", f"User: {target_user_id}", user.id)
         except Exception as e:
             await send_admin_message(context, user.id, f"❌ فشل في إلغاء الحظر: {e}")

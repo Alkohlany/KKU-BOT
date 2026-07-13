@@ -402,7 +402,7 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         unbanned_count = 0
         for group in groups:
             try:
-                await context.bot.unban_member(chat_id=group.chat_id, user_id=user_id)
+                await context.bot.unban_chat_member(chat_id=group.chat_id, user_id=user_id)
                 unbanned_count += 1
             except Exception:
                 pass

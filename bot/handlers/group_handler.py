@@ -50,7 +50,11 @@ async def track_group_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await add_channel_group(chat.id, chat.title, chat_type, member_count, invite_link)
                 logger.info(f"Registered {chat_type}: {chat.title} ({chat.id}), members: {member_count}")
             else:
-                logger.info(f"{chat_type} already registered: {chat.title} ({chat.id})")
+                if not existing.is_active:
+                    await update_channel_group(existing.id, is_active=True)
+                    logger.info(f"Reactivated {chat_type}: {chat.title} ({chat.id})")
+                else:
+                    logger.info(f"{chat_type} already registered: {chat.title} ({chat.id})")
         elif was_member and not is_member and bot_id == context.bot.id:
             existing = await get_channel_group_by_chat_id(chat.id)
             if existing:
@@ -71,7 +75,6 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
             if member.id == context.bot.id:
                 existing = await get_channel_group_by_chat_id(chat.id)
                 if not existing:
-                    # Fetch member count and channel/group link
                     member_count = 0
                     invite_link = None
                     try:
@@ -89,6 +92,10 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
                     
                     await add_channel_group(chat.id, chat.title, "group", member_count, invite_link)
                     logger.info(f"Registered group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id}), members: {member_count}")
+                else:
+                    if not existing.is_active:
+                        await update_channel_group(existing.id, is_active=True)
+                        logger.info(f"Reactivated group via NEW_CHAT_MEMBERS: {chat.title} ({chat.id})")
             else:
                 auto_greeting = await get_setting("autoGreeting")
                 welcome_enabled = auto_greeting is not None and str(auto_greeting).strip().lower() != "false"
@@ -117,7 +124,11 @@ async def register_group_command(update: Update, context: ContextTypes.DEFAULT_T
         return
     existing_cg = await get_channel_group_by_chat_id(chat.id)
     if existing_cg:
-        await update.message.reply_text(f"القروب مسجل أصلاً: {chat.title}")
+        if not existing_cg.is_active:
+            await update_channel_group(existing_cg.id, is_active=True)
+            await update.message.reply_text(f"تم إعادة تفعيل القروب: {chat.title} ✓")
+        else:
+            await update.message.reply_text(f"القروب مسجل أصلاً: {chat.title}")
     else:
         # Fetch member count and channel/group link
         member_count = 0
