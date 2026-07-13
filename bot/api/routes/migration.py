@@ -1,4 +1,5 @@
 import asyncio
+import os
 import uuid
 import json
 import httpx
@@ -16,6 +17,9 @@ s3 = boto3.client("s3",
     endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
     aws_access_key_id=R2_ACCESS_KEY_ID,
     aws_secret_access_key=R2_SECRET_ACCESS_KEY)
+
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "437369531767286")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "GGV9VGXQac0LIJmDMfBkNwbLd9k")
 
 def is_cloudinary_url(url):
     if not url:
@@ -114,19 +118,28 @@ async def migrate_from_cloudinary(current_user: dict = Depends(get_current_user)
             return {"message": "No Cloudinary URLs found", "migrated": 0, "total": 0}
 
         url_map = {}
-        async with httpx.AsyncClient(timeout=120) as client:
+        debug = []
+        auth = httpx.BasicAuth(CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)
+        async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
             for i, url in enumerate(unique_urls, 1):
+                debug.append({"url": url, "status": "downloading"})
                 content = None
+                last_error = None
                 for attempt in range(3):
                     try:
-                        resp = await client.get(url)
+                        resp = await client.get(url, auth=auth)
+                        debug.append({"url": url, "attempt": attempt+1, "status_code": resp.status_code})
                         if resp.status_code == 200:
                             content = resp.content
                             break
-                    except Exception:
-                        pass
+                        else:
+                            last_error = f"HTTP {resp.status_code}"
+                    except Exception as e:
+                        last_error = str(e)
+                        debug.append({"url": url, "attempt": attempt+1, "error": str(e)})
                     await asyncio.sleep(2)
                 if not content:
+                    debug.append({"url": url, "status": "download_failed", "last_error": last_error})
                     continue
 
                 folder = "kku-bot/migrated"
@@ -173,5 +186,6 @@ async def migrate_from_cloudinary(current_user: dict = Depends(get_current_user)
         "message": "Migration complete",
         "total": len(unique_urls),
         "migrated": len(url_map),
-        "updated_records": updated
+        "updated_records": updated,
+        "debug": debug
     }
