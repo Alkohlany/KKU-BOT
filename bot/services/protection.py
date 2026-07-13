@@ -209,7 +209,6 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if await is_banned(user.id):
             try:
                 await update.message.delete()
-                await chat.ban_member(user.id)
                 await log_activity(
                     "spam_delete",
                     f"Deleted message from banned user {user.id} in {chat.id}",

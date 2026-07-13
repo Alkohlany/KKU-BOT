@@ -398,7 +398,16 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await session.execute(sql_delete(BannedUser).where(BannedUser.telegram_id == user_id))
             await session.commit()
 
-        await update.message.reply_text(f"✅ تم رفع الحظر عن المستخدم `{user_id}`", disable_web_page_preview=True)
+        groups = await get_active_channel_groups()
+        unbanned_count = 0
+        for group in groups:
+            try:
+                await context.bot.unban_member(chat_id=group.chat_id, user_id=user_id)
+                unbanned_count += 1
+            except Exception:
+                pass
+
+        await update.message.reply_text(f"✅ تم رفع الحظر عن المستخدم `{user_id}` من {unbanned_count} مجموعة", disable_web_page_preview=True)
         await log_activity("unban_user", f"User: {user_id}", update.effective_user.id)
     except ValueError:
         await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
