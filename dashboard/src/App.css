@@ -1534,3 +1534,8 @@ textarea.form-input {
   color: var(--gray-500);
   text-align: center;
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

@@ -41,6 +41,11 @@ export default function News() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingNewsId, setDeletingNewsId] = useState(null);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [publishingId, setPublishingId] = useState(null);
+  const [relinking, setRelinking] = useState(false);
+  const [resettingChannel, setResettingChannel] = useState(false);
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
 
   const [perFileContent, setPerFileContent] = useState(false);
   const [fileCaptions, setFileCaptions] = useState({});
@@ -262,6 +267,7 @@ export default function News() {
   };
 
   const handlePublish = async (item) => {
+    setPublishingId(item.id);
     try {
       await api.post(`/news/${item.id}/publish`);
       setNews(news.map(n => n.id === item.id ? { ...n, published: true } : n));
@@ -269,17 +275,22 @@ export default function News() {
     } catch (err) {
       console.error('Publish failed:', err);
       showToast('فشل النشر', 'error');
+    } finally {
+      setPublishingId(null);
     }
   };
 
   const handleNewsResetPublish = async (id) => {
     setShowDeleteModal(false);
+    setResettingChannel(true);
     try {
       await api.delete(`/news/${id}/channel`);
       setNews(news.map(n => n.id === id ? { ...n, published: false } : n));
       showToast('تم حذف المنشور من القنوات بنجاح', 'success');
     } catch (err) {
       showToast('حدث خطأ أثناء الحذف', 'error');
+    } finally {
+      setResettingChannel(false);
     }
   };
 
@@ -287,18 +298,22 @@ export default function News() {
     setShowDeleteModal(false);
     const ok = await confirm('هل أنت متأكد من الحذف النهائي؟ سيتم حذف المنشور نهائياً.');
     if (!ok) return;
+    setPermanentDeleting(true);
     try {
       await api.delete(`/news/${id}`);
       setNews(news.filter((n) => n.id !== id));
       showToast('تم حذف المنشور نهائياً', 'success');
     } catch (err) {
       showToast('حدث خطأ أثناء الحذف', 'error');
+    } finally {
+      setPermanentDeleting(false);
     }
   };
 
   const handleDeleteAll = async () => {
     const ok = await confirm('هل أنت متأكد من حذف جميع المنشورات؟ هذا الإجراء لا يمكن التراجع عنه.');
     if (!ok) return;
+    setDeletingAll(true);
     try {
       await api.delete('/news');
       setNews([]);
@@ -306,11 +321,14 @@ export default function News() {
     } catch (err) {
       console.error('Failed to delete all news:', err);
       showToast('فشل حذف جميع المنشورات', 'error');
+    } finally {
+      setDeletingAll(false);
     }
   };
 
   const handleRelink = async () => {
     if (!relinkItem) return;
+    setRelinking(true);
     try {
       const result = await api.post(`/news/${relinkItem.id}/relink`, {
         keywords: selectedKeywords,
@@ -325,6 +343,8 @@ export default function News() {
     } catch (err) {
       console.error('Failed to relink:', err);
       showToast('فشل إعادة الربط', 'error');
+    } finally {
+      setRelinking(false);
     }
   };
 
@@ -407,12 +427,23 @@ export default function News() {
             />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-danger" onClick={handleDeleteAll}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              حذف الكل
+            <button className="btn btn-danger" onClick={handleDeleteAll} disabled={deletingAll} style={{ opacity: deletingAll ? 0.7 : 1, transition: 'all 0.2s' }}>
+              {deletingAll ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+                  </svg>
+                  جاري...
+                </span>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  حذف الكل
+                </>
+              )}
             </button>
             <button className="btn btn-primary" onClick={() => { setForm({ content: '', as_document: false }); setUploadFiles([]); setSelectedChannels([]); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -474,8 +505,15 @@ export default function News() {
                         </button>
                       )}
                       {!item.published && (
-                        <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} title="نشر">
-                          نشر
+                        <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} title="نشر" disabled={publishingId === item.id} style={{ opacity: publishingId === item.id ? 0.7 : 1, transition: 'all 0.2s' }}>
+                          {publishingId === item.id ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+                              </svg>
+                              جاري...
+                            </span>
+                          ) : 'نشر'}
                         </button>
                       )}
                       <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)} title="إعادة ربط">
@@ -540,8 +578,15 @@ export default function News() {
                   </button>
                 )}
                 {!item.published && (
-                  <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)}>
-                    نشر
+                  <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} disabled={publishingId === item.id} style={{ opacity: publishingId === item.id ? 0.7 : 1, transition: 'all 0.2s' }}>
+                    {publishingId === item.id ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+                        </svg>
+                        جاري...
+                      </span>
+                    ) : 'نشر'}
                   </button>
                 )}
                 <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)}>
@@ -943,8 +988,15 @@ export default function News() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-primary" onClick={handleRelink}>
-                حفظ الربط
+              <button className="btn btn-primary" onClick={handleRelink} disabled={relinking} style={{ opacity: relinking ? 0.7 : 1, transition: 'all 0.2s' }}>
+                {relinking ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+                    </svg>
+                    جاري حفظ الربط...
+                  </span>
+                ) : 'حفظ الربط'}
               </button>
               <button className="btn btn-secondary" onClick={() => { setShowRelinkModal(false); setRelinkItem(null); }}>إلغاء</button>
             </div>
@@ -965,20 +1017,36 @@ export default function News() {
               </p>
               <button
                 className="btn btn-primary"
-                style={{ width: '100%', marginBottom: 10, justifyContent: 'center' }}
+                style={{ width: '100%', marginBottom: 10, justifyContent: 'center', opacity: resettingChannel ? 0.7 : 1, transition: 'all 0.2s' }}
                 onClick={() => handleNewsResetPublish(deletingNewsId)}
+                disabled={resettingChannel}
               >
-                حذف من القنوات فقط
+                {resettingChannel ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+                    </svg>
+                    جاري الحذف...
+                  </span>
+                ) : 'حذف من القنوات فقط'}
               </button>
               <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 16, textAlign: 'center' }}>
                 حذف المنشور من القنوات والقروبات مع الاحتفاظ به كمسودة
               </p>
               <button
                 className="btn btn-danger"
-                style={{ width: '100%', justifyContent: 'center' }}
+                style={{ width: '100%', justifyContent: 'center', opacity: permanentDeleting ? 0.7 : 1, transition: 'all 0.2s' }}
                 onClick={() => handleNewsPermanentDelete(deletingNewsId)}
+                disabled={permanentDeleting}
               >
-                حذف نهائي
+                {permanentDeleting ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round" />
+                    </svg>
+                    جاري الحذف...
+                  </span>
+                ) : 'حذف نهائي'}
               </button>
               <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 8, textAlign: 'center' }}>
                 حذف المنشور وجميع بياناته نهائياً
