@@ -181,7 +181,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
     # Try to upload with thumbnail via raw multipart POST (thumbnail requires upload)
     if thumb_url and thumb_url.startswith('http'):
         try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=90) as client:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
                 pdf_resp = await client.get(url)
                 if pdf_resp.status_code == 200:
                     form = [
@@ -211,7 +211,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
                     resp = await client.post(
                         f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
                         files=form,
-                        timeout=90
+                        timeout=30
                     )
                     result = resp.json()
                     if result.get("ok"):
@@ -247,27 +247,13 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
             media_group.append(InputMediaVideo(media=media, caption=item_caption, parse_mode='HTML'))
         else:
             file_name_item = file_obj.get("name")
-            item_thumb = file_obj.get("thumbnail")
-            item_thumb_data = None
-            if item_thumb and item_thumb.startswith('http'):
-                try:
-                    async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
-                        resp = await client.get(item_thumb)
-                        if resp.status_code == 200:
-                            item_thumb_data = resp.content
-                except:
-                    pass
-            doc_kwargs = dict(media=media, caption=item_caption, parse_mode='HTML', filename=file_name_item)
-            if item_thumb_data:
-                doc_kwargs['thumbnail'] = item_thumb_data
-            media_group.append(InputMediaDocument(**doc_kwargs))
+            media_group.append(InputMediaDocument(media=media, caption=item_caption, parse_mode='HTML', filename=file_name_item))
 
     if not media_group:
         return None
 
     try:
         messages = await bot.send_media_group(chat_id=chat_id, media=media_group)
-
         if messages:
             return [msg.message_id for msg in messages]
     except Exception as e:
