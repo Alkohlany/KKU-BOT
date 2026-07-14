@@ -221,7 +221,7 @@ export default function News() {
     setSaving(true);
     try {
       const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
-      if (allEditFiles.length > 0) {
+      if (allEditFiles.length > 0 || editRemovedExisting.length > 0) {
         const formData = new FormData();
         formData.append('title', '');
         formData.append('content', editForm.content);
