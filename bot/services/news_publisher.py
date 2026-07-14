@@ -238,7 +238,7 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         msg = await _send_file_and_get_id(chat_id, url, caption, original_filename=name, thumb_url=thumb)
         return [msg.message_id] if msg else None
 
-    has_thumbnails = any(f.get("thumbnail", "").startswith("http") for f in parsed_files)
+    has_thumbnails = any(f.get("thumbnail") and f["thumbnail"].startswith("http") for f in parsed_files)
 
     if has_thumbnails:
         try:
