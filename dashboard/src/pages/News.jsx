@@ -242,17 +242,6 @@ export default function News() {
     }
   };
 
-  const handlePublishDirect = async (item) => {
-    try {
-      await api.post(`/news/${item.id}/publish`);
-      setNews(news.map((n) => n.id === item.id ? { ...n, published: true } : n));
-      showToast('تم نشر المنشور بنجاح', 'success');
-    } catch (err) {
-      console.error('Failed to publish news:', err);
-      showToast('فشل نشر المنشور', 'error');
-    }
-  };
-
   const handleDeleteNews = (id) => {
     setDeletingNewsId(id);
     setShowDeleteModal(true);
@@ -447,9 +436,6 @@ export default function News() {
                       <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)} title="تعديل">
                         تعديل
                       </button>
-                      <button className="btn btn-primary btn-sm" onClick={() => handlePublishDirect(item)} title={item.published ? 'إعادة النشر' : 'نشر'}>
-                        {item.published ? 'إعادة النشر' : 'نشر'}
-                      </button>
                       <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)} title="إعادة ربط">
                         إعادة ربط
                       </button>
@@ -509,9 +495,6 @@ export default function News() {
                 <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)}>
                   تعديل
                 </button>
-                <button className="btn btn-primary btn-sm" onClick={() => handlePublishDirect(item)}>
-                  {item.published ? 'إعادة النشر' : 'نشر'}
-                </button>
                 <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)}>
                   إعادة ربط
                 </button>
@@ -542,104 +525,6 @@ export default function News() {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  المحتوى
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleEnhance}
-                    disabled={enhancingContent || !form.content}
-                    style={{ fontSize: 12, padding: '4px 12px' }}
-                  >
-                    {enhancingContent ? 'جاري التحسين...' : (uploadFiles.length > 0 || uploadFile) ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
-                  </button>
-                </label>
-                <textarea
-                  className="form-input"
-                  placeholder="محتوى المنشور..."
-                  value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  style={{ minHeight: 150 }}
-                />
-              </div>
-              {form.content && !showAiPanel && (
-                <div className="form-group">
-                  <button
-                    className="btn btn-secondary"
-                    onClick={handleGenerateAI}
-                    disabled={generating}
-                    style={{ width: '100%' }}
-                  >
-                    {generating ? (
-                      <span>جاري التوليد...</span>
-                    ) : (
-                      <span>توليد كلمات مفتاحية وأسئلة بالذكاء الاصطناعي</span>
-                    )}
-                  </button>
-                </div>
-              )}
-              {showAiPanel && (
-                <div className="form-group" style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, border: '1px solid var(--gray-200)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <label style={{ fontWeight: 600, margin: 0 }}>الكلمات المفتاحية المقترحة</label>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleGenerateAI}
-                      disabled={generating}
-                      style={{ fontSize: 12, padding: '4px 12px' }}
-                    >
-                      {generating ? 'جاري التوليد...' : 'إعادة التوليد'}
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                    {aiKeywords.map((kw, i) => (
-                      <span
-                        key={i}
-                        onClick={() => toggleKeyword(kw)}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: 20,
-                          fontSize: 13,
-                          cursor: 'pointer',
-                          background: selectedKeywords.includes(kw) ? 'var(--primary)' : 'var(--gray-200)',
-                          color: selectedKeywords.includes(kw) ? 'white' : 'var(--gray-700)',
-                          transition: 'all 0.2s',
-                          border: 'none',
-                        }}
-                      >
-                        {kw}
-                      </span>
-                    ))}
-                    {aiKeywords.length === 0 && (
-                      <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد كلمات مفتاحية</span>
-                    )}
-                  </div>
-                  <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الأسئلة المقترحة</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {aiQuestions.map((q, i) => (
-                      <span
-                        key={i}
-                        onClick={() => toggleQuestion(q)}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: 20,
-                          fontSize: 13,
-                          cursor: 'pointer',
-                          background: selectedQuestions.includes(q) ? 'var(--primary)' : 'var(--gray-200)',
-                          color: selectedQuestions.includes(q) ? 'white' : 'var(--gray-700)',
-                          transition: 'all 0.2s',
-                          border: 'none',
-                        }}
-                      >
-                        {q}
-                      </span>
-                    ))}
-                    {aiQuestions.length === 0 && (
-                      <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد أسئلة مقترحة</span>
-                    )}
-                  </div>
-                </div>
-              )}
-              <div className="form-group">
                 <label>طريقة النشر</label>
                 <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
                   <button
@@ -664,6 +549,108 @@ export default function News() {
                 asDocument={form.as_document}
                 setAsDocument={(val) => setForm({ ...form, as_document: val })}
               />
+              {publishMode === 'single' && (
+                <>
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      المحتوى
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleEnhance}
+                        disabled={enhancingContent || !form.content}
+                        style={{ fontSize: 12, padding: '4px 12px' }}
+                      >
+                        {enhancingContent ? 'جاري التحسين...' : (uploadFiles.length > 0 || uploadFile) ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                      </button>
+                    </label>
+                    <textarea
+                      className="form-input"
+                      placeholder="محتوى المنشور..."
+                      value={form.content}
+                      onChange={(e) => setForm({ ...form, content: e.target.value })}
+                      style={{ minHeight: 150 }}
+                    />
+                  </div>
+                  {form.content && !showAiPanel && (
+                    <div className="form-group">
+                      <button
+                        className="btn btn-secondary"
+                        onClick={handleGenerateAI}
+                        disabled={generating}
+                        style={{ width: '100%' }}
+                      >
+                        {generating ? (
+                          <span>جاري التوليد...</span>
+                        ) : (
+                          <span>توليد كلمات مفتاحية وأسئلة بالذكاء الاصطناعي</span>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  {showAiPanel && (
+                    <div className="form-group" style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, border: '1px solid var(--gray-200)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <label style={{ fontWeight: 600, margin: 0 }}>الكلمات المفتاحية المقترحة</label>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={handleGenerateAI}
+                          disabled={generating}
+                          style={{ fontSize: 12, padding: '4px 12px' }}
+                        >
+                          {generating ? 'جاري التوليد...' : 'إعادة التوليد'}
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                        {aiKeywords.map((kw, i) => (
+                          <span
+                            key={i}
+                            onClick={() => toggleKeyword(kw)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 20,
+                              fontSize: 13,
+                              cursor: 'pointer',
+                              background: selectedKeywords.includes(kw) ? 'var(--primary)' : 'var(--gray-200)',
+                              color: selectedKeywords.includes(kw) ? 'white' : 'var(--gray-700)',
+                              transition: 'all 0.2s',
+                              border: 'none',
+                            }}
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                        {aiKeywords.length === 0 && (
+                          <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد كلمات مفتاحية</span>
+                        )}
+                      </div>
+                      <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الأسئلة المقترحة</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {aiQuestions.map((q, i) => (
+                          <span
+                            key={i}
+                            onClick={() => toggleQuestion(q)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 20,
+                              fontSize: 13,
+                              cursor: 'pointer',
+                              background: selectedQuestions.includes(q) ? 'var(--primary)' : 'var(--gray-200)',
+                              color: selectedQuestions.includes(q) ? 'white' : 'var(--gray-700)',
+                              transition: 'all 0.2s',
+                              border: 'none',
+                            }}
+                          >
+                            {q}
+                          </span>
+                        ))}
+                        {aiQuestions.length === 0 && (
+                          <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد أسئلة مقترحة</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
               {publishMode === 'multi' && uploadFiles.length > 0 && (
                 <div className="form-group">
                   <label>محتوى لكل ملف</label>

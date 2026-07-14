@@ -238,49 +238,31 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         msg = await _send_file_and_get_id(chat_id, url, caption, original_filename=name, thumb_url=thumb)
         return [msg.message_id] if msg else None
 
-    has_thumbnails = any(f.get("thumbnail", "").startswith("http") for f in parsed_files)
-
-    if not has_thumbnails:
-        media_group = []
-        for i, file_obj in enumerate(parsed_files):
-            file_url_item = file_obj.get("url")
-            file_type_item = file_obj.get("type", "document")
-            item_caption = file_obj.get("caption") or (caption if i == len(parsed_files) - 1 else None)
-            media = file_url_item
-            if file_type_item == "photo" and not as_document:
-                media_group.append(InputMediaPhoto(media=media, caption=item_caption, parse_mode='HTML'))
-            elif file_type_item == "video":
-                media_group.append(InputMediaVideo(media=media, caption=item_caption, parse_mode='HTML'))
-            else:
-                file_name_item = file_obj.get("name")
-                media_group.append(InputMediaDocument(media=media, caption=item_caption, parse_mode='HTML', filename=file_name_item))
-        try:
-            messages = await bot.send_media_group(chat_id=chat_id, media=media_group)
-            if messages:
-                return [msg.message_id for msg in messages]
-        except Exception as e:
-            logger.warning(f"send_media_group failed for {chat_id}: {e}")
-        return None
-
-    msg_ids = []
+    media_group = []
     for i, file_obj in enumerate(parsed_files):
         file_url_item = file_obj.get("url")
         file_type_item = file_obj.get("type", "document")
-        file_name_item = file_obj.get("name")
-        file_thumb_item = file_obj.get("thumbnail")
         item_caption = file_obj.get("caption") or (caption if i == len(parsed_files) - 1 else None)
-        try:
-            if file_type_item == "photo" and not as_document:
-                msg = await bot.send_photo(chat_id=chat_id, photo=file_url_item, caption=item_caption, parse_mode='HTML')
-                if msg:
-                    msg_ids.append(msg.message_id)
-            else:
-                msg = await _send_file_and_get_id(chat_id, file_url_item, item_caption or "", original_filename=file_name_item, thumb_url=file_thumb_item)
-                if msg:
-                    msg_ids.append(msg.message_id)
-        except Exception as e:
-            logger.warning(f"Failed to send file {file_name_item} to {chat_id}: {e}")
-    return msg_ids if msg_ids else None
+        media = file_url_item
+        if file_type_item == "photo" and not as_document:
+            media_group.append(InputMediaPhoto(media=media, caption=item_caption, parse_mode='HTML'))
+        elif file_type_item == "video":
+            media_group.append(InputMediaVideo(media=media, caption=item_caption, parse_mode='HTML'))
+        else:
+            file_name_item = file_obj.get("name")
+            media_group.append(InputMediaDocument(media=media, caption=item_caption, parse_mode='HTML', filename=file_name_item))
+
+    if not media_group:
+        return None
+
+    try:
+        messages = await bot.send_media_group(chat_id=chat_id, media=media_group)
+        if messages:
+            return [msg.message_id for msg in messages]
+    except Exception as e:
+        logger.warning(f"send_media_group failed for {chat_id}: {e}")
+
+    return None
 
 
 async def delete_from_channel(channel_message_id) -> bool:
