@@ -72,7 +72,7 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
         try:
             filename = original_filename or os.path.basename(url)
             with open(url, 'rb') as f:
-                await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML', thumb=thumb_url)
+                await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
             return True
         except Exception as e:
             logger.warning(f"send_document local file failed for {chat_id}: {e}")
@@ -80,7 +80,7 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
 
     if not original_filename:
         try:
-            await bot.send_document(chat_id=chat_id, document=url, caption=caption, parse_mode='HTML', thumb=thumb_url)
+            await bot.send_document(chat_id=chat_id, document=url, caption=caption, parse_mode='HTML')
             return True
         except Exception as e:
             logger.warning(f"send_document URL failed for {chat_id}: {e}")
@@ -98,7 +98,7 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
     if file_bytes:
         try:
             filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
-            await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption, parse_mode='HTML', thumb=thumb_url)
+            await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption, parse_mode='HTML')
             return True
         except Exception as e3:
             logger.warning(f"send_document bytes failed for {chat_id}: {e3}")
@@ -176,11 +176,24 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
 
 
 async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_filename: str = None, thumb_url: str = None):
+    thumb_data = None
+    if thumb_url and thumb_url.startswith('http'):
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(thumb_url, timeout=10)
+                if resp.status_code == 200:
+                    thumb_data = resp.content
+        except:
+            pass
+
     if os.path.exists(url):
         try:
             filename = original_filename or os.path.basename(url)
             with open(url, 'rb') as f:
-                return await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML', thumb=thumb_url)
+                kwargs = dict(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
+                if thumb_data:
+                    kwargs['thumb'] = ('thumb.jpg', thumb_data, 'image/jpeg')
+                return await bot.send_document(**kwargs)
         except Exception as e:
             logger.warning(f"send_document local file failed for {chat_id}: {e}")
             return None
@@ -188,7 +201,10 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
     if url.startswith('http'):
         try:
             filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
-            return await bot.send_document(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML', thumb=thumb_url)
+            kwargs = dict(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
+            if thumb_data:
+                kwargs['thumb'] = ('thumb.jpg', thumb_data, 'image/jpeg')
+            return await bot.send_document(**kwargs)
         except Exception as e:
             logger.warning(f"send_document URL failed for {chat_id}: {e}")
 
@@ -214,7 +230,16 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         else:
             file_name_item = file_obj.get("name")
             item_thumb = file_obj.get("thumbnail")
-            media_group.append(InputMediaDocument(media=media, caption=item_caption, parse_mode='HTML', filename=file_name_item, thumb=item_thumb))
+            item_thumb_data = None
+            if item_thumb and item_thumb.startswith('http'):
+                try:
+                    async with httpx.AsyncClient() as client:
+                        resp = await client.get(item_thumb, timeout=10)
+                        if resp.status_code == 200:
+                            item_thumb_data = ('thumb.jpg', resp.content, 'image/jpeg')
+                except:
+                    pass
+            media_group.append(InputMediaDocument(media=media, caption=item_caption, parse_mode='HTML', filename=file_name_item, thumb=item_thumb_data))
 
     if not media_group:
         return None
