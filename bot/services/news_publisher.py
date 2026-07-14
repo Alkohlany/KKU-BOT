@@ -245,7 +245,7 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         for i, file_obj in enumerate(parsed_files):
             file_url_item = file_obj.get("url")
             file_type_item = file_obj.get("type", "document")
-            item_caption = caption if i == len(parsed_files) - 1 else None
+            item_caption = file_obj.get("caption") or (caption if i == len(parsed_files) - 1 else None)
             media = file_url_item
             if file_type_item == "photo" and not as_document:
                 media_group.append(InputMediaPhoto(media=media, caption=item_caption, parse_mode='HTML'))
@@ -268,7 +268,7 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         file_type_item = file_obj.get("type", "document")
         file_name_item = file_obj.get("name")
         file_thumb_item = file_obj.get("thumbnail")
-        item_caption = caption if i == len(parsed_files) - 1 else None
+        item_caption = file_obj.get("caption") or (caption if i == len(parsed_files) - 1 else None)
         try:
             if file_type_item == "photo" and not as_document:
                 msg = await bot.send_photo(chat_id=chat_id, photo=file_url_item, caption=item_caption, parse_mode='HTML')

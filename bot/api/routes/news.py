@@ -154,6 +154,7 @@ async def create_news_with_file(
     target_channels: Optional[str] = Form(None),
     selected_keywords: str = Form("[]"),
     selected_questions: str = Form("[]"),
+    file_captions: str = Form("{}"),
 ):
     try:
         import json
@@ -166,8 +167,13 @@ async def create_news_with_file(
         thumbnail_url = None
         file_type = None
 
+        try:
+            file_captions_dict = json.loads(file_captions) if file_captions else {}
+        except:
+            file_captions_dict = {}
+
         if files_list:
-            for f in files_list:
+            for i, f in enumerate(files_list):
                 file_data = await f.read()
                 ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
                 ft = detect_file_type(f.filename)
@@ -191,6 +197,7 @@ async def create_news_with_file(
                     "type": ft,
                     "name": f.filename,
                     "thumbnail": thumb,
+                    "caption": file_captions_dict.get(str(i), ""),
                 })
 
             first = files_list[0]
@@ -357,6 +364,7 @@ async def edit_news_with_file(
     as_document: bool = Form(False),
     target_channels: Optional[str] = Form(None),
     removed_existing: Optional[str] = Form(None),
+    file_captions: str = Form("{}"),
 ):
     import json
 
@@ -385,8 +393,13 @@ async def edit_news_with_file(
     file_type = None
     thumbnail_url = None
 
+    try:
+        file_captions_dict = json.loads(file_captions) if file_captions else {}
+    except:
+        file_captions_dict = {}
+
     if files_list:
-        for f in files_list:
+        for i, f in enumerate(files_list):
             file_data = await f.read()
             ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
             ft = detect_file_type(f.filename)
@@ -410,6 +423,7 @@ async def edit_news_with_file(
                 "type": ft,
                 "name": f.filename,
                 "thumbnail": thumb,
+                "caption": file_captions_dict.get(str(i), ""),
             })
 
         first = files_list[0]

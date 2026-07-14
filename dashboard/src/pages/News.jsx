@@ -41,6 +41,8 @@ export default function News() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingNewsId, setDeletingNewsId] = useState(null);
 
+  const [publishMode, setPublishMode] = useState('single');
+  const [fileCaptions, setFileCaptions] = useState({});
   const [selectedChannels, setSelectedChannels] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
   const [channelGroups, setChannelGroups] = useState([]);
@@ -173,6 +175,7 @@ export default function News() {
         formData.append('content', form.content);
         allFiles.forEach(f => formData.append('files', f));
         formData.append('as_document', form.as_document);
+        formData.append('file_captions', JSON.stringify(fileCaptions));
         formData.append('target_channels', JSON.stringify(selectedChannels));
         formData.append('selected_keywords', JSON.stringify(selectedKeywords));
         formData.append('selected_questions', JSON.stringify(selectedQuestions));
@@ -186,6 +189,7 @@ export default function News() {
       setForm({ content: '', as_document: false });
       setUploadFile(null);
       setUploadFiles([]);
+      setFileCaptions({});
       setSelectedChannels([]);
       setShowModal(false);
       setShowAiPanel(false);
@@ -635,12 +639,48 @@ export default function News() {
                   </div>
                 </div>
               )}
+              <div className="form-group">
+                <label>طريقة النشر</label>
+                <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
+                  <button
+                    type="button"
+                    className={`btn ${publishMode === 'single' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                    onClick={() => setPublishMode('single')}
+                  >
+                    ملف واحد
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${publishMode === 'multi' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                    onClick={() => setPublishMode('multi')}
+                  >
+                    ملفات متعددة
+                  </button>
+                </div>
+              </div>
               <FileUpload
                 files={uploadFiles}
                 setFiles={(newFiles) => { setUploadFiles(newFiles); setUploadFile(newFiles[0] || null); }}
                 asDocument={form.as_document}
                 setAsDocument={(val) => setForm({ ...form, as_document: val })}
               />
+              {publishMode === 'multi' && uploadFiles.length > 0 && (
+                <div className="form-group">
+                  <label>محتوى لكل ملف</label>
+                  {uploadFiles.map((f, idx) => (
+                    <div key={idx} style={{ marginBottom: 10, padding: 10, border: '1px solid #ddd', borderRadius: 6 }}>
+                      <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{f.name}</div>
+                      <textarea
+                        className="form-input"
+                        placeholder={`محتوى ${f.name}...`}
+                        value={fileCaptions[idx] || ''}
+                        onChange={(e) => setFileCaptions({ ...fileCaptions, [idx]: e.target.value })}
+                        style={{ minHeight: 80 }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="form-group">
                 <ChannelGroupSelector
                   selected={selectedChannels}
