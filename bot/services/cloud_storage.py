@@ -28,8 +28,11 @@ def upload_image(file_bytes: bytes, folder: str = "kku-bot") -> str:
     return f"{R2_PUBLIC_URL}/{key}"
 
 def upload_raw(file_bytes: bytes, filename: str = "", folder: str = "kku-bot") -> str:
-    ext = os.path.splitext(filename)[1] if filename else ""
-    key = f"{folder}/{uuid.uuid4().hex}{ext}"
+    if filename:
+        safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)
+        key = f"{folder}/{safe_name}"
+    else:
+        key = f"{folder}/{uuid.uuid4().hex}.bin"
     s3.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=file_bytes)
     return f"{R2_PUBLIC_URL}/{key}"
 

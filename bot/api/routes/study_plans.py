@@ -1,6 +1,9 @@
 import json
 import os
+import asyncio
+import tempfile
 import httpx
+import fitz
 from hijri_converter import Hijri
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import RedirectResponse
@@ -45,6 +48,32 @@ async def _get_channel_username():
         if channel:
             return str(channel.chat_id)
         return None
+
+
+def _generate_pdf_thumbnail(pdf_bytes: bytes, folder: str = "kku-bot/plans") -> str | None:
+    """Generate a JPEG thumbnail from PDF bytes, upload to R2, return URL or None."""
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(pdf_bytes)
+            tmp_path = tmp.name
+        doc = fitz.open(tmp_path)
+        if len(doc) > 0:
+            page = doc[0]
+            pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
+            thumb_path = tmp_path.rsplit('.', 1)[0] + '_thumb.jpg'
+            pix.save(thumb_path)
+            with open(thumb_path, 'rb') as f:
+                thumb_bytes = f.read()
+            thumb_url = upload_raw(thumb_bytes, filename="thumb.jpg", folder=folder)
+            os.unlink(thumb_path)
+            doc.close()
+            os.unlink(tmp_path)
+            return thumb_url
+        doc.close()
+        os.unlink(tmp_path)
+    except Exception:
+        pass
+    return None
 
 
 def to_arabic_numerals(number: int) -> str:
@@ -379,12 +408,16 @@ async def publish_group_plans(group_id: int):
 
                     filename = f"{plan.title}.pdf"
                     files[file_key] = (filename, pdf_content, "application/pdf")
-                    media.append({
+                    media_item = {
                         "type": "document",
                         "media": f"attach://{file_key}",
                         "caption": caption,
                         "parse_mode": "HTML"
-                    })
+                    }
+                    thumb_url = _generate_pdf_thumbnail(pdf_content, folder="kku-bot/plans")
+                    if thumb_url:
+                        media_item["thumb"] = thumb_url
+                    media.append(media_item)
 
                 if not media:
                     continue
@@ -494,13 +527,18 @@ async def publish_single_plan(plan_id: int):
             caption += f"تخصص - {plan.title}\n\n"
             caption += f'<blockquote>t.me/kkunewbot</blockquote>'
 
+            thumb_url = _generate_pdf_thumbnail(pdf_content, folder="kku-bot/plans")
+            send_data = {
+                "chat_id": channel_chat_id,
+                "caption": caption,
+                "parse_mode": "HTML"
+            }
+            if thumb_url:
+                send_data["thumb"] = thumb_url
+
             resp = await client.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                data={
-                    "chat_id": channel_chat_id,
-                    "caption": caption,
-                    "parse_mode": "HTML"
-                },
+                data=send_data,
                 files={"document": (f"{plan.title}.pdf", pdf_content, "application/pdf")},
                 timeout=120
             )
