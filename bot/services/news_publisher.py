@@ -176,67 +176,57 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
 
 
 async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_filename: str = None, thumb_url: str = None):
-    if not url.startswith('http'):
-        if os.path.exists(url):
-            try:
-                filename = original_filename or os.path.basename(url)
-                with open(url, 'rb') as f:
-                    return await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
-            except Exception as e:
-                logger.warning(f"send_document local file failed for {chat_id}: {e}")
-        return None
+    filename = original_filename or url.split("/")[-1].split("?")[0] if url.startswith('http') else (original_filename or os.path.basename(url) if os.path.exists(url) else "file")
 
+    # Try to upload with thumbnail via raw multipart POST (thumbnail requires upload)
+    if thumb_url and thumb_url.startswith('http'):
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=90) as client:
+                pdf_resp = await client.get(url)
+                if pdf_resp.status_code == 200:
+                    form = [
+                        ("chat_id", (None, chat_id)),
+                        ("caption", (None, caption)),
+                        ("parse_mode", (None, "HTML")),
+                        ("document", (filename, pdf_resp.content, "application/pdf")),
+                    ]
+                    try:
+                        tresp = await client.get(thumb_url, timeout=15)
+                        if tresp.status_code == 200:
+                            thumb_bytes = tresp.content
+                            try:
+                                from PIL import Image
+                                from io import BytesIO
+                                img = Image.open(BytesIO(thumb_bytes))
+                                img.thumbnail((320, 320), Image.LANCZOS)
+                                buf = BytesIO()
+                                img.save(buf, "JPEG", quality=85)
+                                thumb_bytes = buf.getvalue()
+                            except Exception:
+                                pass
+                            form.append(("thumbnail", ("thumb.jpg", thumb_bytes, "image/jpeg")))
+                    except Exception:
+                        pass
+
+                    resp = await client.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
+                        files=form,
+                        timeout=90
+                    )
+                    result = resp.json()
+                    if result.get("ok"):
+                        return type('Msg', (), {"message_id": result["result"]["message_id"]})()
+                    logger.warning(f"Telegram sendDocument with thumb failed: {result}")
+        except Exception as e:
+            logger.warning(f"send_document with thumb failed for {chat_id}: {e}")
+
+    # Fallback: send document as URL (no thumbnail, Telegram auto-generates preview)
     try:
-        filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
-
-        async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
-            pdf_resp = await client.get(url)
-            if pdf_resp.status_code != 200:
-                logger.warning(f"Failed to download PDF from {url}: {pdf_resp.status_code}")
-                return None
-
-            form_data = {
-                "chat_id": (None, chat_id),
-                "caption": (None, caption),
-                "parse_mode": (None, "HTML"),
-                "document": (filename, pdf_resp.content, "application/pdf"),
-            }
-
-            if thumb_url and thumb_url.startswith('http'):
-                try:
-                    tclient = httpx.AsyncClient(follow_redirects=True, timeout=15)
-                    tresp = await tclient.get(thumb_url)
-                    await tclient.aclose()
-                    if tresp.status_code == 200:
-                        thumb_bytes = tresp.content
-                        try:
-                            from PIL import Image
-                            from io import BytesIO as _BIO
-                            img = Image.open(_BIO(thumb_bytes))
-                            img.thumbnail((320, 320), Image.LANCZOS)
-                            buf = _BIO()
-                            img.save(buf, "JPEG", quality=85)
-                            thumb_bytes = buf.getvalue()
-                        except:
-                            pass
-                        form_data["thumbnail"] = ("thumb.jpg", thumb_bytes, "image/jpeg")
-                except Exception as e:
-                    logger.warning(f"Thumbnail download failed: {e}")
-
-            resp = await client.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                files=form_data,
-                timeout=120
-            )
-            result = resp.json()
-            if result.get("ok"):
-                return type('Msg', (), {"message_id": result["result"]["message_id"]})()
-            else:
-                logger.warning(f"Telegram sendDocument failed: {result}")
-                return None
+        return await bot.send_document(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
     except Exception as e:
-        logger.warning(f"send_document failed for {chat_id}: {e}")
-        return None
+        logger.warning(f"send_document URL failed for {chat_id}: {e}")
+
+    return None
 
 
 async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_document: bool = False) -> list | None:
