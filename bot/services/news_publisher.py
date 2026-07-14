@@ -337,3 +337,56 @@ async def edit_published_messages(text: str, group_message_ids: dict, channel_me
                 failed += 1
 
     return edited, failed
+
+
+async def resend_published_messages(text: str, group_message_ids: dict, channel_message_id: int = None, image_url: str = None, file_url: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, files_json: str = None) -> tuple[int, int, dict, int]:
+    """Delete old messages and resend with updated content/files. Returns (sent, failed, new_group_message_ids, new_channel_message_id)"""
+    text = wrap_links_in_blockquote(text)
+    sent = 0
+    failed = 0
+    new_group_message_ids = {}
+    new_channel_message_id = None
+
+    if group_message_ids:
+        for chat_id_str, msg_ids in group_message_ids.items():
+            ids_to_delete = msg_ids if isinstance(msg_ids, list) else [msg_ids]
+            for mid in ids_to_delete:
+                try:
+                    await bot.delete_message(chat_id=chat_id_str, message_id=mid)
+                except Exception as e:
+                    logger.warning(f"Failed to delete message {mid} in {chat_id_str}: {e}")
+            try:
+                new_msg_id = await _send_to_chat_and_get_id(chat_id_str, text, image_url, file_url, None, as_document, file_name, thumbnail_url, files_json=files_json)
+                if new_msg_id:
+                    sent += 1
+                    new_group_message_ids[chat_id_str] = new_msg_id
+                else:
+                    failed += 1
+            except Exception as e:
+                logger.error(f"Failed to resend to {chat_id_str}: {e}")
+                failed += 1
+
+    if channel_message_id:
+        channel = None
+        groups = await get_active_channel_groups()
+        for ch in groups:
+            if ch.type == 'channel':
+                channel = ch
+                break
+        if channel:
+            try:
+                await bot.delete_message(chat_id=str(channel.chat_id), message_id=channel_message_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete channel message {channel_message_id}: {e}")
+            try:
+                new_msg_id = await _send_to_chat_and_get_id(str(channel.chat_id), text, image_url, file_url, None, as_document, file_name, thumbnail_url, files_json=files_json)
+                if new_msg_id:
+                    sent += 1
+                    new_channel_message_id = new_msg_id
+                else:
+                    failed += 1
+            except Exception as e:
+                logger.error(f"Failed to resend to channel: {e}")
+                failed += 1
+
+    return sent, failed, new_group_message_ids, new_channel_message_id

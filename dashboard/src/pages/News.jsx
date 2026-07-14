@@ -207,27 +207,23 @@ export default function News() {
     if (!editForm.content || !editItem) return;
     setSaving(true);
     try {
-      if (editItem?.published) {
-        await api.put(`/news/${editItem.id}`, { content: editForm.content });
+      const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
+      if (allEditFiles.length > 0) {
+        const formData = new FormData();
+        formData.append('title', '');
+        formData.append('content', editForm.content);
+        formData.append('as_document', editForm.as_document);
+        formData.append('target_channels', JSON.stringify(editSelectedChannels));
+        formData.append('removed_existing', JSON.stringify(editRemovedExisting));
+        allEditFiles.forEach(f => formData.append('files', f));
+        await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {}, 'PUT');
       } else {
-        const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
-        if (allEditFiles.length > 0) {
-          const formData = new FormData();
-          formData.append('title', '');
-          formData.append('content', editForm.content);
-          formData.append('as_document', editForm.as_document);
-          formData.append('target_channels', JSON.stringify(editSelectedChannels));
-          formData.append('removed_existing', JSON.stringify(editRemovedExisting));
-          allEditFiles.forEach(f => formData.append('files', f));
-          await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {}, 'PUT');
-        } else {
-          await api.put(`/news/${editItem.id}`, { ...editForm, title: '', target_channels: JSON.stringify(editSelectedChannels), removed_existing: JSON.stringify(editRemovedExisting) });
-        }
+        await api.put(`/news/${editItem.id}`, { content: editForm.content, target_channels: JSON.stringify(editSelectedChannels) });
       }
       setNews(news.map(n => n.id === editItem.id ? { 
         ...n, 
         content: editForm.content, 
-        as_document: editItem?.published ? n.as_document : editForm.as_document,
+        as_document: editForm.as_document,
       } : n));
       setShowEditModal(false);
       setEditItem(null);
@@ -709,36 +705,20 @@ export default function News() {
                   style={{ minHeight: 150 }}
                 />
               </div>
-              {!editItem?.published && (
-                <>
-                  <FileUpload
-                    files={editUploadFiles}
-                    setFiles={(newFiles) => { setEditUploadFiles(newFiles); setEditUploadFile(newFiles[0] || null); }}
-                    asDocument={editForm.as_document}
-                    setAsDocument={(val) => setEditForm({ ...editForm, as_document: val })}
-                    existingFiles={editExistingFiles}
-                    onRemoveExisting={setEditRemovedExisting}
-                  />
-                  <div className="form-group">
-                    <ChannelGroupSelector
-                      selected={editSelectedChannels}
-                      onChange={setEditSelectedChannels}
-                    />
-                  </div>
-                </>
-              )}
-              {editItem?.published && editSelectedChannels.length > 0 && (
-                <div className="form-group">
-                  <label>المنشور في:</label>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                    {editSelectedChannels.map(id => (
-                      <span key={id} className="status-badge active" style={{ fontSize: 12, padding: '4px 10px' }}>
-                        {getChannelName(id)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <FileUpload
+                files={editUploadFiles}
+                setFiles={(newFiles) => { setEditUploadFiles(newFiles); setEditUploadFile(newFiles[0] || null); }}
+                asDocument={editForm.as_document}
+                setAsDocument={(val) => setEditForm({ ...editForm, as_document: val })}
+                existingFiles={editExistingFiles}
+                onRemoveExisting={setEditRemovedExisting}
+              />
+              <div className="form-group">
+                <ChannelGroupSelector
+                  selected={editSelectedChannels}
+                  onChange={setEditSelectedChannels}
+                />
+              </div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleEditSave} disabled={saving}>

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
-from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages
+from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages, resend_published_messages
 from bot.services.cloud_storage import upload_image, upload_raw
 
 from bot.models.models import News
@@ -436,16 +436,39 @@ async def edit_news_with_file(
 
     edited_count = 0
     failed_count = 0
+    new_group_ids = group_message_ids
+    new_channel_id = existing.channel_message_id
+    
+    files_changed = bool(files_list)
+    
     if group_message_ids or existing.channel_message_id:
-        edited_count, failed_count = await edit_published_messages(
-            text=content,
-            group_message_ids=group_message_ids,
-            channel_message_id=existing.channel_message_id,
-            image_url=image_url or existing.image_url,
-            file_url=file_url or existing.file_url,
-            as_document=as_document if as_document is not None else existing.as_document,
-            file_name=file_name or existing.file_name
-        )
+        if files_changed:
+            edited_count, failed_count, new_group_ids, new_channel_id = await resend_published_messages(
+                text=content,
+                group_message_ids=group_message_ids,
+                channel_message_id=existing.channel_message_id,
+                image_url=image_url,
+                file_url=file_url,
+                as_document=as_document,
+                file_name=file_name,
+                thumbnail_url=thumbnail_url,
+                files_json=json.dumps(files_json_data) if files_json_data else None
+            )
+        else:
+            edited_count, failed_count = await edit_published_messages(
+                text=content,
+                group_message_ids=group_message_ids,
+                channel_message_id=existing.channel_message_id,
+                image_url=image_url or existing.image_url,
+                file_url=file_url or existing.file_url,
+                as_document=as_document if as_document is not None else existing.as_document,
+                file_name=file_name or existing.file_name
+            )
+    
+    if files_changed and (new_group_ids != group_message_ids or new_channel_id != existing.channel_message_id):
+        await update_news(news_id,
+                         group_message_ids=json.dumps(new_group_ids) if new_group_ids else None,
+                         channel_message_id=new_channel_id)
 
     return {"id": updated.id, "content": updated.content,
             "imageUrl": updated.image_url, "fileUrl": updated.file_url,
