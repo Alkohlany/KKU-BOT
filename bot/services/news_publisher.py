@@ -201,7 +201,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
                     bio.name = filename
                     kwargs = dict(chat_id=chat_id, document=bio, filename=filename, caption=caption, parse_mode='HTML')
                     if thumb_data:
-                        kwargs['thumb'] = ('thumb.jpg', thumb_data, 'image/jpeg')
+                        kwargs['thumb'] = thumb_data
                     return await bot.send_document(**kwargs)
         except Exception as e:
             logger.warning(f"send_document download failed for {chat_id}: {e}")
@@ -213,7 +213,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
             with open(url, 'rb') as f:
                 kwargs = dict(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
                 if thumb_data:
-                    kwargs['thumb'] = ('thumb.jpg', thumb_data, 'image/jpeg')
+                    kwargs['thumb'] = thumb_data
                 return await bot.send_document(**kwargs)
         except Exception as e:
             logger.warning(f"send_document local file failed for {chat_id}: {e}")
@@ -246,7 +246,7 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
                     async with httpx.AsyncClient() as client:
                         resp = await client.get(item_thumb, timeout=10)
                         if resp.status_code == 200:
-                            item_thumb_data = ('thumb.jpg', resp.content, 'image/jpeg')
+                            item_thumb_data = resp.content
                 except:
                     pass
             media_group.append(InputMediaDocument(media=media, caption=item_caption, parse_mode='HTML', filename=file_name_item, thumb=item_thumb_data))
