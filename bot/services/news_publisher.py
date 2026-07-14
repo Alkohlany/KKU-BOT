@@ -176,43 +176,18 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
 
 
 async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_filename: str = None, thumb_url: str = None):
-    from io import BytesIO
-
     if url.startswith('http'):
         try:
             filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
-            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    bio = BytesIO(resp.content)
-                    bio.name = filename
-                    kwargs = dict(chat_id=chat_id, document=bio, filename=filename, caption=caption, parse_mode='HTML')
-                    if thumb_url and thumb_url.startswith('http'):
-                        try:
-                            async with httpx.AsyncClient(follow_redirects=True, timeout=10) as tclient:
-                                tresp = await tclient.get(thumb_url)
-                                if tresp.status_code == 200:
-                                    kwargs['thumb'] = tresp.content
-                        except:
-                            pass
-                    return await bot.send_document(**kwargs)
+            return await bot.send_document(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
         except Exception as e:
-            logger.warning(f"send_document download failed for {chat_id}: {e}")
+            logger.warning(f"send_document URL failed for {chat_id}: {e}")
 
     if os.path.exists(url):
         try:
             filename = original_filename or os.path.basename(url)
             with open(url, 'rb') as f:
-                kwargs = dict(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
-                if thumb_url and thumb_url.startswith('http'):
-                    try:
-                        async with httpx.AsyncClient(follow_redirects=True, timeout=10) as tclient:
-                            tresp = await tclient.get(thumb_url)
-                            if tresp.status_code == 200:
-                                kwargs['thumb'] = tresp.content
-                    except:
-                        pass
-                return await bot.send_document(**kwargs)
+                return await bot.send_document(chat_id=chat_id, document=f, filename=filename, caption=caption, parse_mode='HTML')
         except Exception as e:
             logger.warning(f"send_document local file failed for {chat_id}: {e}")
 
