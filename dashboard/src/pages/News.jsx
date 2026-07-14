@@ -17,7 +17,6 @@ export default function News() {
   const [editForm, setEditForm] = useState({ content: '', as_document: false });
   const [editItem, setEditItem] = useState(null);
 
-  const [uploadFile, setUploadFile] = useState(null);
   const [uploadFiles, setUploadFiles] = useState([]);
   const [editUploadFile, setEditUploadFile] = useState(null);
   const [editUploadFiles, setEditUploadFiles] = useState([]);
@@ -41,7 +40,7 @@ export default function News() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingNewsId, setDeletingNewsId] = useState(null);
 
-  const [publishMode, setPublishMode] = useState('single');
+  const [perFileContent, setPerFileContent] = useState(false);
   const [fileCaptions, setFileCaptions] = useState({});
   const [selectedChannels, setSelectedChannels] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
@@ -54,6 +53,15 @@ export default function News() {
     }, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!showModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowModal(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showModal]);
 
   useEffect(() => {
     const loadChannels = async () => {
@@ -164,11 +172,12 @@ export default function News() {
 
   const handleSave = async () => {
     if (!form.content) return;
+    if (uploadFiles.length === 0) return;
     setSaving(true);
     setUploadProgress(0);
     try {
       let newItem;
-      const allFiles = uploadFiles.length > 0 ? uploadFiles : (uploadFile ? [uploadFile] : []);
+      const allFiles = uploadFiles;
       if (allFiles.length > 0) {
         const formData = new FormData();
         formData.append('title', '');
@@ -187,10 +196,10 @@ export default function News() {
       }
       setNews([...news, newItem]);
       setForm({ content: '', as_document: false });
-      setUploadFile(null);
       setUploadFiles([]);
       setFileCaptions({});
       setSelectedChannels([]);
+      setPerFileContent(false);
       setShowModal(false);
       setShowAiPanel(false);
       setAiKeywords([]);
@@ -390,7 +399,7 @@ export default function News() {
               </svg>
               حذف الكل
             </button>
-            <button className="btn btn-primary" onClick={() => { setForm({ content: '', as_document: false }); setUploadFile(null); setUploadFiles([]); setSelectedChannels([]); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ content: '', as_document: false }); setUploadFiles([]); setSelectedChannels([]); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -538,40 +547,31 @@ export default function News() {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>إضافة منشور جديد</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); }}>✕</button>
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>طريقة النشر</label>
-                <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
-                  <button
-                    type="button"
-                    className={`btn ${publishMode === 'single' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                    onClick={() => setPublishMode('single')}
-                  >
-                    ملف واحد
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn ${publishMode === 'multi' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                    onClick={() => setPublishMode('multi')}
-                  >
-                    ملفات متعددة
-                  </button>
-                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={perFileContent}
+                    onChange={(e) => setPerFileContent(e.target.checked)}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  إضافة محتوى خاص لكل ملف
+                </label>
               </div>
               <FileUpload
                 files={uploadFiles}
-                setFiles={(newFiles) => { setUploadFiles(newFiles); setUploadFile(newFiles[0] || null); }}
+                setFiles={(newFiles) => setUploadFiles(newFiles)}
                 asDocument={form.as_document}
                 setAsDocument={(val) => setForm({ ...form, as_document: val })}
               />
-              {publishMode === 'single' && (
-                <>
+              <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
                   <div className="form-group">
                     <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       المحتوى
@@ -581,7 +581,7 @@ export default function News() {
                         disabled={enhancingContent || !form.content}
                         style={{ fontSize: 12, padding: '4px 12px' }}
                       >
-                        {enhancingContent ? 'جاري التحسين...' : (uploadFiles.length > 0 || uploadFile) ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                        {enhancingContent ? 'جاري التحسين...' : uploadFiles.length > 0 ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
                       </button>
                     </label>
                     <textarea
@@ -670,25 +670,27 @@ export default function News() {
                       </div>
                     </div>
                   )}
+              {perFileContent && uploadFiles.length > 0 && (
+                <>
+                  <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
+                  <div className="form-group">
+                    <label>محتوى لكل ملف</label>
+                    {uploadFiles.map((f, idx) => (
+                      <div key={idx} style={{ marginBottom: 10, padding: 10, border: '1px solid var(--gray-200)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 4 }}>{f.name}</div>
+                        <textarea
+                          className="form-input"
+                          placeholder={`محتوى ${f.name}...`}
+                          value={fileCaptions[idx] || ''}
+                          onChange={(e) => setFileCaptions({ ...fileCaptions, [idx]: e.target.value })}
+                          style={{ minHeight: 80 }}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
-              {publishMode === 'multi' && uploadFiles.length > 0 && (
-                <div className="form-group">
-                  <label>محتوى لكل ملف</label>
-                  {uploadFiles.map((f, idx) => (
-                    <div key={idx} style={{ marginBottom: 10, padding: 10, border: '1px solid #ddd', borderRadius: 6 }}>
-                      <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{f.name}</div>
-                      <textarea
-                        className="form-input"
-                        placeholder={`محتوى ${f.name}...`}
-                        value={fileCaptions[idx] || ''}
-                        onChange={(e) => setFileCaptions({ ...fileCaptions, [idx]: e.target.value })}
-                        style={{ minHeight: 80 }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
               <div className="form-group">
                 <ChannelGroupSelector
                   selected={selectedChannels}
@@ -716,10 +718,23 @@ export default function News() {
                   </div>
                 </div>
               )}
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              {((!form.content) || uploadFiles.length === 0) && (
+                <div style={{ width: '100%', marginBottom: 8, fontSize: 12, color: 'var(--gray-500)', textAlign: 'center' }}>
+                  {!form.content && uploadFiles.length === 0
+                    ? 'يرجى إضافة ملف وكتابة المحتوى'
+                    : !form.content
+                    ? 'يرجى كتابة المحتوى'
+                    : 'يرجى إضافة ملف'}
+                </div>
+              )}
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving || uploadFiles.length === 0 || !form.content}
+              >
                 {saving ? 'جاري الحفظ...' : 'حفظ'}
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>إلغاء</button>
+              <button className="btn btn-secondary" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); }}>إلغاء</button>
             </div>
           </div>
         </div>

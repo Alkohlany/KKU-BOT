@@ -106,7 +106,7 @@ export default function FileUpload({ files, setFiles, asDocument, setAsDocument,
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
                   <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
                   <span style={{ color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
-                  <span style={{ color: 'var(--gray-400)', flexShrink: 0 }}>({(file.size / 1024).toFixed(0)} KB)</span>
+                  <span style={{ color: 'var(--gray-400)', flexShrink: 0 }}>({file.size > 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${(file.size / 1024).toFixed(0)} KB`})</span>
                 </div>
                 <button
                   type="button"
