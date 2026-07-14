@@ -211,7 +211,7 @@ async def create_news_with_file(
 
         n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=files_list[0].filename if files_list else None, file_type=file_type,
                             as_document=as_document, target_channels=target_channels,
-                            files_json=json.dumps(files_json_data) if files_json_data else None)
+                      files_json=json.dumps(files_json_data))
 
         try:
             keywords = json.loads(selected_keywords) if selected_keywords else []
@@ -375,35 +375,37 @@ async def edit_news_with_file(
     files_list = files or ([file] if file else [])
 
     # Handle removed existing files - keep non-removed existing files
+    try:
+        file_captions_dict = json.loads(file_captions) if file_captions else {}
+    except:
+        file_captions_dict = {}
+
     kept_existing = []
     if removed_existing:
         try:
             removed_indices = json.loads(removed_existing)
             if existing.files_json:
                 old_files = json.loads(existing.files_json) if isinstance(existing.files_json, str) else (existing.files_json or [])
-                kept_existing = [f for i, f in enumerate(old_files) if i not in removed_indices]
+                for i, f in enumerate(old_files):
+                    if i not in removed_indices:
+                        kept_existing.append((i, f))
         except:
             pass
 
-    files_json_data = list(kept_existing)
-
-    # Update captions on existing files
-    if file_captions_dict:
-        for i, f in enumerate(files_json_data):
-            caption_key = str(i)
+    files_json_data = []
+    for orig_idx, f in kept_existing:
+        new_f = dict(f)
+        if file_captions_dict:
+            caption_key = str(orig_idx)
             if caption_key in file_captions_dict:
-                files_json_data[i] = {**f, "caption": file_captions_dict[caption_key]}
+                new_f["caption"] = file_captions_dict[caption_key]
+        files_json_data.append(new_f)
 
     image_url = None
     file_url = None
     file_name = None
     file_type = None
     thumbnail_url = None
-
-    try:
-        file_captions_dict = json.loads(file_captions) if file_captions else {}
-    except:
-        file_captions_dict = {}
 
     if files_list:
         for i, f in enumerate(files_list):
