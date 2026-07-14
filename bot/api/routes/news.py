@@ -5,12 +5,13 @@ from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages
-from bot.services.cloud_storage import upload_image
+from bot.services.cloud_storage import upload_image, upload_raw
 
 from bot.models.models import News
 from bot.config import BOT_TOKEN
 import os
 import uuid
+import tempfile
 
 router = APIRouter()
 
@@ -35,14 +36,28 @@ def generate_pdf_thumbnail(pdf_path: str) -> str | None:
         return None
 
 
-def save_file_locally(file_data: bytes, filename: str) -> str:
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
+def upload_to_cloud(file_data: bytes, filename: str, folder: str = "kku-bot/news") -> tuple[str, str | None]:
     ext = filename.lower().split('.')[-1] if '.' in filename else ''
-    safe_name = f"{uuid.uuid4().hex}.{ext}"
-    file_path = os.path.join(UPLOAD_DIR, safe_name)
-    with open(file_path, 'wb') as f:
-        f.write(file_data)
-    return file_path
+    thumb_url = None
+    tmp_path = None
+    thumb_tmp = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+            tmp.write(file_data)
+            tmp_path = tmp.name
+        if ext == 'pdf':
+            thumb_tmp = generate_pdf_thumbnail(tmp_path)
+        main_url = upload_raw(file_data, filename=filename, folder=folder)
+        if thumb_tmp and os.path.exists(thumb_tmp):
+            with open(thumb_tmp, 'rb') as f:
+                thumb_data = f.read()
+            thumb_url = upload_raw(thumb_data, filename="thumb.jpg", folder=folder)
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        if thumb_tmp and os.path.exists(thumb_tmp):
+            os.unlink(thumb_tmp)
+    return main_url, thumb_url
 
 
 def detect_file_type(filename: str) -> str:
@@ -152,25 +167,21 @@ async def create_news_with_file(
                 file_data = await f.read()
                 ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
                 ft = detect_file_type(f.filename)
-                local_url = None
                 remote_url = None
+                thumb = None
 
                 if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
                     if as_document:
-                        local_url = save_file_locally(file_data, f.filename)
+                        remote_url = upload_raw(file_data, filename=f.filename, folder="kku-bot/news")
                     else:
                         try:
                             remote_url = upload_image(file_data, folder="kku-bot/news")
                         except Exception as e:
                             raise HTTPException(status_code=500, detail=f"فشل رفع الصورة للتخزين السحابي: {str(e)}")
                 else:
-                    local_url = save_file_locally(file_data, f.filename)
+                    remote_url, thumb = upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
 
-                thumb = None
-                if ext == 'pdf' and local_url:
-                    thumb = generate_pdf_thumbnail(local_url)
-
-                url = remote_url or local_url
+                url = remote_url
                 files_json_data.append({
                     "url": url,
                     "type": ft,
@@ -375,25 +386,21 @@ async def edit_news_with_file(
             file_data = await f.read()
             ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
             ft = detect_file_type(f.filename)
-            local_url = None
             remote_url = None
+            thumb = None
 
             if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
                 if as_document:
-                    local_url = save_file_locally(file_data, f.filename)
+                    remote_url = upload_raw(file_data, filename=f.filename, folder="kku-bot/news")
                 else:
                     try:
                         remote_url = upload_image(file_data, folder="kku-bot/news")
                     except Exception as e:
                         raise HTTPException(status_code=500, detail=f"فشل رفع الصورة للتخزين السحابي: {str(e)}")
             else:
-                local_url = save_file_locally(file_data, f.filename)
+                remote_url, thumb = upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
 
-            thumb = None
-            if ext == 'pdf' and local_url:
-                thumb = generate_pdf_thumbnail(local_url)
-
-            url = remote_url or local_url
+            url = remote_url
             files_json_data.append({
                 "url": url,
                 "type": ft,
