@@ -191,7 +191,16 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
                             async with httpx.AsyncClient(follow_redirects=True, timeout=15) as tclient:
                                 tresp = await tclient.get(thumb_url)
                                 if tresp.status_code == 200:
-                                    kwargs['thumbnail'] = tresp.content
+                                    try:
+                                        from PIL import Image
+                                        from io import BytesIO
+                                        img = Image.open(BytesIO(tresp.content))
+                                        img.thumbnail((320, 320), Image.LANCZOS)
+                                        buf = BytesIO()
+                                        img.save(buf, "JPEG", quality=85)
+                                        kwargs['thumbnail'] = buf.getvalue()
+                                    except:
+                                        kwargs['thumbnail'] = tresp.content
                         except:
                             pass
                     return await bot.send_document(**kwargs)
@@ -208,7 +217,16 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
                         async with httpx.AsyncClient(follow_redirects=True, timeout=15) as tclient:
                             tresp = await tclient.get(thumb_url)
                             if tresp.status_code == 200:
-                                kwargs['thumbnail'] = tresp.content
+                                try:
+                                    from PIL import Image
+                                    from io import BytesIO
+                                    img = Image.open(BytesIO(tresp.content))
+                                    img.thumbnail((320, 320), Image.LANCZOS)
+                                    buf = BytesIO()
+                                    img.save(buf, "JPEG", quality=85)
+                                    kwargs['thumbnail'] = buf.getvalue()
+                                except:
+                                    kwargs['thumbnail'] = tresp.content
                     except:
                         pass
                 return await bot.send_document(**kwargs)

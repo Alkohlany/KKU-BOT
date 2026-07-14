@@ -21,16 +21,20 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file
 def generate_pdf_thumbnail(pdf_path: str) -> str | None:
     try:
         import fitz
+        from PIL import Image
         doc = fitz.open(pdf_path)
         if len(doc) == 0:
             doc.close()
             return None
         page = doc[0]
-        mat = fitz.Matrix(2.0, 2.0)
+        mat = fitz.Matrix(1.0, 1.0)
         pix = page.get_pixmap(matrix=mat)
         thumb_path = pdf_path.rsplit('.', 1)[0] + '_thumb.jpg'
         pix.save(thumb_path)
         doc.close()
+        img = Image.open(thumb_path)
+        img.thumbnail((320, 320), Image.LANCZOS)
+        img.save(thumb_path, "JPEG", quality=85)
         return thumb_path
     except Exception as e:
         return None
