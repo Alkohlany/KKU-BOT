@@ -468,9 +468,11 @@ export default function News() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)} title="تعديل">
-                        تعديل
-                      </button>
+                      {!item.published && (
+                        <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)} title="تعديل">
+                          تعديل
+                        </button>
+                      )}
                       {!item.published && (
                         <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} title="نشر">
                           نشر
@@ -532,9 +534,11 @@ export default function News() {
                 </div>
               </div>
               <div className="mobile-card-meta" style={{ flexWrap: 'wrap', gap: 6 }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)}>
-                  تعديل
-                </button>
+                {!item.published && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)}>
+                    تعديل
+                  </button>
+                )}
                 {!item.published && (
                   <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)}>
                     نشر
