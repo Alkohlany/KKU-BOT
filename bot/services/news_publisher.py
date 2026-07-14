@@ -238,6 +238,84 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         msg = await _send_file_and_get_id(chat_id, url, caption, original_filename=name, thumb_url=thumb)
         return [msg.message_id] if msg else None
 
+    has_thumbnails = any(f.get("thumbnail", "").startswith("http") for f in parsed_files)
+
+    if has_thumbnails:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
+                media_items = []
+                files_upload = {}
+
+                for i, file_obj in enumerate(parsed_files):
+                    file_url_item = file_obj.get("url")
+                    file_type_item = file_obj.get("type", "document")
+                    file_name_item = file_obj.get("name") or f"file_{i}"
+                    item_caption = file_obj.get("caption") or (caption if i == len(parsed_files) - 1 else None)
+
+                    fresp = await client.get(file_url_item, timeout=30)
+                    if fresp.status_code != 200:
+                        logger.warning(f"Failed to download {file_url_item}")
+                        continue
+
+                    ext = file_name_item.rsplit(".", 1)[-1].lower() if "." in file_name_item else ""
+                    if ext in ("jpg", "jpeg", "png", "gif", "webp") and not as_document:
+                        mime = "image/jpeg"
+                    elif ext in ("mp4", "avi", "mov"):
+                        mime = "video/mp4"
+                    else:
+                        mime = "application/pdf"
+
+                    doc_key = f"doc{i}"
+                    files_upload[doc_key] = (file_name_item, fresp.content, mime)
+
+                    item = {"type": "document" if not (ext in ("jpg", "jpeg", "png", "gif", "webp") and not as_document) else "photo", "media": f"attach://{doc_key}"}
+                    if item_caption:
+                        item["caption"] = item_caption
+                        item["parse_mode"] = "HTML"
+
+                    thumb_url = file_obj.get("thumbnail")
+                    if thumb_url and thumb_url.startswith("http"):
+                        try:
+                            tresp = await client.get(thumb_url, timeout=10)
+                            if tresp.status_code == 200:
+                                thumb_bytes = tresp.content
+                                try:
+                                    from PIL import Image
+                                    from io import BytesIO
+                                    img = Image.open(BytesIO(thumb_bytes))
+                                    img.thumbnail((320, 320), Image.LANCZOS)
+                                    buf = BytesIO()
+                                    img.save(buf, "JPEG", quality=85)
+                                    thumb_bytes = buf.getvalue()
+                                except Exception:
+                                    pass
+                                thumb_key = f"thumb{i}"
+                                files_upload[thumb_key] = ("thumb.jpg", thumb_bytes, "image/jpeg")
+                                item["thumbnail"] = f"attach://{thumb_key}"
+                        except Exception:
+                            pass
+
+                    media_items.append(item)
+
+                if not media_items:
+                    return None
+
+                files_upload["chat_id"] = (None, chat_id)
+                files_upload["media"] = (None, json.dumps(media_items))
+
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup",
+                    files=files_upload,
+                    timeout=60
+                )
+                result = resp.json()
+                if result.get("ok"):
+                    return [m["message_id"] for m in result["result"]]
+                logger.warning(f"Telegram sendMediaGroup failed: {result}")
+        except Exception as e:
+            logger.warning(f"send_media_group with thumb failed for {chat_id}: {e}")
+
+    # Fallback: no thumbnails, use python-telegram-bot
     media_group = []
     for i, file_obj in enumerate(parsed_files):
         file_url_item = file_obj.get("url")
