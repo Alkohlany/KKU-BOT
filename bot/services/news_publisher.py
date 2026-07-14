@@ -176,6 +176,8 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
 
 
 async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_filename: str = None, thumb_url: str = None):
+    import httpx
+
     thumb_data = None
     if thumb_url and thumb_url.startswith('http'):
         try:
@@ -186,6 +188,25 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
         except:
             pass
 
+    # Download file bytes from URL
+    if url.startswith('http'):
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    file_bytes = resp.content
+                    filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
+                    from io import BytesIO
+                    bio = BytesIO(file_bytes)
+                    bio.name = filename
+                    kwargs = dict(chat_id=chat_id, document=bio, filename=filename, caption=caption, parse_mode='HTML')
+                    if thumb_data:
+                        kwargs['thumb'] = ('thumb.jpg', thumb_data, 'image/jpeg')
+                    return await bot.send_document(**kwargs)
+        except Exception as e:
+            logger.warning(f"send_document download failed for {chat_id}: {e}")
+
+    # Local file fallback
     if os.path.exists(url):
         try:
             filename = original_filename or os.path.basename(url)
@@ -196,17 +217,6 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
                 return await bot.send_document(**kwargs)
         except Exception as e:
             logger.warning(f"send_document local file failed for {chat_id}: {e}")
-            return None
-
-    if url.startswith('http'):
-        try:
-            filename = original_filename or url.split("/")[-1].split("?")[0] or "file"
-            kwargs = dict(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
-            if thumb_data:
-                kwargs['thumb'] = ('thumb.jpg', thumb_data, 'image/jpeg')
-            return await bot.send_document(**kwargs)
-        except Exception as e:
-            logger.warning(f"send_document URL failed for {chat_id}: {e}")
 
     return None
 
