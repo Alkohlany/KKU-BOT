@@ -387,6 +387,13 @@ async def edit_news_with_file(
 
     files_json_data = list(kept_existing)
 
+    # Update captions on existing files
+    if file_captions_dict:
+        for i, f in enumerate(files_json_data):
+            caption_key = str(i)
+            if caption_key in file_captions_dict:
+                files_json_data[i] = {**f, "caption": file_captions_dict[caption_key]}
+
     image_url = None
     file_url = None
     file_name = None

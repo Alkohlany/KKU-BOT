@@ -46,7 +46,14 @@ export default function FileUpload({ files, setFiles, asDocument, setAsDocument,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
                       <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
-                      <span style={{ color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                      <div style={{ overflow: 'hidden' }}>
+                        <span style={{ color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{file.name}</span>
+                        {file.caption && (
+                          <div style={{ fontSize: 12, color: 'var(--gray-400)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 250 }}>
+                            {file.caption}
+                          </div>
+                        )}
+                      </div>
                       <span style={{ fontSize: 10, color: 'var(--primary)', background: 'rgba(46,125,50,0.1)', padding: '1px 6px', borderRadius: 4, flexShrink: 0 }}>حالي</span>
                     </div>
                     {onRemoveExisting && (

@@ -22,6 +22,8 @@ export default function News() {
   const [editUploadFiles, setEditUploadFiles] = useState([]);
   const [editExistingFiles, setEditExistingFiles] = useState([]);
   const [editRemovedExisting, setEditRemovedExisting] = useState([]);
+  const [editPerFileContent, setEditPerFileContent] = useState(false);
+  const [editFileCaptions, setEditFileCaptions] = useState({});
 
   const [aiKeywords, setAiKeywords] = useState([]);
   const [aiQuestions, setAiQuestions] = useState([]);
@@ -221,13 +223,14 @@ export default function News() {
     setSaving(true);
     try {
       const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
-      if (allEditFiles.length > 0 || editRemovedExisting.length > 0) {
+      if (allEditFiles.length > 0 || editRemovedExisting.length > 0 || editPerFileContent) {
         const formData = new FormData();
         formData.append('title', '');
         formData.append('content', editForm.content);
         formData.append('as_document', editForm.as_document);
         formData.append('target_channels', JSON.stringify(editSelectedChannels));
         formData.append('removed_existing', JSON.stringify(editRemovedExisting));
+        formData.append('file_captions', JSON.stringify(editFileCaptions));
         allEditFiles.forEach(f => formData.append('files', f));
         await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {}, 'PUT');
       } else {
@@ -242,6 +245,8 @@ export default function News() {
       setEditItem(null);
       setEditUploadFile(null);
       setEditUploadFiles([]);
+      setEditPerFileContent(false);
+      setEditFileCaptions({});
       showToast('تم تعديل المنشور بنجاح', 'success');
     } catch (err) {
       console.error('Failed to edit news:', err);
@@ -352,7 +357,17 @@ export default function News() {
     try {
       const fj = item.filesJson ? (typeof item.filesJson === 'string' ? JSON.parse(item.filesJson) : item.filesJson) : [];
       setEditExistingFiles(Array.isArray(fj) ? fj : []);
-    } catch { setEditExistingFiles([]); }
+      const captions = {};
+      let hasCaptions = false;
+      (Array.isArray(fj) ? fj : []).forEach((f, i) => {
+        if (f.caption) {
+          captions[i] = f.caption;
+          hasCaptions = true;
+        }
+      });
+      setEditFileCaptions(captions);
+      setEditPerFileContent(hasCaptions);
+    } catch { setEditExistingFiles([]); setEditFileCaptions({}); setEditPerFileContent(false); }
     setEditRemovedExisting([]);
     setShowEditModal(true);
   };
@@ -741,11 +756,11 @@ export default function News() {
       )}
 
       {showEditModal && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowEditModal(false); setEditPerFileContent(false); setEditFileCaptions({}); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>تعديل المنشور</h3>
-              <button className="modal-close" onClick={() => setShowEditModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => { setShowEditModal(false); setEditPerFileContent(false); setEditFileCaptions({}); }}>✕</button>
             </div>
             <div className="modal-body">
               <div className="form-group">
@@ -768,6 +783,62 @@ export default function News() {
                   style={{ minHeight: 150 }}
                 />
               </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={editPerFileContent}
+                    onChange={(e) => setEditPerFileContent(e.target.checked)}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  إضافة محتوى خاص لكل ملف
+                </label>
+              </div>
+              {editPerFileContent && editExistingFiles.length > 0 && (
+                <>
+                  <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
+                  <div className="form-group">
+                    <label>محتوى لكل ملف</label>
+                    {editExistingFiles.map((f, idx) => {
+                      if (editRemovedExisting.includes(idx)) return null;
+                      return (
+                        <div key={idx} style={{ marginBottom: 10, padding: 10, border: '1px solid var(--gray-200)', borderRadius: 6 }}>
+                          <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 4 }}>
+                            {f.name || f.url?.split('/').pop() || `ملف ${idx + 1}`} <span style={{ color: 'var(--gray-400)' }}>(حالي)</span>
+                          </div>
+                          <textarea
+                            className="form-input"
+                            placeholder={`محتوى ${f.name || `ملف ${idx + 1}`}...`}
+                            value={editFileCaptions[idx] || ''}
+                            onChange={(e) => setEditFileCaptions({ ...editFileCaptions, [idx]: e.target.value })}
+                            style={{ minHeight: 80 }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              {editPerFileContent && editUploadFiles.length > 0 && (
+                <>
+                  <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
+                  <div className="form-group">
+                    <label>محتوى للملفات الجديدة</label>
+                    {editUploadFiles.map((f, idx) => (
+                      <div key={`new-${idx}`} style={{ marginBottom: 10, padding: 10, border: '1px solid var(--gray-200)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 4 }}>{f.name}</div>
+                        <textarea
+                          className="form-input"
+                          placeholder={`محتوى ${f.name}...`}
+                          value={editFileCaptions[`new_${idx}`] || ''}
+                          onChange={(e) => setEditFileCaptions({ ...editFileCaptions, [`new_${idx}`]: e.target.value })}
+                          style={{ minHeight: 80 }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
               <FileUpload
                 files={editUploadFiles}
                 setFiles={(newFiles) => { setEditUploadFiles(newFiles); setEditUploadFile(newFiles[0] || null); }}
@@ -787,7 +858,7 @@ export default function News() {
               <button className="btn btn-primary" onClick={handleEditSave} disabled={saving}>
                 {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>إلغاء</button>
+              <button className="btn btn-secondary" onClick={() => { setShowEditModal(false); setEditPerFileContent(false); setEditFileCaptions({}); }}>إلغاء</button>
             </div>
           </div>
         </div>
