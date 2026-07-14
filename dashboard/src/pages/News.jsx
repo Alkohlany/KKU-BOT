@@ -247,6 +247,17 @@ export default function News() {
     setShowDeleteModal(true);
   };
 
+  const handlePublish = async (item) => {
+    try {
+      await api.post(`/news/${item.id}/publish`);
+      setNews(news.map(n => n.id === item.id ? { ...n, published: true } : n));
+      showToast('تم النشر بنجاح', 'success');
+    } catch (err) {
+      console.error('Publish failed:', err);
+      showToast('فشل النشر', 'error');
+    }
+  };
+
   const handleNewsResetPublish = async (id) => {
     setShowDeleteModal(false);
     try {
@@ -437,7 +448,7 @@ export default function News() {
                         تعديل
                       </button>
                       {!item.published && (
-                        <button className="btn btn-primary btn-sm" onClick={() => openEditModal(item)} title="نشر">
+                        <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} title="نشر">
                           نشر
                         </button>
                       )}
@@ -501,7 +512,7 @@ export default function News() {
                   تعديل
                 </button>
                 {!item.published && (
-                  <button className="btn btn-primary btn-sm" onClick={() => openEditModal(item)}>
+                  <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)}>
                     نشر
                   </button>
                 )}
