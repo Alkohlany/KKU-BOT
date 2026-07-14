@@ -307,27 +307,19 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         keywords_part = text.replace("اضافه منشور", "").replace("أضف منشور", "").strip()
 
-        if not keywords_part:
-            await send_admin_message(context, user.id,
-                "❌ الطريقة الصحيحة:\n"
-                "اضافه منشور [كلمة مفتاحية]\n\n"
-                "💡 مثال:\n"
-                "اضافه منشور نسبه الغياب\n\n"
-                "البوت يعرض لك قائمة المنشورات لتختار منها")
-            return
-
         if 'pending_keyword' in context.user_data:
             await send_admin_message(context, user.id, "❌ أكمل اختيار المنشور أولاً أو اكتب 'إلغاء' للبدء من جديد")
             return
 
-        keyword = keywords_part.strip()
+        keyword = keywords_part.strip() if keywords_part else None
 
         news_list = await get_all_news()
         if not news_list:
             await send_admin_message(context, user.id, "❌ لا توجد منشورات متاحة")
             return
 
-        context.user_data['pending_keyword'] = keyword
+        if keyword:
+            context.user_data['pending_keyword'] = keyword
 
         news_text = "📰 **اختر المنشور بالرد على هذه الرسالة بالرقم:**\n\n"
         for n in news_list[:10]:
@@ -336,6 +328,9 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         if len(news_list) > 10:
             news_text += f"\n... و {len(news_list) - 10} منشور آخر"
+
+        if keyword:
+            news_text += f"\n\n🔑 الكلمة المفتاحية: {keyword}"
 
         news_text += "\n\n💡 أرسل رقم المنشور المطلوب"
 
