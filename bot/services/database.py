@@ -272,6 +272,10 @@ async def publish_news(news_id):
 
 async def delete_news(news_id):
     async with async_session() as session:
+        # Delete related AutoResponse and Question records first
+        await session.execute(delete(AutoResponse).where(AutoResponse.news_id == news_id))
+        await session.execute(delete(Question).where(Question.news_id == news_id))
+        # Now delete the news
         await session.execute(delete(News).where(News.id == news_id))
         await session.commit()
 
@@ -315,6 +319,9 @@ async def update_news(news_id, content=None, image_url=None, file_url=None, as_d
 
 async def delete_all_news():
     async with async_session() as session:
+        # Delete related records first
+        await session.execute(delete(AutoResponse))
+        await session.execute(delete(Question))
         await session.execute(delete(News))
         await session.commit()
 
