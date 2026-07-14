@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useConfirm } from '../components/ConfirmDialog';
 import { useToast } from '../components/ToastContext';
-import ChannelGroupSelector from '../components/ChannelGroupSelector';
 
 export default function StudyPlans() {
   const { confirm } = useConfirm();
@@ -27,8 +26,6 @@ export default function StudyPlans() {
   const [showDeletePlanModal, setShowDeletePlanModal] = useState(false);
   const [deletingPlanId, setDeletingPlanId] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const [selectedChannels, setSelectedChannels] = useState([]);
-  const [editSelectedChannels, setEditSelectedChannels] = useState([]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -98,22 +95,11 @@ export default function StudyPlans() {
     setSaving(true);
     try {
       if (editingPlan) {
-        if (form.file) {
-          const formDataObj = new FormData();
-          formDataObj.append('title', form.title);
-          if (form.group_id) {
-            formDataObj.append('group_id', form.group_id);
-          }
-          formDataObj.append('file', form.file);
-          formDataObj.append('target_channels', JSON.stringify(editSelectedChannels));
-          await api.updateStudyPlanWithFile(editingPlan.id, formDataObj);
-        } else {
-          await api.updateStudyPlan(editingPlan.id, {
-            title: form.title,
-            group_id: form.group_id || null,
-            target_channels: JSON.stringify(editSelectedChannels),
-          });
-        }
+        await api.updateStudyPlan(editingPlan.id, {
+          title: form.title,
+          group_id: form.group_id || null,
+          file: form.file || null,
+        });
         await loadData();
       } else {
         let newItem;
@@ -124,13 +110,11 @@ export default function StudyPlans() {
             formDataObj.append('group_id', form.group_id);
           }
           formDataObj.append('file', form.file);
-          formDataObj.append('target_channels', JSON.stringify(selectedChannels));
-          newItem = await api.addStudyPlanWithFile(formDataObj);
+          newItem = await api.uploadStudyPlan(formDataObj);
         } else {
           newItem = await api.addStudyPlan({
             title: form.title,
             group_id: form.group_id || null,
-            target_channels: JSON.stringify(selectedChannels),
           });
         }
         setPlans([...plans, newItem]);
@@ -257,7 +241,6 @@ const handlePlanPermanentDelete = async (id) => {
   const openAddPlanModal = () => {
     setEditingPlan(null);
     setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '' });
-    setSelectedChannels([]);
     setShowPlanModal(true);
   };
 
@@ -268,11 +251,6 @@ const handlePlanPermanentDelete = async (id) => {
       file: null,
       group_id: plan.group_id ? String(plan.group_id) : '',
     });
-    try {
-      setEditSelectedChannels(plan.target_channels ? JSON.parse(plan.target_channels) : []);
-    } catch {
-      setEditSelectedChannels([]);
-    }
     setShowPlanModal(true);
   };
 
@@ -663,11 +641,6 @@ const handlePlanPermanentDelete = async (id) => {
                   </small>
                 )}
               </div>
-              <ChannelGroupSelector
-                selected={editingPlan ? editSelectedChannels : selectedChannels}
-                onChange={editingPlan ? setEditSelectedChannels : setSelectedChannels}
-                label="اختر مكان النشر"
-              />
             </div>
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleSavePlan} disabled={saving}>

@@ -15,7 +15,7 @@ from bot.services.database import (
     async_session, add_study_plan, get_all_study_plans, get_study_plans_by_faculty,
     delete_study_plan, get_all_study_plan_groups, get_study_plan_group_by_id,
     create_study_plan_group, delete_study_plan_group, get_study_plans_by_group,
-    update_study_plan_group, get_active_channel_groups
+    update_study_plan_group, get_active_channel_groups, get_official_channel
 )
 from bot.services.cloud_storage import upload_raw
 from bot.config import BOT_TOKEN
@@ -24,7 +24,10 @@ router = APIRouter()
 
 
 async def _get_channel_id():
-    """Get the channel chat_id from the database"""
+    """Get the official channel chat_id from the database"""
+    official = await get_official_channel()
+    if official:
+        return official.chat_id
     channels = await get_active_channel_groups()
     for ch in channels:
         if ch.type == 'channel':

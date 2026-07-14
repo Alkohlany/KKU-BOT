@@ -173,6 +173,27 @@ const api = {
 
   getStudyPlans: () => api.get('/study-plans'),
   addStudyPlan: (data) => api.post('/study-plans', data),
+  uploadStudyPlan: (formData) => {
+    const token = localStorage.getItem('token');
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_URL}/study-plans/upload`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else if (xhr.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          reject(new Error('Unauthorized'));
+        } else {
+          reject(new Error(xhr.responseText));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
   deleteStudyPlan: (id, mode = 'permanent') => api.delete(`/study-plans/${id}?mode=${mode}`),
 
   getStudyPlanGroups: () => api.get('/study-plans/groups'),
@@ -181,7 +202,31 @@ const api = {
   deleteStudyPlanGroup: (id, mode = 'permanent') => api.delete(`/study-plans/groups/${id}?mode=${mode}`),
   publishGroupPlans: (groupId) => api.post(`/study-plans/publish-group/${groupId}`),
   publishPlan: (planId) => api.post(`/study-plans/publish-plan/${planId}`),
-  updateStudyPlan: (id, data) => api.put(`/study-plans/${id}`, data),
+  updateStudyPlan: (id, data) => {
+    const formData = new FormData();
+    if (data.title !== undefined) formData.append('title', data.title);
+    if (data.group_id !== undefined) formData.append('group_id', data.group_id || '');
+    if (data.file) formData.append('file', data.file);
+    const token = localStorage.getItem('token');
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', `${API_URL}/study-plans/${id}`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else if (xhr.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          reject(new Error('Unauthorized'));
+        } else {
+          reject(new Error(xhr.responseText));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
   updateStudyPlanGroup: (id, data) => api.put(`/study-plans/groups/${id}`, data),
 };
 
