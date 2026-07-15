@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 from bot.services.database import get_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity, get_setting
 from bot.services.responses_system import DEFAULT_RESPONSES
 from bot.services.ai import search_university_info, _call_model
+from bot.services.news_publisher import wrap_links_in_blockquote
 import logging
 import re
 import asyncio
@@ -107,7 +108,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                     return
                 search_reply = await asyncio.to_thread(search_university_info, search_query)
                 if search_reply and search_reply.strip():
-                    await update.message.reply_text(search_reply.strip(), disable_web_page_preview=True)
+                    await update.message.reply_text(wrap_links_in_blockquote(search_reply.strip()), disable_web_page_preview=True)
                     await log_activity(
                         action="conversational_reply",
                         details=f"رد محادثة مع بحث على: {text[:50]}...",
@@ -137,7 +138,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 if best_match.news_id:
                     news_post = await get_news_by_id(best_match.news_id)
                     if news_post:
-                        content = news_post.content or ""
+                        content = wrap_links_in_blockquote(news_post.content or "")
                         if news_post.image_url:
                             await update.message.reply_photo(photo=news_post.image_url, caption=content)
                         elif news_post.file_url:
@@ -149,7 +150,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 if not best_match.response and not best_match.file_tg_id and not best_match.file_url:
                     logger.info("AUTO_RESPONSE: skipped - empty response and no file")
                     return
-                caption = best_match.response or None
+                caption = wrap_links_in_blockquote(best_match.response) if best_match.response else None
                 if best_match.file_tg_id:
                     if best_match.file_type == 'photo':
                         await update.message.reply_photo(photo=best_match.file_tg_id, caption=caption)
@@ -165,7 +166,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                     else:
                         await update.message.reply_document(document=best_match.file_url, caption=caption)
                 else:
-                    await update.message.reply_text(best_match.response, disable_web_page_preview=True)
+                    await update.message.reply_text(wrap_links_in_blockquote(best_match.response), disable_web_page_preview=True)
                 logger.info("AUTO_RESPONSE: sent successfully")
                 await log_activity(
                     action="auto_response",
@@ -185,7 +186,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         kw = normalize_arabic(keyword.lower().strip())
         if kw in normalized_text or (len(normalized_text) >= 3 and normalized_text in kw):
             try:
-                await update.message.reply_text(response, disable_web_page_preview=True)
+                await update.message.reply_text(wrap_links_in_blockquote(response), disable_web_page_preview=True)
             except Exception as e:
                 logger.warning(f"Could not send default response: {e}")
             return
@@ -203,7 +204,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 if question_result.news_id:
                     news_post = await get_news_by_id(question_result.news_id)
                     if news_post:
-                        content = news_post.content or ""
+                        content = wrap_links_in_blockquote(news_post.content or "")
                         if news_post.image_url:
                             await update.message.reply_photo(photo=news_post.image_url, caption=content)
                         elif news_post.file_url:
@@ -212,16 +213,17 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                             await update.message.reply_text(content, disable_web_page_preview=True)
                         return
                 if question_result.file_url:
+                    q_answer = wrap_links_in_blockquote(f"❓ {question_result.question}\n\n✅ {question_result.answer}")
                     if question_result.as_document:
-                        await update.message.reply_document(document=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                        await update.message.reply_document(document=question_result.file_url, caption=q_answer)
                     elif question_result.file_type == 'photo':
-                        await update.message.reply_photo(photo=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                        await update.message.reply_photo(photo=question_result.file_url, caption=q_answer)
                     elif question_result.file_type == 'video':
-                        await update.message.reply_video(video=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                        await update.message.reply_video(video=question_result.file_url, caption=q_answer)
                     else:
-                        await update.message.reply_document(document=question_result.file_url, caption=f"❓ {question_result.question}\n\n✅ {question_result.answer}")
+                        await update.message.reply_document(document=question_result.file_url, caption=q_answer)
                 else:
-                    await update.message.reply_text(f"❓ {question_result.question}\n\n✅ {question_result.answer}", disable_web_page_preview=True)
+                    await update.message.reply_text(wrap_links_in_blockquote(f"❓ {question_result.question}\n\n✅ {question_result.answer}"), disable_web_page_preview=True)
             except Exception as e:
                 logger.warning(f"Could not send question response: {e}")
             await log_activity(
@@ -238,7 +240,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         ai_answer = await asyncio.to_thread(search_university_info, text)
         if ai_answer and ai_answer.strip():
-            await update.message.reply_text(ai_answer.strip(), disable_web_page_preview=True)
+            await update.message.reply_text(wrap_links_in_blockquote(ai_answer.strip()), disable_web_page_preview=True)
             await log_activity(
                 action="ai_fallback",
                 details=f"رد AI على: {text[:50]}...",
