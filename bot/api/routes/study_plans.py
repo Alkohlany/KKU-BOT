@@ -124,7 +124,8 @@ def _build_plan_caption(group, plan_title):
     if group and group.group_tag:
         caption += f"#{group.group_tag}\n"
     spec = group.specialization if group and group.specialization else "تخصص"
-    caption += f"{spec} - {plan_title}\n\n"
+    caption += f"تخصص - {spec}\n\n"
+    caption += f"{plan_title}\n\n"
     link = group.link if group and group.link else "t.me/kkunewbot"
     caption += f'<blockquote>{link}</blockquote>'
     return caption
