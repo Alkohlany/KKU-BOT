@@ -13,9 +13,8 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat_type in ['group', 'supergroup']:
         bot_username = context.bot.username
         await update.message.reply_text(
-            f"🟢 هنا خطط التخصصات جامعة الملك خالد \n"
-            f"https://t.me/{bot_username}?start=plans"
-        )
+            f"🟢 هنا خطط التخصصات جامعة الملك خالد \n\n"
+            f"https://t.me/{bot_username}?start=plans", disable_web_page_preview=True)
         return
 
     is_subscribed = await subscription_required(update, context)
