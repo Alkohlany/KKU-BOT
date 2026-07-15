@@ -33,18 +33,18 @@ async def questions_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 q_caption = wrap_links_in_blockquote(f"❓ {result.question}\n\n✅ {result.answer}")
                 try:
                     if result.as_document:
-                        await update.message.reply_document(document=result.file_url, caption=q_caption)
+                        await update.message.reply_document(document=result.file_url, caption=q_caption, parse_mode='HTML')
                     elif result.file_type == 'photo':
-                        await update.message.reply_photo(photo=result.file_url, caption=q_caption)
+                        await update.message.reply_photo(photo=result.file_url, caption=q_caption, parse_mode='HTML')
                     elif result.file_type == 'video':
-                        await update.message.reply_video(video=result.file_url, caption=q_caption)
+                        await update.message.reply_video(video=result.file_url, caption=q_caption, parse_mode='HTML')
                     else:
-                        await update.message.reply_document(document=result.file_url, caption=q_caption)
+                        await update.message.reply_document(document=result.file_url, caption=q_caption, parse_mode='HTML')
                 except Exception as e:
                     logger.warning(f"Could not send question file: {e}")
-                    await update.message.reply_text(q_caption, disable_web_page_preview=True)
+                    await update.message.reply_text(q_caption, parse_mode='HTML', disable_web_page_preview=True)
             else:
-                await update.message.reply_text(wrap_links_in_blockquote(f"❓ {result.question}\n\n✅ {result.answer}"), disable_web_page_preview=True)
+                await update.message.reply_text(wrap_links_in_blockquote(f"❓ {result.question}\n\n✅ {result.answer}"), parse_mode='HTML', disable_web_page_preview=True)
         else:
             await update.message.reply_text("لم أجد جواب على سؤالك، جرب أسئلة ثانية أو اسأل في القروب", disable_web_page_preview=True)
     else:

@@ -36,14 +36,14 @@ async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for news in news_list[:5]:
         text = f"📰 {wrap_links_in_blockquote(news.content)}"
         if news.image_url:
-            await update.message.reply_photo(photo=news.image_url, caption=text)
+            await update.message.reply_photo(photo=news.image_url, caption=text, parse_mode='HTML')
         elif news.file_url:
             if news.file_type == 'video':
-                await update.message.reply_video(video=news.file_url, caption=text)
+                await update.message.reply_video(video=news.file_url, caption=text, parse_mode='HTML')
             else:
-                await update.message.reply_document(document=news.file_url, caption=text)
+                await update.message.reply_document(document=news.file_url, caption=text, parse_mode='HTML')
         else:
-            await update.message.reply_text(text, disable_web_page_preview=True)
+            await update.message.reply_text(text, parse_mode='HTML', disable_web_page_preview=True)
 
 
 news_handler = CommandHandler("news", news_command)

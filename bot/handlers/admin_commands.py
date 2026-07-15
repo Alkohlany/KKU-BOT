@@ -500,7 +500,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for group in groups:
         try:
-            await context.bot.send_message(chat_id=group.chat_id, text=wrap_links_in_blockquote(message), disable_web_page_preview=True)
+            await context.bot.send_message(chat_id=group.chat_id, text=wrap_links_in_blockquote(message), parse_mode='HTML', disable_web_page_preview=True)
             sent += 1
         except Exception:
             failed += 1

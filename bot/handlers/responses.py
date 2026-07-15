@@ -25,7 +25,7 @@ async def responses_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text += "\n💡 يمكنك إدارة الردود من الداشبورد"
     text = wrap_links_in_blockquote(text)
-    await update.message.reply_text(text, disable_web_page_preview=True)
+    await update.message.reply_text(text, parse_mode='HTML', disable_web_page_preview=True)
 
 
 responses_handler = CommandHandler("responses", responses_command)

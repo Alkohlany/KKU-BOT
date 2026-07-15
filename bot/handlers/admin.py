@@ -32,7 +32,7 @@ def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
 
-async def send_admin_message(context: ContextTypes.DEFAULT_TYPE, user_id: int, text: str, parse_mode=None):
+async def send_admin_message(context: ContextTypes.DEFAULT_TYPE, user_id: int, text: str, parse_mode='HTML'):
     try:
         await context.bot.send_message(chat_id=user_id, text=wrap_links_in_blockquote(text), parse_mode=parse_mode, disable_web_page_preview=True)
     except Exception as e:
@@ -542,7 +542,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         for group in groups:
             try:
-                await context.bot.send_message(chat_id=group.chat_id, text=wrap_links_in_blockquote(message), disable_web_page_preview=True)
+                await context.bot.send_message(chat_id=group.chat_id, text=wrap_links_in_blockquote(message), parse_mode='HTML', disable_web_page_preview=True)
                 sent += 1
             except Exception:
                 failed += 1
