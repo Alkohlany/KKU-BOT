@@ -118,6 +118,18 @@ def to_arabic_numerals(number: int) -> str:
     return "".join(arabic_digits[int(d)] for d in str(number))
 
 
+def _build_plan_caption(group, plan_title):
+    """Build plan caption using group's specialization and link"""
+    caption = ""
+    if group and group.group_tag:
+        caption += f"#{group.group_tag}\n"
+    spec = group.specialization if group and group.specialization else "تخصص"
+    caption += f"{spec} - {plan_title}\n\n"
+    link = group.link if group and group.link else "t.me/kkunewbot"
+    caption += f'<blockquote>{link}</blockquote>'
+    return caption
+
+
 async def update_group_post(group_id: int, force_new: bool = False):
     async with async_session() as session:
         stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
@@ -160,21 +172,12 @@ async def update_group_post(group_id: int, force_new: bool = False):
         today = Hijri.today()
         arabic_year = to_arabic_numerals(today.year)
         text = f"{group.title} {arabic_year}هـ\n"
-        if group.group_tag:
-            text += f"#{group.group_tag}\n"
-        text += "\n"
         for plan in published:
             plan_link = f"https://t.me/{channel_username}/{plan.channel_message_id}"
-            if group.specialization:
-                text += f"{group.specialization} - {plan.title}\n"
-            else:
-                text += f"{plan.title}\n"
-            text += f"{plan_link}\n\n"
+            text += f"{plan.title} 🔻\n{plan_link}\n\n"
 
-        group_link = group.link or f"https://t.me/{channel_username.replace('@', '')}"
-        text += f"🔴انظموا لقروب جامعة الملك خالد العام\n"
+        text += "🔴انظموا لقروب جامعة الملك خالد العام\n"
         text += "https://t.me/KKU_Main1\n\n"
-        text += f"{group_link}\n\n"
         text += "🟢 انظمو لقروب الواتساب العام\n"
         text += "https://whatsapp.com/channel/0029VbD8NhHC1FuKSEmrJY2W\n\n"
         text += "#شاركها_فربما_يبحث_عنها_غيرك"
@@ -222,6 +225,47 @@ async def update_group_post(group_id: int, force_new: bool = False):
                     if result.get("ok"):
                         group.channel_message_id = result["result"]["message_id"]
                         await session.commit()
+
+
+async def _update_published_plan_captions(group_id: int):
+    """Update captions of all published plans in a group"""
+    async with async_session() as session:
+        stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
+        result = await session.execute(stmt)
+        group = result.scalar_one_or_none()
+        if not group:
+            return
+
+        plans_stmt = select(StudyPlan).where(
+            StudyPlan.group_id == group_id,
+            StudyPlan.is_active == True,
+            StudyPlan.channel_message_id.isnot(None)
+        )
+        plans_result = await session.execute(plans_stmt)
+        plans = plans_result.scalars().all()
+
+        if not plans:
+            return
+
+        channel_chat_id = await _get_channel_id()
+        new_caption = _build_plan_caption(group, "{title}")
+
+        async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+            for plan in plans:
+                caption = _build_plan_caption(group, plan.title)
+                try:
+                    await client.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageCaption",
+                        data={
+                            "chat_id": channel_chat_id,
+                            "message_id": plan.channel_message_id,
+                            "caption": caption,
+                            "parse_mode": "HTML"
+                        },
+                        timeout=30
+                    )
+                except Exception as e:
+                    print(f"Failed to update caption for plan {plan.id}: {e}")
 
 
 class StudyPlanGroupCreate(BaseModel):
@@ -312,7 +356,8 @@ async def update_study_plan_group_endpoint(group_id: int, data: StudyPlanGroupCr
             group.link = data.link
         await session.commit()
 
-    await update_group_post(group_id, force_new=True)
+    await update_group_post(group_id)
+    await _update_published_plan_captions(group_id)
     return {"id": group_id, "title": data.title, "group_tag": data.group_tag, "specialization": data.specialization, "link": data.link, "message": "Group updated successfully"}
 
 
@@ -471,11 +516,7 @@ async def publish_group_plans(group_id: int):
                         failed_plans.append(plan.title)
                         continue
 
-                    caption = ""
-                    if group.group_tag:
-                        caption += f"#{group.group_tag}\n"
-                    caption += f"تخصص - {plan.title}\n\n"
-                    caption += f'<blockquote>t.me/kkunewbot</blockquote>'
+                    caption = _build_plan_caption(group, plan.title)
 
                     file_ext = plan.file_url.split(".")[-1].split("?")[0].lower() if plan.file_url else "pdf"
                     is_image = file_ext in ("jpg", "jpeg", "png", "gif", "webp")
@@ -610,11 +651,7 @@ async def publish_single_plan(plan_id: int):
             if not pdf_content:
                 return {"error": f"فشل تحميل الملف من الخدمة السحابية (status: {last_status})"}
 
-            caption = ""
-            if group and group.group_tag:
-                caption += f"#{group.group_tag}\n"
-            caption += f"تخصص - {plan.title}\n\n"
-            caption += f'<blockquote>t.me/kkunewbot</blockquote>'
+            caption = _build_plan_caption(group, plan.title)
 
             thumb_bytes = _generate_pdf_thumbnail_bytes(pdf_content)
             send_data = {
