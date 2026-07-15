@@ -9,6 +9,7 @@ from bot.services.database import (
     ban_user, get_all_banned, is_banned,
     get_active_channel_groups, log_activity
 )
+from bot.services.news_publisher import wrap_links_in_blockquote
 import logging
 
 logger = logging.getLogger(__name__)
@@ -499,7 +500,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for group in groups:
         try:
-            await context.bot.send_message(chat_id=group.chat_id, text=message, disable_web_page_preview=True)
+            await context.bot.send_message(chat_id=group.chat_id, text=wrap_links_in_blockquote(message), disable_web_page_preview=True)
             sent += 1
         except Exception:
             failed += 1

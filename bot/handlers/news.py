@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 from bot.middleware.subscription import subscription_required
 from bot.services.database import get_all_news
+from bot.services.news_publisher import wrap_links_in_blockquote
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     for news in news_list[:5]:
-        text = f"📰 {news.content}"
+        text = f"📰 {wrap_links_in_blockquote(news.content)}"
         if news.image_url:
             await update.message.reply_photo(photo=news.image_url, caption=text)
         elif news.file_url:

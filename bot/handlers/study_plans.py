@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
 from bot.middleware.subscription import subscription_required
 from bot.services.database import get_all_study_plan_groups, get_active_channel_groups
+from bot.services.news_publisher import wrap_links_in_blockquote
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     text = await get_plans_text()
-    await update.message.reply_text(text, disable_web_page_preview=True)
+    await update.message.reply_text(wrap_links_in_blockquote(text), disable_web_page_preview=True)
 
 
 async def get_plans_text() -> str:
