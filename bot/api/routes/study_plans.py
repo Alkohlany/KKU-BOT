@@ -79,6 +79,40 @@ def _generate_pdf_thumbnail(pdf_bytes: bytes, folder: str = "kku-bot/plans") -> 
     return None
 
 
+def _generate_pdf_thumbnail_bytes(pdf_bytes: bytes) -> bytes | None:
+    """Generate a JPEG thumbnail from PDF bytes, return resized bytes for upload."""
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(pdf_bytes)
+            tmp_path = tmp.name
+        doc = fitz.open(tmp_path)
+        if len(doc) > 0:
+            page = doc[0]
+            pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
+            thumb_path = tmp_path.rsplit('.', 1)[0] + '_thumb.jpg'
+            pix.save(thumb_path)
+            with open(thumb_path, 'rb') as f:
+                thumb_bytes = f.read()
+            os.unlink(thumb_path)
+            doc.close()
+            os.unlink(tmp_path)
+            try:
+                from PIL import Image
+                from io import BytesIO
+                img = Image.open(BytesIO(thumb_bytes))
+                img.thumbnail((320, 320), Image.LANCZOS)
+                buf = BytesIO()
+                img.save(buf, "JPEG", quality=85)
+                return buf.getvalue()
+            except Exception:
+                return thumb_bytes
+        doc.close()
+        os.unlink(tmp_path)
+    except Exception:
+        pass
+    return None
+
+
 def to_arabic_numerals(number: int) -> str:
     arabic_digits = "٠١٢٣٤٥٦٧٨٩"
     return "".join(arabic_digits[int(d)] for d in str(number))
@@ -433,9 +467,11 @@ async def publish_group_plans(group_id: int):
 
                     files[file_key] = (filename, pdf_content, mime)
                     if not is_image:
-                        thumb_url = _generate_pdf_thumbnail(pdf_content, folder="kku-bot/plans")
-                        if thumb_url:
-                            media_item["thumb"] = thumb_url
+                        thumb_bytes = _generate_pdf_thumbnail_bytes(pdf_content)
+                        if thumb_bytes:
+                            thumb_key = f"thumb_{idx}"
+                            files[thumb_key] = ("thumb.jpg", thumb_bytes, "image/jpeg")
+                            media_item["thumb"] = f"attach://{thumb_key}"
                     media.append(media_item)
 
                 if not media:
@@ -546,19 +582,21 @@ async def publish_single_plan(plan_id: int):
             caption += f"تخصص - {plan.title}\n\n"
             caption += f'<blockquote>t.me/kkunewbot</blockquote>'
 
-            thumb_url = _generate_pdf_thumbnail(pdf_content, folder="kku-bot/plans")
+            thumb_bytes = _generate_pdf_thumbnail_bytes(pdf_content)
             send_data = {
                 "chat_id": channel_chat_id,
                 "caption": caption,
                 "parse_mode": "HTML"
             }
-            if thumb_url:
-                send_data["thumb"] = thumb_url
+
+            files_dict = {"document": (f"{plan.title}.pdf", pdf_content, "application/pdf")}
+            if thumb_bytes:
+                files_dict["thumbnail"] = ("thumb.jpg", thumb_bytes, "image/jpeg")
 
             resp = await client.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
                 data=send_data,
-                files={"document": (f"{plan.title}.pdf", pdf_content, "application/pdf")},
+                files=files_dict,
                 timeout=120
             )
 
