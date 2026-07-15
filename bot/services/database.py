@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, ResponseCategory, Settings
+from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, ResponseCategory, Settings, SpamPattern
 from bot.config import DATABASE_URL
 from sqlalchemy import select, update, delete, func, text
 from datetime import datetime, timezone, timedelta
@@ -812,3 +812,21 @@ async def set_official_channel(group_id: int):
         await session.commit()
         await session.refresh(group)
         return group
+
+
+# ==================== Spam Patterns ====================
+async def save_spam_pattern(content: str):
+    async with async_session() as session:
+        pattern = SpamPattern(content=content)
+        session.add(pattern)
+        await session.commit()
+
+
+async def check_spam_pattern(content: str) -> bool:
+    async with async_session() as session:
+        result = await session.execute(select(SpamPattern))
+        patterns = result.scalars().all()
+        for pattern in patterns:
+            if pattern.content in content or content in pattern.content:
+                return True
+        return False

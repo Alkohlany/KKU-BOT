@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 
-from bot.services.database import is_banned, ban_user, log_activity, get_channel_group_by_chat_id, get_setting
+from bot.services.database import is_banned, ban_user, log_activity, get_channel_group_by_chat_id, get_setting, save_spam_pattern, check_spam_pattern
 from bot.services.ai import _call_model
 
 logger = logging.getLogger(__name__)
@@ -152,6 +152,7 @@ async def _is_privileged(user_id: int, chat) -> bool:
 async def _process_ai_check(update, context, user, chat, text, reason, detail):
     """ خيط منفصل للتحقق من السبام بالذكاء الاصطناعي"""
     if await check_with_ai(text):
+        await save_spam_pattern(text)
         await _ban_user(update, context, user, chat, reason, "ai_confirmed_spam", detail)
 
 
@@ -165,6 +166,10 @@ async def check_text_content(update, context, text):
 
     anti_spam = await get_setting("antiSpam")
     if anti_spam == "false":
+        return
+
+    if await check_spam_pattern(text):
+        await _ban_user(update, context, user, chat, "Known spam pattern", "known_spam", "matched_saved_pattern")
         return
 
     normalized = normalize_arabic(text.lower())
