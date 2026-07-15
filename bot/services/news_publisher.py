@@ -15,12 +15,13 @@ bot = Bot(token=BOT_TOKEN)
 
 
 def wrap_links_in_blockquote(text: str) -> str:
-    """Wrap URLs in text with <blockquote> tags"""
-    url_pattern = r'(https?://[^\s<]+|t\.me/[^\s<]+|www\.[^\s<]+)'
+    """Wrap URLs in text with <blockquote> tags. If URL is followed by || emoji, wrap the whole thing."""
+    pattern = r'(https?://[^\s<]+|t\.me/[^\s<]+|www\.[^\s<]+)(\s*\|\|\s*[^\s<]+)?'
     def replace_url(match):
-        url = match.group(0)
-        return f'<blockquote>{url}</blockquote>'
-    return re.sub(url_pattern, replace_url, text)
+        url = match.group(1)
+        suffix = match.group(2) or ''
+        return f'<blockquote>{url}{suffix}</blockquote>'
+    return re.sub(pattern, replace_url, text)
 
 
 async def publish_to_groups(text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, target_channels: str = None, files_json: str = None) -> tuple[int, int | None, dict]:
