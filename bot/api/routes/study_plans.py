@@ -135,7 +135,21 @@ async def update_group_post(group_id: int, force_new: bool = False):
         all_plans = plans_result.scalars().all()
 
         published = [p for p in all_plans if p.channel_message_id]
-        if not published and not group.channel_message_id:
+
+        if not published:
+            if group.channel_message_id:
+                channel_chat_id = await _get_channel_id()
+                async with httpx.AsyncClient() as client:
+                    try:
+                        await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": channel_chat_id, "message_id": group.channel_message_id},
+                            timeout=30
+                        )
+                    except Exception:
+                        pass
+                group.channel_message_id = None
+                await session.commit()
             return
 
         channel_chat_id = await _get_channel_id()
@@ -146,12 +160,9 @@ async def update_group_post(group_id: int, force_new: bool = False):
         today = Hijri.today()
         arabic_year = to_arabic_numerals(today.year)
         text = f"{group.title} {arabic_year}هـ\n"
-        for plan in all_plans:
-            if plan.channel_message_id:
-                plan_link = f"https://t.me/{channel_username}/{plan.channel_message_id}"
-                text += f"{plan.title} 🔻\n{plan_link}\n\n"
-            else:
-                text += f"{plan.title}\n\n"
+        for plan in published:
+            plan_link = f"https://t.me/{channel_username}/{plan.channel_message_id}"
+            text += f"{plan.title} 🔻\n{plan_link}\n\n"
 
         text += "🔴انظموا لقروب جامعة الملك خالد العام\n"
         text += "https://t.me/KKU_Main1\n\n"
