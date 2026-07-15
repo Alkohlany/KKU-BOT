@@ -13,7 +13,7 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat_type in ['group', 'supergroup']:
         bot_username = context.bot.username
         await update.message.reply_text(
-            f"📚 للاطلاع على الخطط الدراسية يرجى استخدام البوت في المحادثة الخاصة:\n"
+            f"🟢 هنا خطط التخصصات جامعة الملك خالد \n"
             f"https://t.me/{bot_username}?start=plans"
         )
         return
