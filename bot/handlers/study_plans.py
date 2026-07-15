@@ -23,7 +23,7 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     text = await get_plans_text()
-    await update.message.reply_text(wrap_links_in_blockquote(text), disable_web_page_preview=True)
+    await update.message.reply_text(wrap_links_in_blockquote(text), parse_mode='HTML', disable_web_page_preview=True)
 
 
 async def get_plans_text() -> str:
