@@ -140,6 +140,8 @@ class StudyPlanGroup(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     group_tag = Column(String(100), nullable=True)
+    specialization = Column(String(200), nullable=True)
+    link = Column(String(500), nullable=True)
     channel_message_id = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())

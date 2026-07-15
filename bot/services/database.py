@@ -557,15 +557,15 @@ async def get_study_plan_group_by_id(group_id: int):
         )
         return result.scalar_one_or_none()
 
-async def create_study_plan_group(title: str, description: str = None, group_tag: str = None):
+async def create_study_plan_group(title: str, description: str = None, group_tag: str = None, specialization: str = None, link: str = None):
     async with async_session() as session:
-        group = StudyPlanGroup(title=title, description=description, group_tag=group_tag)
+        group = StudyPlanGroup(title=title, description=description, group_tag=group_tag, specialization=specialization, link=link)
         session.add(group)
         await session.commit()
         await session.refresh(group)
         return group
 
-async def update_study_plan_group(group_id: int, title: str = None, description: str = None, group_tag: str = None, channel_message_id: int = None):
+async def update_study_plan_group(group_id: int, title: str = None, description: str = None, group_tag: str = None, specialization: str = None, link: str = None, channel_message_id: int = None):
     async with async_session() as session:
         stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
         result = await session.execute(stmt)
@@ -578,6 +578,10 @@ async def update_study_plan_group(group_id: int, title: str = None, description:
             group.description = description
         if group_tag is not None:
             group.group_tag = group_tag
+        if specialization is not None:
+            group.specialization = specialization
+        if link is not None:
+            group.link = link
         if channel_message_id is not None:
             group.channel_message_id = channel_message_id
         await session.commit()

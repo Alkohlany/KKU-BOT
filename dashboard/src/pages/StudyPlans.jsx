@@ -13,7 +13,7 @@ export default function StudyPlans() {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [form, setForm] = useState({ title: '', file: null, group_id: '' });
-  const [groupForm, setGroupForm] = useState({ title: '', description: '', group_tag: '' });
+  const [groupForm, setGroupForm] = useState({ title: '', description: '', group_tag: '', specialization: '', link: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,7 +65,7 @@ export default function StudyPlans() {
   };
 
   const filteredGroups = groups.filter(
-    (g) => g.title?.includes(search) || g.description?.includes(search) || g.group_tag?.includes(search)
+    (g) => g.title?.includes(search) || g.specialization?.includes(search) || g.group_tag?.includes(search)
   );
 
   const folderPlans = plans.filter((p) => activeGroup && p.group_id === activeGroup.id);
@@ -140,7 +140,7 @@ export default function StudyPlans() {
         const newGroup = await api.addStudyPlanGroup(groupForm);
         setGroups([...groups, newGroup]);
       }
-      setGroupForm({ title: '', description: '', group_tag: '' });
+      setGroupForm({ title: '', description: '', group_tag: '', specialization: '', link: '' });
       setEditingGroup(null);
       setShowGroupModal(false);
     } catch (err) {
@@ -256,13 +256,13 @@ const handlePlanPermanentDelete = async (id) => {
 
   const openAddGroupModal = () => {
     setEditingGroup(null);
-    setGroupForm({ title: '', description: '', group_tag: '' });
+    setGroupForm({ title: '', description: '', group_tag: '', specialization: '', link: '' });
     setShowGroupModal(true);
   };
 
   const openEditGroupModal = (group) => {
     setEditingGroup(group);
-    setGroupForm({ title: group.title || '', description: group.description || '', group_tag: group.group_tag || '' });
+    setGroupForm({ title: group.title || '', description: group.description || '', group_tag: group.group_tag || '', specialization: group.specialization || '', link: group.link || '' });
     setShowGroupModal(true);
   };
 
@@ -392,6 +392,11 @@ const handlePlanPermanentDelete = async (id) => {
                           {group.group_tag && (
                             <span style={{ fontSize: 11, color: 'var(--primary)', background: 'var(--primary-bg)', padding: '1px 8px', borderRadius: 10, fontWeight: 600 }}>
                               #{group.group_tag}
+                            </span>
+                          )}
+                          {group.specialization && (
+                            <span style={{ fontSize: 11, color: 'var(--success)', background: 'var(--success-bg, #e8f5e9)', padding: '1px 8px', borderRadius: 10, fontWeight: 600 }}>
+                              {group.specialization}
                             </span>
                           )}
                           <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>
@@ -563,16 +568,6 @@ const handlePlanPermanentDelete = async (id) => {
                 />
               </div>
               <div className="form-group">
-                <label>الوصف</label>
-                <textarea
-                  className="form-input"
-                  placeholder="وصف المجموعة..."
-                  value={groupForm.description}
-                  onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
-                  style={{ minHeight: 80 }}
-                />
-              </div>
-              <div className="form-group">
                 <label>الهاشتاق (بدون #)</label>
                 <input
                   className="form-input"
@@ -582,6 +577,30 @@ const handlePlanPermanentDelete = async (id) => {
                 />
                 <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
                   سيظهر في المنشور كمثال: #صحي
+                </small>
+              </div>
+              <div className="form-group">
+                <label>التخصص</label>
+                <input
+                  className="form-input"
+                  placeholder="مثال: هندسة"
+                  value={groupForm.specialization}
+                  onChange={(e) => setGroupForm({ ...groupForm, specialization: e.target.value })}
+                />
+                <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
+                  سيظهر في المنشور كمثال: هندسة - عنوان الخطة
+                </small>
+              </div>
+              <div className="form-group">
+                <label>الرابط (اختياري)</label>
+                <input
+                  className="form-input"
+                  placeholder="t.me/kkunewbot"
+                  value={groupForm.link}
+                  onChange={(e) => setGroupForm({ ...groupForm, link: e.target.value })}
+                />
+                <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
+                  اتركه فارغاً للرابط الافتراضي: t.me/kkunewbot
                 </small>
               </div>
             </div>

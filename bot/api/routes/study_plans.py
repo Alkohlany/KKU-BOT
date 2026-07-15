@@ -160,12 +160,21 @@ async def update_group_post(group_id: int, force_new: bool = False):
         today = Hijri.today()
         arabic_year = to_arabic_numerals(today.year)
         text = f"{group.title} {arabic_year}هـ\n"
+        if group.group_tag:
+            text += f"#{group.group_tag}\n"
+        text += "\n"
         for plan in published:
             plan_link = f"https://t.me/{channel_username}/{plan.channel_message_id}"
-            text += f"{plan.title} 🔻\n{plan_link}\n\n"
+            if group.specialization:
+                text += f"{group.specialization} - {plan.title}\n"
+            else:
+                text += f"{plan.title}\n"
+            text += f"{plan_link}\n\n"
 
-        text += "🔴انظموا لقروب جامعة الملك خالد العام\n"
+        group_link = group.link or f"https://t.me/{channel_username.replace('@', '')}"
+        text += f"🔴انظموا لقروب جامعة الملك خالد العام\n"
         text += "https://t.me/KKU_Main1\n\n"
+        text += f"{group_link}\n\n"
         text += "🟢 انظمو لقروب الواتساب العام\n"
         text += "https://whatsapp.com/channel/0029VbD8NhHC1FuKSEmrJY2W\n\n"
         text += "#شاركها_فربما_يبحث_عنها_غيرك"
@@ -219,6 +228,8 @@ class StudyPlanGroupCreate(BaseModel):
     title: str
     description: Optional[str] = None
     group_tag: Optional[str] = None
+    specialization: Optional[str] = None
+    link: Optional[str] = None
 
 
 class StudyPlanCreate(BaseModel):
@@ -245,14 +256,22 @@ async def get_study_plan_group(group_id: int):
 
 @router.post("/groups")
 async def create_study_plan_group_endpoint(data: StudyPlanGroupCreate):
-    group = await create_study_plan_group(title=data.title, description=data.description, group_tag=data.group_tag)
+    group = await create_study_plan_group(title=data.title, description=data.description, group_tag=data.group_tag, specialization=data.specialization, link=data.link)
 
     try:
-        text = f"📂 {group.title}\n"
-        if group.description:
-            text += f"{group.description}"
-
         channel_chat_id = await _get_channel_id()
+        channel_username = await _get_channel_username()
+        if channel_username and group.group_tag:
+            link = group.link or f"https://t.me/{channel_username.replace('@', '')}"
+            text = f"📂 {group.title}\n"
+            text += f"#{group.group_tag}\n"
+            if group.specialization:
+                text += f"{group.specialization}\n"
+            text += f"{link}"
+        else:
+            text = f"📂 {group.title}\n"
+            if group.description:
+                text += f"{group.description}"
 
         async with httpx.AsyncClient() as client:
             data_payload = {"chat_id": channel_chat_id, "text": text}
@@ -270,7 +289,7 @@ async def create_study_plan_group_endpoint(data: StudyPlanGroupCreate):
     except Exception as e:
         print(f"Error publishing group to channel: {e}")
 
-    return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "message": "Group created successfully"}
+    return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "specialization": group.specialization, "link": group.link, "message": "Group created successfully"}
 
 
 @router.put("/groups/{group_id}")
@@ -287,10 +306,14 @@ async def update_study_plan_group_endpoint(group_id: int, data: StudyPlanGroupCr
             group.description = data.description
         if data.group_tag is not None:
             group.group_tag = data.group_tag
+        if data.specialization is not None:
+            group.specialization = data.specialization
+        if data.link is not None:
+            group.link = data.link
         await session.commit()
 
-    await update_group_post(group_id)
-    return {"id": group_id, "title": data.title, "message": "Group updated successfully"}
+    await update_group_post(group_id, force_new=True)
+    return {"id": group_id, "title": data.title, "group_tag": data.group_tag, "specialization": data.specialization, "link": data.link, "message": "Group updated successfully"}
 
 
 @router.delete("/groups/{group_id}")
