@@ -196,9 +196,13 @@ export default function Groups() {
                 <tr key={item.id}>
                   <td>
                     <strong>{item.title || 'بدون عنوان'}</strong>
-                    {item.type === 'channel' && item.isOfficial && (
-                      <span className="status-badge active" style={{ marginRight: 8, fontSize: 11, padding: '2px 8px' }}>
-                        رسمية
+                    {item.type === 'channel' && (
+                      <span
+                        onClick={() => handleSetOfficial(item)}
+                        style={{ cursor: 'pointer', marginRight: 8, fontSize: 16, color: item.isOfficial ? '#f59e0b' : 'var(--gray-300)', transition: 'color 0.2s' }}
+                        title={item.isOfficial ? 'قناة رسمية' : 'تعيين كقناة رسمية'}
+                      >
+                        {item.isOfficial ? '★' : '☆'}
                       </span>
                     )}
                   </td>
@@ -231,16 +235,6 @@ export default function Groups() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      {item.type === 'channel' && (
-                        <label className="toggle-switch" title="تعيين كقناة رسمية">
-                          <input
-                            type="checkbox"
-                            checked={item.isOfficial || false}
-                            onChange={() => handleSetOfficial(item)}
-                          />
-                          <span className="toggle-slider" />
-                        </label>
-                      )}
                       <button className="btn btn-secondary btn-icon" onClick={() => openEditModal(item)} title="تعديل">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -278,23 +272,17 @@ export default function Groups() {
                <div className="mobile-card-header">
                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                    <strong style={{ fontSize: 14 }}>{item.title || 'بدون عنوان'}</strong>
-                   {item.type === 'channel' && item.isOfficial && (
-                     <span className="status-badge active" style={{ fontSize: 11, padding: '2px 8px' }}>
-                       رسمية
+                   {item.type === 'channel' && (
+                     <span
+                       onClick={() => handleSetOfficial(item)}
+                       style={{ cursor: 'pointer', fontSize: 16, color: item.isOfficial ? '#f59e0b' : 'var(--gray-300)', transition: 'color 0.2s' }}
+                       title={item.isOfficial ? 'قناة رسمية' : 'تعيين كقناة رسمية'}
+                     >
+                       {item.isOfficial ? '★' : '☆'}
                      </span>
                    )}
                  </span>
                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                   {item.type === 'channel' && (
-                     <label className="toggle-switch" title="تعيين كقناة رسمية">
-                       <input
-                         type="checkbox"
-                         checked={item.isOfficial || false}
-                         onChange={() => handleSetOfficial(item)}
-                       />
-                       <span className="toggle-slider" />
-                     </label>
-                   )}
                    <label className="toggle-switch">
                      <input
                        type="checkbox"
