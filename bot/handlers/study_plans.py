@@ -77,4 +77,4 @@ async def plans_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 plans_handler = CommandHandler("plans", plans_command)
-plans_text_handler = MessageHandler(filters.Regex("^(خطة|خطط|خطه|الخطة|الخطط|الخطه)"), plans_text_command)
+plans_text_handler = MessageHandler(filters.Regex("(خطة|خطط|خطه|الخطة|الخطط|الخطه)"), plans_text_command)
