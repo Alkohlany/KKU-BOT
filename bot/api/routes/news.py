@@ -336,7 +336,7 @@ async def edit_news(news_id: int, data: NewsCreate):
         except:
             pass
     
-    if group_message_ids or n.channel_message_id:
+    if n.is_published and (group_message_ids or n.channel_message_id):
         text = data.content
         edited_count, failed_count = await edit_published_messages(
             text=text,
@@ -468,7 +468,7 @@ async def edit_news_with_file(
     
     files_changed = bool(files_list)
     
-    if group_message_ids or existing.channel_message_id:
+    if existing.is_published and (group_message_ids or existing.channel_message_id):
         if files_changed:
             edited_count, failed_count, new_group_ids, new_channel_id = await resend_published_messages(
                 text=content,
