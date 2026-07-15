@@ -40,6 +40,8 @@ async def init_db():
         await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
         await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES study_plan_groups(id)"))
         await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
+        await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS specialization VARCHAR(200)"))
+        await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS link VARCHAR(500)"))
         await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
