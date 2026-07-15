@@ -5,6 +5,7 @@ from bot.services.responses_system import DEFAULT_RESPONSES
 from bot.services.ai import search_university_info, _call_model
 import logging
 import re
+import asyncio
 import unicodedata
 from difflib import SequenceMatcher
 
@@ -104,7 +105,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 if ai_fallback_enabled == "false":
                     logger.info("CONVERSATIONAL: AI fallback disabled, skipping")
                     return
-                search_reply = search_university_info(search_query)
+                search_reply = await asyncio.to_thread(search_university_info, search_query)
                 if search_reply and search_reply.strip():
                     await update.message.reply_text(search_reply.strip(), disable_web_page_preview=True)
                     await log_activity(
@@ -235,7 +236,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.info("AI fallback disabled by setting, skipping")
         return
     try:
-        ai_answer = search_university_info(text)
+        ai_answer = await asyncio.to_thread(search_university_info, text)
         if ai_answer and ai_answer.strip():
             await update.message.reply_text(ai_answer.strip(), disable_web_page_preview=True)
             await log_activity(
