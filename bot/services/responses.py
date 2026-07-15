@@ -1,17 +1,21 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
-from bot.services.database import get_auto_responses, get_all_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity, get_setting
+from bot.services.database import get_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity, get_setting
 from bot.services.responses_system import DEFAULT_RESPONSES
 from bot.services.ai import search_university_info, _call_model
 import logging
+import re
 import unicodedata
 from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
 
+ZERO_WIDTH = re.compile(r'[\u200b\u200c\u200d\ufeff\u00a0]')
+
 
 def normalize_arabic(text):
     """تطبيع النص العربي"""
+    text = ZERO_WIDTH.sub('', text)
     text = unicodedata.normalize('NFKD', text)
     text = text.replace('ً', '').replace('ٌ', '').replace('ٍ', '')
     text = text.replace('َ', '').replace('ُ', '').replace('ِ', '').replace('ّ', '').replace('ْ', '')
@@ -122,7 +126,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     if any(word in text for word in plan_triggers):
         return
     
-    custom_responses = await get_all_auto_responses()
+    custom_responses = await get_auto_responses()
     logger.info(f"AUTO_RESPONSE: text='{text}' custom_count={len(custom_responses)}")
     if custom_responses:
         best_match = find_best_match(text, custom_responses)
@@ -177,7 +181,8 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     
     normalized_text = normalize_arabic(text.lower().strip())
     for keyword, response in DEFAULT_RESPONSES.items():
-        if keyword.lower() in normalized_text or (len(normalized_text) >= 3 and normalized_text in keyword.lower()):
+        kw = normalize_arabic(keyword.lower().strip())
+        if kw in normalized_text or (len(normalized_text) >= 3 and normalized_text in kw):
             try:
                 await update.message.reply_text(response, disable_web_page_preview=True)
             except Exception as e:
