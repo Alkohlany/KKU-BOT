@@ -468,8 +468,19 @@ export default function News() {
             <tbody>
               {filtered.map((item) => (
                 <tr key={item.id}>
-                  <td style={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.content?.substring(0, 80)}...
+                  <td style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 300 }}>
+                    {(() => {
+                      const files = (() => { try { return item.filesJson ? (typeof item.filesJson === 'string' ? JSON.parse(item.filesJson) : item.filesJson) : []; } catch { return []; } })();
+                      const f = files[0];
+                      if (!f) return null;
+                      if (/\.(jpg|jpeg|png|gif|webp)$/i.test(f.thumbnail || f.url || '')) {
+                        return <img src={f.thumbnail || f.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />;
+                      }
+                      return <span style={{ fontSize: 18, flexShrink: 0 }}>📄</span>;
+                    })()}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.content?.substring(0, 80)}...
+                    </span>
                   </td>
                   <td>
                     <span className={`status-badge ${item.published ? 'active' : 'inactive'}`}>
@@ -548,6 +559,15 @@ export default function News() {
                 </span>
               </div>
               <div className="mobile-card-body">
+                {(() => {
+                  const files = (() => { try { return item.filesJson ? (typeof item.filesJson === 'string' ? JSON.parse(item.filesJson) : item.filesJson) : []; } catch { return []; } })();
+                  const f = files[0];
+                  if (!f) return null;
+                  if (/\.(jpg|jpeg|png|gif|webp)$/i.test(f.thumbnail || f.url || '')) {
+                    return <img src={f.thumbnail || f.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, marginBottom: 8 }} />;
+                  }
+                  return <span style={{ fontSize: 18, marginBottom: 8, display: 'block' }}>📄</span>;
+                })()}
                 <p style={{ fontSize: 13, color: 'var(--gray-600)', marginBottom: 0 }}>
                   {item.content?.substring(0, 100)}...
                 </p>

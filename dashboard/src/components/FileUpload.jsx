@@ -45,7 +45,11 @@ export default function FileUpload({ files, setFiles, asDocument, setAsDocument,
                     fontSize: 12,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                      <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
+                      {/\.(jpg|jpeg|png|gif|webp)$/i.test(file.thumbnail || file.url || '') ? (
+                        <img src={file.thumbnail || file.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                      ) : (
+                        <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
+                      )}
                       <div style={{ overflow: 'hidden' }}>
                         <span style={{ color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{file.name}</span>
                         {file.caption && (
@@ -110,7 +114,11 @@ export default function FileUpload({ files, setFiles, asDocument, setAsDocument,
                 fontSize: 12,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                  <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
+                  {file.type?.startsWith('image/') ? (
+                    <img src={URL.createObjectURL(file)} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                  ) : (
+                    <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
+                  )}
                   <span style={{ color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
                   <span style={{ color: 'var(--gray-400)', flexShrink: 0 }}>({file.size > 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${(file.size / 1024).toFixed(0)} KB`})</span>
                 </div>
