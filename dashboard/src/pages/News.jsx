@@ -30,6 +30,7 @@ export default function News() {
   const [selectedKeywords, setSelectedKeywords] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [editUploadProgress, setEditUploadProgress] = useState(null);
 
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [search, setSearch] = useState('');
@@ -226,6 +227,7 @@ export default function News() {
   const handleEditSave = async () => {
     if (!editForm.content || !editItem) return;
     setSaving(true);
+    setEditUploadProgress(0);
     try {
       const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
       if (allEditFiles.length > 0 || editRemovedExisting.length > 0 || editPerFileContent) {
@@ -237,7 +239,9 @@ export default function News() {
         formData.append('removed_existing', JSON.stringify(editRemovedExisting));
         formData.append('file_captions', JSON.stringify(editFileCaptions));
         allEditFiles.forEach(f => formData.append('files', f));
-        await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, () => {}, 'PUT');
+        await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, (percent) => {
+          setEditUploadProgress(percent);
+        }, 'PUT');
       } else {
         await api.put(`/news/${editItem.id}`, { content: editForm.content, as_document: editForm.as_document, target_channels: JSON.stringify(editSelectedChannels) });
       }
@@ -258,6 +262,7 @@ export default function News() {
       showToast('فشل تعديل المنشور', 'error');
     } finally {
       setSaving(false);
+      setEditUploadProgress(null);
     }
   };
 
@@ -924,6 +929,25 @@ export default function News() {
               </div>
             </div>
             <div className="modal-footer">
+              {editUploadProgress !== null && (
+                <div style={{ width: '100%', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                    <span>جاري رفع الملف...</span>
+                    <span>{editUploadProgress}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: 8, background: 'var(--gray-200)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        width: `${editUploadProgress}%`,
+                        height: '100%',
+                        background: editUploadProgress === 100 ? 'var(--success)' : 'var(--primary)',
+                        borderRadius: 4,
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               <button className="btn btn-primary" onClick={handleEditSave} disabled={saving}>
                 {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
               </button>
