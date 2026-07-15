@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -14,6 +14,7 @@ import Settings from './pages/Settings'
 import Login from './pages/Login'
 import { ToastProvider } from './components/ToastContext'
 import { ConfirmProvider } from './components/ConfirmDialog'
+import api from './services/api'
 import './App.css'
 
 const pageTitles = {
@@ -61,6 +62,15 @@ function App() {
     return localStorage.getItem('isLoggedIn') === 'true'
   })
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    api.verify().then(() => {}).catch(() => {
+      localStorage.removeItem('isLoggedIn')
+      localStorage.removeItem('token')
+      setIsLoggedIn(false)
+    })
+  }, [])
 
   if (!isLoggedIn) {
     return <Login onLogin={() => setIsLoggedIn(true)} />
