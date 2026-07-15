@@ -2,12 +2,10 @@ import logging
 import re
 import time as _time
 import base64
+from bot.config import OPENCODE_AI_MODEL, OPENCODE_API_URL, OPENCODE_API_KEY
 
 logger = logging.getLogger(__name__)
 
-API_URL = "https://opencode.ai/zen/v1/chat/completions"
-API_KEY = "sk-O60vp4JsXJpojOhgWKtExSmBvRk3TEbRVYPiujwribvlsEPUgtaNvGg3ulR8j6Ko"
-MODEL = "mimo-v2.5-free"
 MAX_RETRIES = 3
 
 
@@ -18,13 +16,13 @@ def _call_model(prompt: str) -> str:
     for attempt in range(MAX_RETRIES):
         try:
             response = httpx.post(
-                API_URL,
+                OPENCODE_API_URL,
                 headers={
-                    "Authorization": f"Bearer {API_KEY}",
+                    "Authorization": f"Bearer {OPENCODE_API_KEY}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": MODEL,
+                    "model": OPENCODE_AI_MODEL,
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": 3000,
                     "extra_body": {
@@ -75,13 +73,13 @@ def _call_model_with_image(prompt: str, image_bytes: bytes, mime_type: str = "im
     for attempt in range(MAX_RETRIES):
         try:
             response = httpx.post(
-                API_URL,
+                OPENCODE_API_URL,
                 headers={
-                    "Authorization": f"Bearer {API_KEY}",
+                    "Authorization": f"Bearer {OPENCODE_API_KEY}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": MODEL,
+                    "model": OPENCODE_AI_MODEL,
                     "messages": [
                         {
                             "role": "user",
