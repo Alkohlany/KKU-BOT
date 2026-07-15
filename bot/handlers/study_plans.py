@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
 from bot.middleware.subscription import subscription_required
-from bot.services.database import get_all_study_plan_groups, get_active_channel_groups
+from bot.services.database import get_all_study_plan_groups, get_active_channel_groups, get_official_channel
 from bot.services.news_publisher import wrap_links_in_blockquote
 import logging
 
@@ -33,11 +33,12 @@ async def get_plans_text() -> str:
         return "لا توجد خطط دراسية منشورة حالياً 📭"
 
     all_channels = await get_active_channel_groups()
-    channel = None
-    for ch in all_channels:
-        if ch.type == 'channel':
-            channel = ch
-            break
+    channel = await get_official_channel()
+    if not channel:
+        for ch in all_channels:
+            if ch.type == 'channel':
+                channel = ch
+                break
     if not channel:
         return "لا توجد قناة نشرة حالياً 📭"
 
