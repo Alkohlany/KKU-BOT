@@ -1,434 +1,428 @@
-<div dir="rtl">
-
-# 🎓 KKU BOT
-
-<div align="center">
+<div dir="rtl" align="center">
 
 ```
-  ███╗   ███╗ ███╗   ███╗ ██████╗  ██████╗ ██╗  ██╗ █████╗  ██████╗██╗  ██╗
-  ████╗ ████║ ████╗ ████║██╔═══██╗██╔═══██╗██║ ██╔╝██╔══██╗██╔════╝██║ ██╔╝
-  ██╔████╔██║ ██╔████╔██║██║   ██║██║   ██║█████╔╝ ███████║██║     █████╔╝
-  ██║╚██╔╝██║ ██║╚██╔╝██║██║   ██║██║   ██║██╔═██╗ ██╔══██║██║     ██╔═██╗
-  ██║ ╚═╝ ██║ ██║ ╚═╝ ██║╚██████╔╝╚██████╔╝██║  ██╗██║  ██║╚██████╗██║  ██╗
-  ╚═╝     ╚═╝ ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║    ██╗  ██╗     ███████╗    ███╗   ██╗    ███╗   ███╗ █████╗    ║
+║    ██║ ██╔╝     ██╔════╝    ████╗  ██║    ████╗ ████║██╔══██╗   ║
+║    █████╔╝      █████╗      ██╔██╗ ██║    ██╔████╔██║███████║   ║
+║    ██╔═██╗      ██╔══╝      ██║╚██╗██║    ██║╚██╔╝██║██╔══██║   ║
+║    ██║  ██╗     ███████╗    ██║ ╚████║    ██║ ╚═╝ ██║██║  ██║   ║
+║    ╚═╝  ╚═╝     ╚══════╝    ╚═╝  ╚═══╝    ╚═╝     ╚═╝╚═╝  ╚═╝   ║
+║                                                                  ║
+║              🤖 بووت إدارة مجموعات طلاب جامعة الملك خالد 🤖       ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
 ```
 
-**بوت تيليجرام شامل لإدارة وحماية قروبات جامعة الملك خالد**
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
+[![React](https://img.shields.io/badge/React-18.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![Docker](https://img.shields.io/badge/Docker-24.0-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
-[![Docker](https://img.shields.io/badge/Docker-24-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+---
 
 </div>
 
+<div dir="rtl">
+
+## نظرة عامة
+
+**KKU BOT** هو بووت تيليجرام شامل لإدارة وحماية مجموعات الطلاب في **جامعة الملك خالد** (KKU)، المملكة العربية السعودية. يوفر البووت نظاماً متكاملاً لإدارة الأخبار، الأسئلة الشائعة، الخطط الدراسية، الحماية من السبام، والتحكم الكامل في المجموعات والقنوات.
+
+يحتوي المشروع على لوحة تحكم ويب (React SPA) لإدارة جميع الإعدادات والبيانات بشكل مرئي وسهل.
+
 ---
 
-## 📖 نظرة عامة
-
-**KKU BOT** هو بوت تيليجرام متعدد الميزات مصمم خصيصاً لإدارة وحماية قروبات جامعة الملك خالد. يوفر البوت نظاماً شاملاً لإدارة المحتوى الأكاديمي (الأخبار، الأسئلة الشائعة، الخطط الدراسية) مع نظام حماية ذكي متعدد الطبقات من السبام والحسابات المزعجة، ولوحة تحكم ويب حديثة، ونشر مجدول للمنشورات.
-
----
-
-## ✨ الميزات الرئيسية
-
-<div align="center">
+## المميزات
 
 | # | الميزة | الوصف |
 |---|--------|-------|
-| 1 | إدارة الأخبار والمنشورات | إضافة، تعديل، نشر، إعادة نشر الأخبار مع الصور والملفات |
-| 2 | نظام الأسئلة الشائعة (FAQ) | أسئلة وأجوبة مع تطابق ضبابي (Fuzzy Matching) ومربط بالأخبار |
-| 3 | الردود التلقائية الذكية | مطابقة ثلاثية المستويات: تطابق كامل ← جزئي ← ضبابي، مع دعم المرفقات |
-| 4 | الخطط الدراسية | منظمة حسب الكلية والمستوى قابلة للبحث مع تطبيع النص العربي |
-| 5 | النشر المجدول | جدولة منشورات مع تكرار يومي/أسبوعي/شهري |
-| 6 | حماية القروبات | كشف سبام متعدد الطبقات: كلمات مفتاحية، أنماط Regex، تأكيد AI، Rate Limiting، تطبيع عربي |
-| 7 | نظام الحظر | حظر وإلغاء حظر المستخدمين عبر جميع القروبات المسجلة |
-| 8 | الإذاعة الجماعية | إرسال رسائل لجميع القروبات المسجلة دفعة واحدة |
-| 9 | بوابة اشتراك القنوات | يجب على المستخدمين الاشتراك في قناة رسمية قبل استخدام البوت |
-| 10 | دعم الذكاء الاصطناعي | بحث DuckDuckGo + OpenCode AI للمعلومات الجامبية وتحليل المحتوى |
-| 11 | لوحة تحكم الويب | واجهة React SPA لإدارة جميع مكونات البوت |
-| 12 | التخزين السحابي | Cloudflare R2 (متوافق مع S3) لرفع الصور والملفات |
-| 13 | سجل النشاطات | تتبع جميع عمليات المشرفين |
-
-</div>
+| 1 | **إدارة الأخبار** | إنشاء وتعديل ونشر ونشر מחדש للمنشورات مع الصور والملفات في المجموعات والقنوات |
+| 2 | **نظام الأسئلة الشائعة** | أسئلة وإجابات بناءً على الكلمات المفتاحية مع تطابق ضبابي، مرتبطة بالأخبار |
+| 3 | **الردود التلقائية** | مطابقة بثلاث مستويات: تام → جزئي → ضبابي (عتبة 0.6)، مع دعم المرفقات |
+| 4 | **الخطط الدراسية** | منظمة حسب الكلية والمستوى، مع بحث مُنقَّح للنصوص العربية |
+| 5 | **المنشورات المجدولة** | تكرار يومي/أسبوعي/شهري، يعمل كل 60 ثانية |
+| 6 | **حماية المجموعات** | 46 كلمة سبام، 6 أنماط تعبير نمطي، تأكيد بالذكاء الاصطناعي، حدود المعدل |
+| 7 | **حظر المستخدمين** | حظر/إلغاء حظر عبر جميع المجموعات المسجلة |
+| 8 | **البث** | إرسال رسائل لجميع المجموعات المسجلة |
+| 9 | **بوابة الاشتراك** | يجب الاشتراك في القناة الرسمية لاستخدام البوت |
+| 10 | **التكامل مع الذكاء الاصطناعي** | بحث DuckDuckGo + نموذج OpenCode AI (mimo-v2.5-free) |
+| 11 | **لوحة تحكم ويب** | واجهة React SPA بـ 9 صفحات لإدارة البوت |
+| 12 | **التخزين السحابي** | Cloudflare R2 (متوافق مع S3) لتخزين الملفات |
+| 13 | **سجل النشاط** | تتبع جميع إجراءات المسؤول |
 
 ---
 
-## 🛠️ التقنيات المستخدمة
+## التقنيات المستخدمة
 
-<div align="center">
+### الباك إند (Backend)
 
-### الواجهة الخلفية (Backend)
-
-| المكتبة | الاستخدام |
-|---------|-----------|
-| Python 3.11 | لغة البرمجة |
-| python-telegram-bot 20.x | التعامل مع واجهة تيليجرام |
-| SQLAlchemy 2.0 | ORM لقاعدة البيانات |
-| asyncpg | محرك PostgreSQL غير المتزامن |
-| FastAPI | API endpoints للوحة التحكم |
-| httpx | HTTP client غير المتزامن |
-| boto3 | التعامل مع Cloudflare R2 (S3-compatible) |
-| python-jose | إدارة JWT tokens |
-| passlib | تشفير كلمات المرور |
+| التقنية | الإصدار | الوظيفة |
+|---------|---------|---------|
+| Python | 3.11 | لغة البرمجة الأساسية |
+| python-telegram-bot | 20.7 | واجهة تيليجرام (مع دعم Job Queue) |
+| SQLAlchemy | 2.0.23 | ORM لقاعدة البيانات (asyncpg 0.29.0) |
+| FastAPI | 0.104.1 | واجهة برمجة التطبيقات (REST API) |
+| uvicorn | 0.24.0 | خادم ASGI |
+| python-jose | 3.3.0 | توقيع JWT |
+| passlib | 1.7.4 | تشفير كلمات المرور |
+| httpx | ~0.25.2 | عميل HTTP غير متزامن |
+| boto3 | - | عميل AWS S3 (لـ Cloudflare R2) |
+| ddgs | >=7.0.0 | بحث DuckDuckGo |
+| PyMuPDF | 1.24.3 | معالجة ملفات PDF |
+| Pillow | - | معالجة الصور |
+| hijri-converter | 2.3.2.post1 | تحويل التواريخ الهجرية |
 
 ### الواجهة الأمامية (Frontend)
 
-| المكتبة | الاستخدام |
-|---------|-----------|
-| React 18 | بناء واجهة المستخدم |
-| Vite | أداة البناء والتطوير |
-| Recharts | الرسوم البيانية والإحصائيات |
-| React Router DOM | إدارة التوجيه |
+| التقنية | الإصدار | الوظيفة |
+|---------|---------|---------|
+| React | 18.2.0 | مكتبة الواجهات |
+| react-router-dom | 6.20.0 | التوجيه |
+| Recharts | 2.10.3 | الرسوم البيانية |
+| Vite | 5.0.8 | أداة البناء |
 
-### البنية التحتية
+### البنية التحتية (Infrastructure)
 
-| الأداة | الاستخدام |
-|--------|-----------|
+| التقنية | الوظيفة |
+|---------|---------|
 | PostgreSQL 15 | قاعدة البيانات |
-| Cloudflare R2 | التخزين السحابي (S3-compatible) |
-| OpenCode AI (mimo-v2.5-free) | الذكاء الاصطناعي |
-| DuckDuckGo Search | البحث في الإنترنت |
 | Docker + Docker Compose | الحاويات |
-| Render.com | الاستضافة السحابية |
-| GitHub Actions | CI/CD + Keep-Alive |
-
-</div>
-
----
-
-## 📋 المتطلبات
-
-- **Python** 3.11 أو أحدث
-- **Node.js** 20+ (لبناء لوحة التحكم)
-- **PostgreSQL** 15+
-- توكن بوت تيليجرام (من [@BotFather](https://t.me/BotFather))
+| Render.com | الاستضافة (الخطة المجانية) |
+| GitHub Actions | الحفاظ على التشغيل (keep-alive) |
+| Cloudflare R2 | التخزين السحابي |
 
 ---
 
-## 🔧 التثبيت والتشغيل
+## المتطلبات
 
-### التشغيل المحلي
+- Python 3.11+
+- Node.js 20+ (لبناء لوحة التحكم)
+- PostgreSQL 15+
+- حساب تيليجرام للبوت (من [@BotFather](https://t.me/BotFather))
+- حساب Cloudflare (اختياري، للتخزين السحابي)
+
+---
+
+## التثبيت
+
+### التثبيت المحلي
 
 ```bash
 # 1. استنساخ المستودع
-git clone https://github.com/your-repo/kku-bot.git
-cd kku-bot
+git clone https://github.com/your-username/KKU-BOT.git
+cd KKU-BOT
 
-# 2. تثبيت متطلبات Python
+# 2. إنشاء البيئة الافتراضية
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# 3. تثبيت المتطلبات
 pip install -r requirements.txt
 
-# 3. بناء لوحة التحكم
+# 4. إعداد ملف البيئة
+copy .env.example .env
+# عدّل قيم .env حسب إعداداتك
+
+# 5. بناء لوحة التحكم
 cd dashboard
 npm install
 npm run build
 cd ..
 
-# 4. إعداد ملف البيئة
-cp .env.example .env
-# عدّل ملف .env بالمتغيرات المطلوبة (انظر القسم التالي)
-
-# 5. تشغيل البوت
-python -m bot.main
+# 6. تشغيل البوت
+python bot/main.py
 ```
 
-### باستخدام Docker
+### التثبيت باستخدام Docker
 
 ```bash
-# بناء وتشغيل جميع الخدمات
+# 1. إعداد ملف البيئة
+copy .env.example .env
+# عدّل قيم .env
+
+# 2. التشغيل
 docker-compose up -d
 
-# عرض السجلات
+# 3. عرض السجلات
 docker-compose logs -f
 
-# إيقاف الخدمات
+# 4. الإيقاف
 docker-compose down
 ```
 
-### النشر على Render
+### النشر على Render.com
 
-```bash
-# 1. ارفع الكود إلى GitHub
-# 2. أنشئ مشروع جديد على Render واستخدم render.yaml كـ Blueprint
-# 3. أدخل المتغيرات البيئية في لوحة تحكم Render
-# 4. سيقوم Render ببناء وتشغيل المشروع تلقائياً
-```
+1. ارفع الكود إلى GitHub
+2. أنشئ حساب على [Render.com](https://render.com)
+3. أنشئ **Background Worker** للبوت
+4. أنشئ **Web Service** لـ API
+5. أضف متغيرات البيئة (Environment Variables) في لوحة التحكم
+6. Render سيقوم تلقائياً بنشر المشروع
 
----
-
-## 🔐 المتغيرات البيئية
-
-أنشئ ملف `.env` في جذر المشروع:
-
-```env
-# === Telegram Bot ===
-BOT_TOKEN=توكن_البوت_من_BotFather
-
-# === Database ===
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/kku_bot
-
-# === Admin ===
-ADMIN_IDS=123456789,987654321
-
-# === Dashboard ===
-SECRET_KEY=مفتاح_سري_للتوثيق
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=كلمة_مرور_آمنة
-
-# === Cloudflare R2 (التخزين السحابي) ===
-R2_ACCOUNT_ID=account_id
-R2_ACCESS_KEY_ID=access_key
-R2_SECRET_ACCESS_KEY=secret_key
-R2_BUCKET_NAME=bucket_name
-R2_PUBLIC_URL=https://pub-xxxxx.r2.dev
-```
-
-| المتغير | مطلوب | الوصف |
-|---------|:-----:|-------|
-| `BOT_TOKEN` | ✅ | توكن البوت من BotFather |
-| `DATABASE_URL` | ✅ | رابط الاتصال بقاعدة البيانات PostgreSQL |
-| `ADMIN_IDS` | ✅ | معرّفات المشرفين (مفصولة بفاصلة) |
-| `SECRET_KEY` | ✅ | مفتاح سري لتشفير جلسات لوحة التحكم |
-| `ADMIN_USERNAME` | ✅ | اسم مستخدم لدخول لوحة التحكم |
-| `ADMIN_PASSWORD` | ✅ | كلمة مرور لوحة التحكم |
-| `R2_ACCOUNT_ID` | ✅ | معرّف حساب Cloudflare |
-| `R2_ACCESS_KEY_ID` | ✅ | مفتاح الوصول لـ R2 |
-| `R2_SECRET_ACCESS_KEY` | ✅ | المفتاح السري لـ R2 |
-| `R2_BUCKET_NAME` | ✅ | اسم المجلد (Bucket) في R2 |
-| `R2_PUBLIC_URL` | ✅ | الرابط العام للملفات المرفوعة |
+**ملاحظة:** يحتوي الملف `render.yaml` على إعدادات النشر التلقائية.
 
 ---
 
-## 🤖 أوامر البوت
+## متغيرات البيئة
+
+### مطلوبة (Required)
+
+| المتغير | الوصف | مثال |
+|---------|-------|------|
+| `BOT_TOKEN` | توكن البوت من BotFather | `123456:ABC-DEF...` |
+| `DATABASE_URL` | رابط اتصال PostgreSQL | `postgresql://user:pass@localhost:5432/kku_bot` |
+| `ADMIN_IDS` | معرفات المسؤولين (مفصولة بفاصلة) | `123456789,987654321` |
+| `SECRET_KEY` | مفتاح توقيع JWT | `your-super-secret-key-change-this` |
+| `ADMIN_USERNAME` | اسم مستخدم لوحة التحكم | `admin` |
+| `ADMIN_PASSWORD` | كلمة مرور لوحة التحكم | `secure-password` |
+
+### اختيارية (Optional)
+
+| المتغير | الوصف | القيمة الافتراضية |
+|---------|-------|-------------------|
+| `R2_ACCOUNT_ID` | معرّف حساب Cloudflare | `""` |
+| `R2_ACCESS_KEY_ID` | مفتاح الوصول لـ R2 | `""` |
+| `R2_SECRET_ACCESS_KEY` | المفتاح السري لـ R2 | `""` |
+| `R2_BUCKET_NAME` | اسم الحاوية | `kku-bot` |
+| `R2_PUBLIC_URL` | الرابط العام للملفات | `""` |
+| `OPENCODE_API_KEY` | مفتاح API للذكاء الاصطناعي | `""` |
+| `OPENCODE_API_URL` | رابط API للذكاء الاصطناعي | `""` |
+| `OPENCODE_AI_MODEL` | نموذج الذكاء الاصطناعي | `""` |
+| `PORT` | منفذ الخادم | `8000` |
+
+---
+
+## أوامر البوت
 
 ### أوامر المستخدمين
 
 | الأمر | الوصف |
 |-------|-------|
-| `/start` | بدء التفاعل مع البوت |
-| `/help` | عرض قائمة المساعدة |
-| `/news` | عرض آخر الأخبار والمنشورات |
-| `/questions` | البحث في الأسئلة الشائعة |
+| `/start` | بدء التشغيل ومعرفة المميزات |
+| `/help` | عرض المساعدة |
+| `/news` | عرض آخر الأخبار |
+| `/questions` | البحث عن أسئلة شائعة |
 | `/plans` | عرض الخطط الدراسية |
+| `/responses` | عرض الردود المتاحة |
 
-### أوامر المشرفين
+### أوامر المسؤولين (Slash Commands)
 
 | الأمر | الوصف |
 |-------|-------|
-| `/admin` | لوحة التحكم السريعة |
-| `/r add` | إضافة رد تلقائي جديد |
-| `/r del` | حذف رد تلقائي |
-| `/r list` | عرض جميع الردود |
-| `/r search` | البحث في الردود |
-| `/q add` | إضافة سؤال شائع جديد |
-| `/q del` | حذف سؤال شائع |
-| `/q list` | عرض جميع الأسئلة |
-| `/q search` | البحث في الأسئلة |
-| `/n add` | إضافة خبر جديد |
-| `/n del` | حذف خبر |
-| `/n list` | عرض جميع الأخبار |
-| `/n edit` | تعديل خبر موجود |
-| `/n republish` | إعادة نشر خبر |
+| `/admin` | لوحة تحكم المسؤول |
+| `/r` | إدارة الردود |
+| `/q` | إدارة الأسئلة |
+| `/n` | إدارة الأخبار |
+| `/stats` | الإحصائيات |
+| `/groups` | إدارة المجموعات |
+| `/broadcast` | بث رسالة لجميع المجموعات |
 | `/ban` | حظر مستخدم |
 | `/unban` | إلغاء حظر مستخدم |
-| `/banned` | عرض قائمة المحظورين |
-| `/stats` | عرض الإحصائيات |
-| `/groups` | عرض القروبات المسجلة |
-| `/broadcast` | إذاعة رسالة لجميع القروبات |
+| `/banned` | قائمة المحظورين |
 
-### الأوامر باللغة العربية (في القروبات)
+### أوامر المسؤولين (نص عربي)
 
 | الأمر | الوصف |
 |-------|-------|
-| `اضافه رد` | إضافة رد تلقائي |
-| `احذف رد` | حذف رد تلقائي |
+| `اضافه رد` | إضافة رد جديد |
+| `حذف رد` | حذف رد موجود |
 | `قائمة الردود` | عرض جميع الردود |
-| `اضافه سؤال` | إضافة سؤال شائع |
+| `اضافه سؤال` | إضافة سؤال جديد |
+| `حذف سؤال` | حذف سؤال موجود |
+| `قائمة الاسئلة` | عرض جميع الأسئلة |
+| `اضافه منشور` | إضافة منشور جديد |
+| `حذف منشور` | حذف منشور موجود |
+| `قائمة المنشورات` | عرض جميع المنشورات |
 | `حظر` | حظر مستخدم |
 | `الغاء حظر` | إلغاء حظر مستخدم |
-| `اذاعة` | إرسال رسالة جماعية |
-| `الاحصائيات` | عرض إحصائيات البوت |
-| `قائمة القروبات` | عرض القروبات المسجلة |
-| `مساعدة` | عرض قائمة المساعدة |
+| `قائمة المحظورين` | عرض المحظورين |
+| `الاحصائيات` | عرض الإحصائيات |
+| `القروبات` | إدارة المجموعات |
+| `اذاعة` | بث رسالة |
+| `مساعدة` | عرض المساعدة |
 
 ---
 
-## 🛡️ نظام الحماية
+## نظام الحماية
 
-يقدم البوت نظام حماية متعدد الطبقات لحماية القروبات من الحسابات المزعجة:
+يحتوي البووت على نظام حماية متقدم ضد السبام والرسائل غير المرغوبها:
+
+### كلمات السبام (46 كلمة)
+
+<div dir="ltr">
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    طبقات الحماية                         │
-├─────────────────────────────────────────────────────────┤
-│  1. فلترة الكلمات المفتاحية  ←  قائمة ممنوعات مخصصة    │
-│  2. أنماط Regex              ←  كشف الأنماط المشبوهة    │
-│  3. التأكيد بالذكاء الاصطناعي ←  تحليل المحتوى المريب   │
-│  4. Rate Limiting            ←  تحديد سرعة الرسائل      │
-│  5. تطبيع النص العربي        ←  معالجة التشكيل والمسافات │
-│  6. قائمة المحظورين          ←  حظر دائم عبر القروبات   │
-└─────────────────────────────────────────────────────────┘
+- روابط مختصرة (bit.ly, tinyurl, t.co, etc.)
+- محتوى للبالغين
+- أدوية غير مشروعة
+- احتيال ونصب
+- سبام تجاري
 ```
 
-### آلية عمل نظام الحماية:
+</div>
 
-- **كشف السبام**: كشف الرسائل المتكررة والرسائل المتشابهة
-- **الأنماط المشبوهة**: كشف الروابط المشبوهة والحسابات المزيفة عبر تعبيرات Regex
-- **Rate Limiting**: تحديد عدد الرسائل لكل مستخدم في فترة زمنية معينة
-- **تطبيع النص العربي**: معالجة المشاكل الشائعة في الكتابة بالعربي (التشكيل، المسافات، الهمزات، إلخ)
-- **الحسابات المحظورة**: حظر المستخدمين المخالفين نهائياً عبر جميع القروبات
+### أنماط التحقق (Regex)
+
+| النمط | الوصف |
+|-------|-------|
+| `3+ روابط URL` | كشف الرسائل التي تحتوي على 3 روابط أو أكثر |
+| `@mentions 15+ حرف` | كشف الإشارات الطويلة (السبام التجاري) |
+| `WhatsApp/Telegram links` | روابط واتساب وتيليجرام المشبوهة |
+| `أرقام هواتف` | كشف أرقام الهاتف في الرسائل |
+
+### آلية العمل
+
+1. **تحليل الرسالة** - فحص النص بناءً على الكلمات والأنماط
+2. **تطابق ثلاثي المستوى**:
+   - **تطابق تام** - كلمة السبام موجودة بالضبط
+   - **تطابق جزئي** - كلمة السبام موجودة داخل نص أطول
+   - **تطابق ضبابي** - تطابق بمعامل 0.6
+3. **تأكيد بالذكاء الاصطناعي** - استخدام AI للتحقق قبل الحظر
+4. **حدود المعدل** - حظر تلقائي عند تجاوز الحد (5 رسائل في 60 ثانية)
+5. **تطبيع النص العربي** - تجاهل علامات التشكيل والنقاط
 
 ---
 
-## 🖥️ لوحة التحكم
+## لوحة التحكم (Dashboard)
 
-لوحة تحكم ويب مبنية بـ **React 18** و **Vite** توفر واجهة سهلة لإدارة جميع مكونات البوت.
-
-### الصفحات المتاحة
+لوحة تحكم ويب مبنية بـ **React SPA** مع 9 صفحات:
 
 | الصفحة | الوصف |
 |--------|-------|
-| **Dashboard** | نظرة عامة على إحصائيات البوت مع رسوم بيانية |
-| **News** | إدارة الأخبار والمنشورات (إضافة، تعديل، حذف، نشر) |
-| **Questions** | إدارة الأسئلة الشائعة |
-| **Reply Dictionary** | إدارة قاموس الردود التلقائية |
-| **Study Plans** | إدارة الخطط الدراسية |
-| **Scheduled Posts** | إدارة المنشورات المجدولة |
-| **Groups** | إدارة القروبات المسجلة |
-| **Banned Users** | إدارة المستخدمين المحظورين |
-| **Activity Log** | سجل النشاطات والتعديلات |
-| **Responses** | إدارة فئات الردود |
-| **Settings** | إعدادات البوت |
+| **الرئيسية** | نظرة عامة + إحصائيات أسبوعية |
+| **المجموعات** | إدارة القنوات والمجموعات |
+| **الأخبار** | CRUD + نشر + تحسين المحتوى |
+| **قاموس الردود** | الردود التلقائية + الأسئلة الشائعة |
+| **الخطط الدراسية** | مجموعات الخطط + الخطط + النشر |
+| **المنشورات المجدولة** | CRUD + رفع الملفات |
+| **المحظورين** | إدارة المستخدمين المحظورين |
+| **سجل النشاط** | تتبع جميع الإجراءات |
+| **الإعدادات** | إعدادات البوت والنظام |
 
-### تشغيل لوحة التحكم محلياً
+### بناء لوحة التحكم
 
 ```bash
 cd dashboard
 npm install
-npm run dev
+npm run build
 ```
 
-ستكون لوحة التحكم متاحة على `http://localhost:5173`
+الملفات المبنية توضع في `dashboard/dist/` وتُخدم تلقائياً عبر FastAPI.
 
 ---
 
-## 🗂️ هيكل المشروع
+## هيكل المشروع
 
 ```
 KKU BOT/
 ├── bot/
-│   ├── api/                 # FastAPI endpoints للوحة التحكم
-│   ├── handlers/            # معالجات أوامر البوت
-│   │   ├── start.py         # أمر /start
-│   │   ├── help.py          # أمر /help
-│   │   ├── news.py          # إدارة الأخبار
-│   │   ├── questions.py     # إدارة الأسئلة الشائعة
-│   │   ├── study_plans.py   # إدارة الخطط الدراسية
-│   │   ├── broadcast.py     # نظام الإذاعة
-│   │   ├── responses.py     # إدارة الردود التلقائية
-│   │   ├── admin_commands.py # أوامر المشرفين
-│   │   ├── admin.py         # معالجات المشرف
-│   │   └── group_handler.py # إدارة القروبات
-│   ├── middleware/          # Middleware (الاشتراك في القناة)
-│   ├── models/             # نماذج SQLAlchemy
-│   ├── services/           # الخدمات (قاعدة البيانات، الحماية، الردود، AI)
-│   │   ├── ai.py           # خدمات الذكاء الاصطناعي
-│   │   ├── database.py     # إدارة قاعدة البيانات
-│   │   ├── protection.py   # نظام الحماية
-│   │   └── storage.py      # التخزين السحابي (R2)
-│   ├── config.py           # إعدادات البوت
-│   └── main.py             # نقطة الدخول الرئيسية
-├── dashboard/              # لوحة تحكم React
-│   ├── src/
-│   │   ├── components/     # مكونات الواجهة
-│   │   ├── pages/          # صفحات لوحة التحكم
-│   │   └── App.jsx
-│   ├── package.json
-│   └── vite.config.js
+│   ├── main.py              # نقطة دخول البوت
+│   ├── config.py            # تحميل متغيرات البيئة
+│   ├── models/
+│   │   └── models.py        # نماذج SQLAlchemy (12 جدول)
+│   ├── services/
+│   │   ├── ai.py            # ذكاء اصطناعي + بحث DuckDuckGo
+│   │   ├── cloud_storage.py # Cloudflare R2 (boto3)
+│   │   ├── database.py      # جميع عمليات قاعدة البيانات (~814 سطر)
+│   │   ├── news_publisher.py# نشر/تعديل/حذف تيليجرام
+│   │   ├── protection.py    # نظام الحماية ضد السبام
+│   │   ├── responses.py     # معالج الردود التلقائية
+│   │   ├── responses_system.py # الردود الافتراضية المضمّنة
+│   │   └── scheduler.py     # فاحص المنشورات المجدولة (كل 60 ثانية)
+│   ├── handlers/
+│   │   ├── start.py         # /start + أزرار المميزات
+│   │   ├── help.py          # /help
+│   │   ├── admin.py         # أوامر المسؤول النصية بالعربية (907 أسطر)
+│   │   ├── admin_commands.py# أوامر الشرطة (/r, /q, /n, etc.)
+│   │   ├── news.py          # /news
+│   │   ├── questions.py     # /questions
+│   │   ├── study_plans.py   # /plans + محفزات النص
+│   │   ├── broadcast.py     # /broadcast
+│   │   ├── responses.py     # /responses
+│   │   ├── group_handler.py # تتبع المجموعات + /registergroup
+│   │   └── channel_handler.py # تتبع القنوات + /registerchannel
+│   ├── middleware/
+│   │   └── subscription.py  # بوابة الاشتراك
+│   └── api/
+│       ├── main.py          # تطبيق FastAPI
+│       ├── auth.py          # مصادقة JWT
+│       ├── config.py        # إعدادات API
+│       └── routes/          # نقاط النهاية (REST)
+├── dashboard/               # واجهة React SPA (Vite)
 ├── database/
-│   └── schema.sql          # مخطط قاعدة البيانات
-├── uploads/                # الملفات المرفوعة
-├── Dockerfile              # ملف Docker
-├── docker-compose.yml      # إعدادات Docker Compose
-├── render.yaml             # إعدادات النشر على Render
-├── requirements.txt        # المتطلبات البرمجية
-└── start.sh                # سكريبت التشغيل
+│   └── schema.sql           # المخطط القديم (غير محدث)
+├── docker-compose.yml       # bot + PostgreSQL
+├── Dockerfile               # Python 3.11 + Node 20
+├── render.yaml              # إعداد نشر Render
+├── start.sh                 # نقطة دخول Docker
+├── requirements.txt         # متطلبات Python
+└── .env.example             # مثال على ملف البيئة
 ```
 
 ---
 
-## 🗃️ قاعدة البيانات
+## قاعدة البيانات
 
-تتكون قاعدة البيانات من **12 جداول**:
+### الجداول (12 جدول)
 
-| الجدول | الوصف |
-|--------|-------|
-| `users` | المستخدمون المسجلون |
-| `groups` | القروبات المسجلة |
-| `auto_responses` | الردود التلقائية |
-| `questions` | الأسئلة الشائعة |
-| `news` | الأخبار والمنشورات |
-| `scheduled_posts` | المنشورات المجدولة |
-| `study_plans` | الخطط الدراسية |
-| `study_plan_groups` | ربط الخطط بالقروبات |
-| `banned_users` | المستخدمون المحظورون |
-| `activity_log` | سجل النشاطات |
-| `response_categories` | تصنيفات الردود |
-| `settings` | إعدادات البوت |
-
----
-
-## ⚠️ ملاحظات مهمة
-
-- **مفتاح API للذكاء الاصطناعي**: ملف `bot/services/ai.py` يحتوي على مفتاح API مكتوب بشكل ثابت — يُنصح بنقله إلى متغيرات البيئية قبل الإنتاج
-- **لا توجد اختبارات تلقائية**: المشروع لا يحتوي على اختبارات وحدات أو تكامل
-- **النشر الفعلي**: المشروع منشور حالياً على Render.com مع سير عمل Keep-Alive عبر GitHub Actions
+| # | الجدول | الوصف |
+|---|--------|-------|
+| 1 | `users` | المستخدمون (telegram_id, username, first_name, is_subscribed) |
+| 2 | `channel_groups` | القنوات والمجموعات (chat_id, title, type, member_count, is_active, is_official) |
+| 3 | `auto_responses` | الردود التلقائية (keyword, response, file_url, file_tg_id, news_id FK) |
+| 4 | `banned_users` | المحظورون (telegram_id, reason, banned_by) |
+| 5 | `activity_log` | سجل النشاط (action, details, performed_by) |
+| 6 | `news` | الأخبار (content, image_url, file_url, files_json, target_channels JSON) |
+| 7 | `questions` | الأسئلة الشائعة (question, answer, category, keywords, news_id FK) |
+| 8 | `scheduled_posts` | المنشورات المجدولة (content, schedule_time, is_recurring, recurring_interval) |
+| 9 | `study_plan_groups` | مجموعات الخطط الدراسية (title, specialization, link, channel_message_id) |
+| 10 | `study_plans` | الخطط الدراسية (group_id FK, faculty, level, plan_url, usage_count) |
+| 11 | `response_categories` | فئات الردود (name, icon, order) |
+| 12 | `settings` | الإعدادات (key unique, value) |
 
 ---
 
-## 📜 الرخصة
+## التشغيل
 
-هذا المشروع محمي بموجب رخصة **MIT License**.
+### تشغيل محلي
 
+```bash
+python bot/main.py
 ```
-MIT License
 
-Copyright (c) 2024 KKU BOT
+### تشغيل Docker
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+```bash
+docker-compose up -d
 ```
+
+### هيكل start.sh
+
+```bash
+#!/bin/bash
+# تشغيل البوت + FastAPI بشكل متوازي
+# يمر على إشارات SIGTERM للإيقاف النظيف
+```
+
+---
+
+## الترخيص
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+هذا المشروع مرخص بموجب **MIT License** - راجع ملف `LICENSE` للتفاصيل.
 
 ---
 
 <div align="center">
 
-**صُنع بـ ❤️ لجامعة الملك خالد**
-
-[![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/your_bot_username)
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
-[![Docker](https://img.shields.io/badge/Docker-24-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Render](https://img.shields.io/badge/Render-Deploy-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/)
-
-</div>
+**تم بناؤه بـ ❤️ لطلاب جامعة الملك خالد**
 
 </div>

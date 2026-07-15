@@ -37,6 +37,14 @@ async def _get_channel_id():
 
 async def _get_channel_username():
     """Get the channel username from the database for generating links"""
+    official = await get_official_channel()
+    if official and official.invite_link:
+        link = official.invite_link
+        if 't.me/' in link:
+            return link.split('t.me/')[-1].strip('/')
+    if official:
+        return str(official.chat_id)
+
     async with async_session() as session:
         stmt = select(ChannelGroup).where(
             ChannelGroup.type == 'channel',
