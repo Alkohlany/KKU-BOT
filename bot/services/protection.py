@@ -147,6 +147,12 @@ async def _is_privileged(user_id: int, chat) -> bool:
         return False
 
 
+async def _process_ai_check(update, context, user, chat, text, reason, detail):
+    """ خيط منفصل للتحقق من السبام بالذكاء الاصطناعي"""
+    if await check_with_ai(text):
+        await _ban_user(update, context, user, chat, reason, "ai_confirmed_spam", detail)
+
+
 async def check_text_content(update, context, text):
     """فحص النص (مستخدمة في الرسائل النصية والوسائط)"""
     user = update.effective_user
@@ -178,8 +184,7 @@ async def check_text_content(update, context, text):
     if keyword_match or pattern_match:
         reason = f"Spam keyword: {keyword_match}" if keyword_match else f"Suspicious pattern: {pattern_match}"
         detail = keyword_match or pattern_match
-        if await check_with_ai(text):
-            await _ban_user(update, context, user, chat, reason, "ai_confirmed_spam", detail)
+        asyncio.create_task(_process_ai_check(update, context, user, chat, text, reason, detail))
         return
 
 
