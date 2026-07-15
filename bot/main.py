@@ -1,6 +1,8 @@
 import logging
+import os
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from telegram.error import Conflict
+import httpx
 from bot.config import BOT_TOKEN, ADMIN_IDS
 from bot.services.database import init_db
 from bot.handlers.start import start_handler, feature_handler
@@ -30,6 +32,16 @@ async def post_init(application):
         await init_db()
         application.bot_data['admin_ids'] = ADMIN_IDS.copy()
         application.job_queue.run_repeating(check_scheduled_posts, interval=60, first=10)
+
+        async def self_ping(context):
+            port = os.environ.get("PORT", "8000")
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.get(f"http://127.0.0.1:{port}/health", timeout=10)
+            except Exception:
+                pass
+
+        application.job_queue.run_repeating(self_ping, interval=300, first=30)
         logger.info("Database initialized and scheduler started")
     except Exception as e:
         logger.critical(f"Failed to initialize database: {e}", exc_info=True)
