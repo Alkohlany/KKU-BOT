@@ -409,17 +409,33 @@ async def publish_group_plans(group_id: int):
                     caption += f"تخصص - {plan.title}\n\n"
                     caption += f'<blockquote>t.me/kkunewbot</blockquote>'
 
-                    filename = f"{plan.title}.pdf"
-                    files[file_key] = (filename, pdf_content, "application/pdf")
-                    media_item = {
-                        "type": "document",
-                        "media": f"attach://{file_key}",
-                        "caption": caption,
-                        "parse_mode": "HTML"
-                    }
-                    thumb_url = _generate_pdf_thumbnail(pdf_content, folder="kku-bot/plans")
-                    if thumb_url:
-                        media_item["thumb"] = thumb_url
+                    file_ext = plan.file_url.split(".")[-1].split("?")[0].lower() if plan.file_url else "pdf"
+                    is_image = file_ext in ("jpg", "jpeg", "png", "gif", "webp")
+
+                    filename = f"{plan.title}.{file_ext}"
+
+                    if is_image:
+                        mime = "image/jpeg"
+                        media_item = {
+                            "type": "photo",
+                            "media": f"attach://{file_key}",
+                            "caption": caption,
+                            "parse_mode": "HTML"
+                        }
+                    else:
+                        mime = "application/pdf"
+                        media_item = {
+                            "type": "document",
+                            "media": f"attach://{file_key}",
+                            "caption": caption,
+                            "parse_mode": "HTML"
+                        }
+
+                    files[file_key] = (filename, pdf_content, mime)
+                    if not is_image:
+                        thumb_url = _generate_pdf_thumbnail(pdf_content, folder="kku-bot/plans")
+                        if thumb_url:
+                            media_item["thumb"] = thumb_url
                     media.append(media_item)
 
                 if not media:
