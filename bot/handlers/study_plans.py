@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
 from bot.middleware.subscription import subscription_required
 from bot.services.database import get_all_study_plan_groups, get_active_channel_groups, get_official_channel
+from bot.services.news_publisher import wrap_links_in_blockquote
 import logging
 
 logger = logging.getLogger(__name__)
