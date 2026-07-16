@@ -634,7 +634,16 @@ async def save_spam_pattern(content: str):
 async def check_spam_pattern(content: str) -> bool:
     async with async_session() as session:
         result = await session.execute(
-            text("SELECT 1 FROM spam_patterns WHERE :content LIKE '%' || content || '%' OR content LIKE '%' || :content || '%' LIMIT 1"),
+            text("""
+                SELECT 1 FROM spam_patterns
+                WHERE length(content) > 20
+                AND (
+                    :content = content
+                    OR (:content LIKE '%' || content || '%' AND length(content) > length(:content) * 0.4)
+                    OR (content LIKE '%' || :content || '%' AND length(:content) > length(content) * 0.4)
+                )
+                LIMIT 1
+            """),
             {"content": content}
         )
         return result.first() is not None
