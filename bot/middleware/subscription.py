@@ -32,7 +32,7 @@ async def _ch_link_keyboard():
     if not channel:
         return InlineKeyboardMarkup([[]])
     return InlineKeyboardMarkup([[
-        InlineKeyboardButton("📢 اشترك في القناة", url=channel.invite_link)
+        InlineKeyboardButton("اضغط للاشتراك", url=channel.invite_link)
     ]])
 
 

@@ -22,7 +22,7 @@ SPAM_KEYWORDS = [
     "taplink", "linktr", "bit.ly", "tinyurl",
     "cutt.ly", "shorturl.at", "rb.gy", "is.gd", "ow.ly",
     # محتوى إباحي
-    "xxx", "porn", "porno",
+    "xxx", "porn", "p0rn", "porno",
     "محتوى اباحي", "إباحي", "إباحية",
     # مخدرات
     "مخدر", "مخدرات", "حشيش", "بانجو",
