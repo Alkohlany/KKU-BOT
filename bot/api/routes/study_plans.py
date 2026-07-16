@@ -126,14 +126,14 @@ def to_arabic_numerals(number: int) -> str:
     return "".join(arabic_digits[int(d)] for d in str(number))
 
 
-def _build_plan_caption(group, plan_title):
-    """Build plan caption using group's specialization and link"""
+def _build_plan_caption(group, plan):
+    """Build plan caption using plan's specialization and link"""
     caption = ""
     if group and group.group_tag:
         caption += f"#{group.group_tag}\n"
-    spec = group.specialization if group and group.specialization else "تخصص"
+    spec = plan.specialization if plan and plan.specialization else "تخصص"
     caption += f"تخصص - {spec}\n\n"
-    link = group.link if group and group.link else "t.me/kkunewbot"
+    link = plan.link if plan and plan.link else "t.me/kkunewbot"
     caption += f'<blockquote>{link}</blockquote>'
     return caption
 
@@ -256,11 +256,10 @@ async def _update_published_plan_captions(group_id: int):
             return
 
         channel_chat_id = await _get_channel_id()
-        new_caption = _build_plan_caption(group, "{title}")
 
         async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
             for plan in plans:
-                caption = _build_plan_caption(group, plan.title)
+                caption = _build_plan_caption(group, plan)
                 try:
                     await client.post(
                         f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageCaption",
@@ -280,8 +279,6 @@ class StudyPlanGroupCreate(BaseModel):
     title: str
     description: Optional[str] = None
     group_tag: Optional[str] = None
-    specialization: Optional[str] = None
-    link: Optional[str] = None
 
 
 class StudyPlanCreate(BaseModel):
@@ -289,6 +286,8 @@ class StudyPlanCreate(BaseModel):
     plan_url: Optional[str] = None
     file_url: Optional[str] = None
     group_id: Optional[int] = None
+    specialization: Optional[str] = None
+    link: Optional[str] = None
 
 
 # ==================== Study Plan Groups ====================
@@ -308,17 +307,15 @@ async def get_study_plan_group(group_id: int):
 
 @router.post("/groups")
 async def create_study_plan_group_endpoint(data: StudyPlanGroupCreate):
-    group = await create_study_plan_group(title=data.title, description=data.description, group_tag=data.group_tag, specialization=data.specialization, link=data.link)
+    group = await create_study_plan_group(title=data.title, description=data.description, group_tag=data.group_tag)
 
     try:
         channel_chat_id = await _get_channel_id()
         channel_username = await _get_channel_username()
         if channel_username and group.group_tag:
-            link = group.link or f"https://t.me/{channel_username.replace('@', '')}"
+            link = f"https://t.me/{channel_username.replace('@', '')}"
             text = f"📂 {group.title}\n"
             text += f"#{group.group_tag}\n"
-            if group.specialization:
-                text += f"{group.specialization}\n"
             text += f"{link}"
         else:
             text = f"📂 {group.title}\n"
@@ -341,7 +338,7 @@ async def create_study_plan_group_endpoint(data: StudyPlanGroupCreate):
     except Exception as e:
         print(f"Error publishing group to channel: {e}")
 
-    return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "specialization": group.specialization, "link": group.link, "message": "Group created successfully"}
+    return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "message": "Group created successfully"}
 
 
 @router.put("/groups/{group_id}")
@@ -358,15 +355,11 @@ async def update_study_plan_group_endpoint(group_id: int, data: StudyPlanGroupCr
             group.description = data.description
         if data.group_tag is not None:
             group.group_tag = data.group_tag
-        if data.specialization is not None:
-            group.specialization = data.specialization
-        if data.link is not None:
-            group.link = data.link
         await session.commit()
 
     await update_group_post(group_id)
     await _update_published_plan_captions(group_id)
-    return {"id": group_id, "title": data.title, "group_tag": data.group_tag, "specialization": data.specialization, "link": data.link, "message": "Group updated successfully"}
+    return {"id": group_id, "title": data.title, "group_tag": data.group_tag, "message": "Group updated successfully"}
 
 
 @router.delete("/groups/{group_id}")
@@ -430,7 +423,8 @@ async def get_study_plans(group_id: Optional[int] = None, faculty: Optional[str]
 async def create_study_plan(data: StudyPlanCreate):
     return await add_study_plan(title=data.title,
                                plan_url=data.plan_url, file_url=data.file_url,
-                               group_id=data.group_id)
+                               group_id=data.group_id,
+                               specialization=data.specialization, link=data.link)
 
 
 @router.post("/upload")
@@ -438,6 +432,8 @@ async def upload_study_plan(
     title: str = Form(...),
     plan_url: str = Form(""),
     group_id: int = Form(None),
+    specialization: str = Form(None),
+    link: str = Form(None),
     file: Optional[UploadFile] = File(None),
 ):
     file_url = None
@@ -450,6 +446,8 @@ async def upload_study_plan(
         plan_url=plan_url,
         file_url=file_url,
         group_id=group_id,
+        specialization=specialization,
+        link=link,
     )
 
     return {"id": plan.id, "title": plan.title, "message": "تم حفظ الخطة كمسودة"}
@@ -524,7 +522,7 @@ async def publish_group_plans(group_id: int):
                         failed_plans.append(plan.title)
                         continue
 
-                    caption = _build_plan_caption(group, plan.title)
+                    caption = _build_plan_caption(group, plan)
 
                     file_ext = plan.file_url.split(".")[-1].split("?")[0].lower() if plan.file_url else "pdf"
                     is_image = file_ext in ("jpg", "jpeg", "png", "gif", "webp")
@@ -659,7 +657,7 @@ async def publish_single_plan(plan_id: int):
             if not pdf_content:
                 return {"error": f"فشل تحميل الملف من الخدمة السحابية (status: {last_status})"}
 
-            caption = _build_plan_caption(group, plan.title)
+            caption = _build_plan_caption(group, plan)
 
             thumb_bytes = _generate_pdf_thumbnail_bytes(pdf_content)
             send_data = {
@@ -711,6 +709,8 @@ async def update_study_plan(
     plan_id: int,
     title: str = Form(None),
     group_id: int = Form(None),
+    specialization: str = Form(None),
+    link: str = Form(None),
     file: UploadFile = File(None)
 ):
     async with async_session() as session:
@@ -727,6 +727,10 @@ async def update_study_plan(
             plan.title = title
         if group_id is not None:
             plan.group_id = group_id
+        if specialization is not None:
+            plan.specialization = specialization
+        if link is not None:
+            plan.link = link
 
         new_group_id = plan.group_id
 

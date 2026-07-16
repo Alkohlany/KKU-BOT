@@ -12,8 +12,8 @@ export default function StudyPlans() {
   const [activeGroup, setActiveGroup] = useState(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [form, setForm] = useState({ title: '', file: null, group_id: '' });
-  const [groupForm, setGroupForm] = useState({ title: '', description: '', group_tag: '', specialization: '', link: '' });
+  const [form, setForm] = useState({ title: '', file: null, group_id: '', specialization: '', link: '' });
+  const [groupForm, setGroupForm] = useState({ title: '', description: '', group_tag: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,7 +65,7 @@ export default function StudyPlans() {
   };
 
   const filteredGroups = groups.filter(
-    (g) => g.title?.includes(search) || g.specialization?.includes(search) || g.group_tag?.includes(search)
+    (g) => g.title?.includes(search) || g.group_tag?.includes(search)
   );
 
   const folderPlans = plans.filter((p) => activeGroup && p.group_id === activeGroup.id);
@@ -99,6 +99,8 @@ export default function StudyPlans() {
           title: form.title,
           group_id: form.group_id || null,
           file: form.file || null,
+          specialization: form.specialization || null,
+          link: form.link || null,
         });
         await loadData();
       } else {
@@ -109,17 +111,25 @@ export default function StudyPlans() {
           if (form.group_id) {
             formDataObj.append('group_id', form.group_id);
           }
+          if (form.specialization) {
+            formDataObj.append('specialization', form.specialization);
+          }
+          if (form.link) {
+            formDataObj.append('link', form.link);
+          }
           formDataObj.append('file', form.file);
           newItem = await api.uploadStudyPlan(formDataObj);
         } else {
           newItem = await api.addStudyPlan({
             title: form.title,
             group_id: form.group_id || null,
+            specialization: form.specialization || null,
+            link: form.link || null,
           });
         }
         setPlans([...plans, newItem]);
       }
-      setForm({ title: '', file: null, group_id: '' });
+      setForm({ title: '', file: null, group_id: '', specialization: '', link: '' });
       setEditingPlan(null);
       setShowPlanModal(false);
     } catch (err) {
@@ -140,7 +150,7 @@ export default function StudyPlans() {
         const newGroup = await api.addStudyPlanGroup(groupForm);
         setGroups([...groups, newGroup]);
       }
-      setGroupForm({ title: '', description: '', group_tag: '', specialization: '', link: '' });
+      setGroupForm({ title: '', description: '', group_tag: '' });
       setEditingGroup(null);
       setShowGroupModal(false);
     } catch (err) {
@@ -240,7 +250,7 @@ const handlePlanPermanentDelete = async (id) => {
 
   const openAddPlanModal = () => {
     setEditingPlan(null);
-    setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '' });
+    setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '', specialization: '', link: '' });
     setShowPlanModal(true);
   };
 
@@ -250,19 +260,21 @@ const handlePlanPermanentDelete = async (id) => {
       title: plan.title || '',
       file: null,
       group_id: plan.group_id ? String(plan.group_id) : '',
+      specialization: plan.specialization || '',
+      link: plan.link || '',
     });
     setShowPlanModal(true);
   };
 
   const openAddGroupModal = () => {
     setEditingGroup(null);
-    setGroupForm({ title: '', description: '', group_tag: '', specialization: '', link: '' });
+    setGroupForm({ title: '', description: '', group_tag: '' });
     setShowGroupModal(true);
   };
 
   const openEditGroupModal = (group) => {
     setEditingGroup(group);
-    setGroupForm({ title: group.title || '', description: group.description || '', group_tag: group.group_tag || '', specialization: group.specialization || '', link: group.link || '' });
+    setGroupForm({ title: group.title || '', description: group.description || '', group_tag: group.group_tag || '' });
     setShowGroupModal(true);
   };
 
@@ -392,11 +404,6 @@ const handlePlanPermanentDelete = async (id) => {
                           {group.group_tag && (
                             <span style={{ fontSize: 11, color: 'var(--primary)', background: 'var(--primary-bg)', padding: '1px 8px', borderRadius: 10, fontWeight: 600 }}>
                               #{group.group_tag}
-                            </span>
-                          )}
-                          {group.specialization && (
-                            <span style={{ fontSize: 11, color: 'var(--success)', background: 'var(--success-bg, #e8f5e9)', padding: '1px 8px', borderRadius: 10, fontWeight: 600 }}>
-                              {group.specialization}
                             </span>
                           )}
                           <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>
@@ -579,30 +586,6 @@ const handlePlanPermanentDelete = async (id) => {
                   سيظهر في المنشور كمثال: #صحي
                 </small>
               </div>
-              <div className="form-group">
-                <label>التخصص</label>
-                <input
-                  className="form-input"
-                  placeholder="مثال: هندسة"
-                  value={groupForm.specialization}
-                  onChange={(e) => setGroupForm({ ...groupForm, specialization: e.target.value })}
-                />
-                <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                  سيظهر في المنشور كمثال: هندسة - عنوان الخطة
-                </small>
-              </div>
-              <div className="form-group">
-                <label>الرابط (اختياري)</label>
-                <input
-                  className="form-input"
-                  placeholder="t.me/kkunewbot"
-                  value={groupForm.link}
-                  onChange={(e) => setGroupForm({ ...groupForm, link: e.target.value })}
-                />
-                <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                  اتركه فارغاً للرابط الافتراضي: t.me/kkunewbot
-                </small>
-              </div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-primary" onClick={handleSaveGroup} disabled={saving}>
@@ -643,6 +626,24 @@ const handlePlanPermanentDelete = async (id) => {
                   placeholder="مثال: خطة تقنية تخدير"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>التخصص</label>
+                <input
+                  className="form-input"
+                  placeholder="مثال: هندسة"
+                  value={form.specialization}
+                  onChange={(e) => setForm({ ...form, specialization: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>الرابط (اختياري)</label>
+                <input
+                  className="form-input"
+                  placeholder="t.me/kkunewbot"
+                  value={form.link}
+                  onChange={(e) => setForm({ ...form, link: e.target.value })}
                 />
               </div>
 

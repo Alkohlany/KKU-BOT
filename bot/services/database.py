@@ -38,6 +38,8 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS specialization VARCHAR(200)"))
+        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS link VARCHAR(500)"))
         logger.info("Database tables created successfully")
 
 
@@ -408,20 +410,20 @@ async def get_study_plan_group_by_id(group_id: int):
         )
         return result.scalar_one_or_none()
 
-async def create_study_plan_group(title: str, description: str = None, group_tag: str = None, specialization: str = None, link: str = None):
+async def create_study_plan_group(title: str, description: str = None, group_tag: str = None):
     async with async_session() as session:
-        group = StudyPlanGroup(title=title, description=description, group_tag=group_tag, specialization=specialization, link=link)
+        group = StudyPlanGroup(title=title, description=description, group_tag=group_tag)
         session.add(group)
         await session.commit()
         await session.refresh(group)
         return group
 
-async def update_study_plan_group(group_id: int, title: str = None, description: str = None, group_tag: str = None, specialization: str = None, link: str = None, channel_message_id: int = None):
+async def update_study_plan_group(group_id: int, title: str = None, description: str = None, group_tag: str = None, channel_message_id: int = None):
     async with async_session() as session:
         group = (await session.execute(select(StudyPlanGroup).where(StudyPlanGroup.id == group_id))).scalar_one_or_none()
         if not group:
             return None
-        update_fields(group, title=title, description=description, group_tag=group_tag, specialization=specialization, link=link, channel_message_id=channel_message_id)
+        update_fields(group, title=title, description=description, group_tag=group_tag, channel_message_id=channel_message_id)
         await session.commit()
         await session.refresh(group)
         return group
@@ -446,10 +448,11 @@ async def delete_study_plan_group(group_id: int):
 
 
 # ==================== Study Plans ====================
-async def add_study_plan(title, description=None, faculty=None, level=None, plan_url=None, file_url=None, group_id=None):
+async def add_study_plan(title, description=None, faculty=None, level=None, plan_url=None, file_url=None, group_id=None, specialization=None, link=None):
     async with async_session() as session:
         plan = StudyPlan(title=title, description=description, faculty=faculty,
-                        level=level, plan_url=plan_url, file_url=file_url, group_id=group_id)
+                        level=level, plan_url=plan_url, file_url=file_url, group_id=group_id,
+                        specialization=specialization, link=link)
         session.add(plan)
         await session.commit()
         return plan
@@ -480,12 +483,12 @@ async def get_study_plans_by_faculty(faculty):
         )
         return result.scalars().all()
 
-async def update_study_plan(plan_id, title=None, description=None, faculty=None, level=None, plan_url=None):
+async def update_study_plan(plan_id, title=None, description=None, faculty=None, level=None, plan_url=None, specialization=None, link=None):
     async with async_session() as session:
         plan = (await session.execute(select(StudyPlan).where(StudyPlan.id == plan_id))).scalar_one_or_none()
         if not plan:
             return None
-        update_fields(plan, title=title, description=description, faculty=faculty, level=level, plan_url=plan_url)
+        update_fields(plan, title=title, description=description, faculty=faculty, level=level, plan_url=plan_url, specialization=specialization, link=link)
         await session.commit()
         await session.refresh(plan)
         return plan
