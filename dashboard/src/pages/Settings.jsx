@@ -5,7 +5,6 @@ import { useToast } from '../components/ToastContext';
 export default function Settings({ onLogout }) {
   const { showToast } = useToast();
   const [settings, setSettings] = useState({
-    welcomeMessage: "مرحباً بك!",
     autoGreeting: "true",
     antiSpam: "true",
     antiFlood: "true",
@@ -59,7 +58,6 @@ export default function Settings({ onLogout }) {
 
   const handleReset = () => {
     setSettings({
-      welcomeMessage: "مرحباً بك!",
       autoGreeting: "true",
       antiSpam: "true",
       antiFlood: "true",

@@ -111,7 +111,6 @@ async def get_settings(
         settings[s.key] = s.value
 
     defaults = {
-        "welcomeMessage": "مرحباً بك في مجموعة الجامعة! 👋",
         "autoGreeting": "true",
         "ai_fallback_enabled": "true",
         "antiSpam": "true",

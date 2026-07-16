@@ -101,9 +101,7 @@ async def track_group_new_members(update: Update, context: ContextTypes.DEFAULT_
                 welcome_enabled = auto_greeting is not None and str(auto_greeting).strip().lower() != "false"
                 if not welcome_enabled:
                     continue
-                welcome_msg = await get_setting("welcomeMessage")
-                if not welcome_msg or welcome_msg.strip().lower() == "false":
-                    welcome_msg = "مرحباً بك في مجموعة الجامعة! 👋"
+                welcome_msg = "مرحباً بك في مجموعة الجامعة! 👋"
                 try:
                     await chat.send_message(f"{member.first_name}! {welcome_msg}")
                 except Exception as e:
