@@ -5,7 +5,7 @@ from bot.config import is_admin
 from bot.services.database import (
     add_auto_response, get_all_auto_responses, remove_auto_response,
     add_question, get_all_questions, delete_question,
-    get_all_news, delete_news,
+    get_all_news, get_news_by_id, delete_news,
     ban_user, get_all_banned, is_banned,
     get_active_channel_groups, log_activity
 )
@@ -93,6 +93,148 @@ async def response_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def response_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    responses = await get_all_auto_responses()
+    if not responses:
+        await update.message.reply_text("📭 لا توجد ردود تلقائية", disable_web_page_preview=True)
+        return
+
+    text = "📋 **الردود التلقائية:**\n\n"
+    for r in responses[:30]:
+        status = "✅" if r.is_active else "❌"
+        text += f"{status} `{r.id}` - 🔑 {r.keyword} 📰 منشور: {r.news_id or 'بدون'}\n"
+
+    if len(responses) > 30:
+        text += f"\n... و {len(responses) - 30} رد آخر"
+
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+
+
+async def response_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text(
+            "❌ الطريقة الصحيحة:\n/r add \[كلمة\] \[رد\]",
+            disable_web_page_preview=True
+        )
+        return
+
+    keyword = context.args[0]
+    response_text = ' '.join(context.args[1:])
+    if not response_text:
+        await update.message.reply_text("❌ يجب تحديد نص الرد بعد الكلمة المفتاحية", disable_web_page_preview=True)
+        return
+
+    try:
+        await add_auto_response(keyword=keyword, response=response_text, created_by=update.effective_user.id)
+        await update.message.reply_text(f"✅ تمت إضافة الرد\n🔑 الكلمة: {keyword}", disable_web_page_preview=True)
+        await log_activity("add_response", f"Keyword: {keyword}", update.effective_user.id)
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل إضافة الرد: {str(e)}", disable_web_page_preview=True)
+
+
+async def response_add_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        await update.message.reply_text("❌ يجب الرد على رسالة لإضافة رد تلقائي", disable_web_page_preview=True)
+        return
+
+    if not context.args:
+        await update.message.reply_text(
+            "❌ الطريقة الصحيحة:\nالرد على رسالة بـ /r add \[كلمة\]",
+            disable_web_page_preview=True
+        )
+        return
+
+    keyword = context.args[0]
+    replied = update.message.reply_to_message
+    response_text = replied.text or replied.caption or ""
+
+    if not response_text and not (replied.photo or replied.video or replied.document or replied.voice or replied.audio):
+        await update.message.reply_text("❌ الرسالة المُشار إليها لا تحتوي على محتوى", disable_web_page_preview=True)
+        return
+
+    file_url = None
+    file_type = None
+    try:
+        if replied.photo:
+            file_obj = replied.photo[-1]
+            file_type = "photo"
+            tg_file = await file_obj.get_file()
+            file_bytes = await tg_file.download_as_bytearray()
+            from bot.services.cloud_storage import upload_image
+            file_url = upload_image(bytes(file_bytes), folder="kku-bot/responses")
+        elif replied.video:
+            file_type = "video"
+            tg_file = await replied.video.get_file()
+            file_bytes = await tg_file.download_as_bytearray()
+            from bot.services.cloud_storage import upload_file
+            file_url = upload_file(bytes(file_bytes), folder="kku-bot/responses")
+        elif replied.document:
+            file_type = "document"
+            tg_file = await replied.document.get_file()
+            file_bytes = await tg_file.download_as_bytearray()
+            from bot.services.cloud_storage import upload_raw
+            file_url = upload_raw(bytes(file_bytes), filename=replied.document.file_name or "file", folder="kku-bot/responses")
+        elif replied.voice or replied.audio:
+            file_type = "document"
+            obj = replied.voice or replied.audio
+            tg_file = await obj.get_file()
+            file_bytes = await tg_file.download_as_bytearray()
+            from bot.services.cloud_storage import upload_raw
+            file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/responses")
+    except Exception:
+        pass
+
+    try:
+        await add_auto_response(
+            keyword=keyword,
+            response=response_text or "تم الرد عبر المنشور",
+            created_by=update.effective_user.id,
+            file_url=file_url,
+            file_type=file_type,
+        )
+        file_info = f"\n📎 مرفق: {file_type}" if file_type else ""
+        await update.message.reply_text(f"✅ تمت إضافة الرد\n🔑 الكلمة: {keyword}{file_info}", disable_web_page_preview=True)
+        await log_activity("add_response", f"Keyword: {keyword}", update.effective_user.id)
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل إضافة الرد: {str(e)}", disable_web_page_preview=True)
+
+
+async def response_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/r del \[رقم\]", disable_web_page_preview=True)
+        return
+
+    try:
+        response_id = int(context.args[0])
+        await remove_auto_response(response_id)
+        await update.message.reply_text(f"✅ تمت حذف الرد رقم {response_id}", disable_web_page_preview=True)
+        await log_activity("delete_response", f"ID: {response_id}", update.effective_user.id)
+    except ValueError:
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل حذف الرد: {str(e)}", disable_web_page_preview=True)
+
+
+async def response_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/r search \[كلمة\]", disable_web_page_preview=True)
+        return
+
+    query = ' '.join(context.args)
+    responses = await get_all_auto_responses()
+    results = [r for r in responses if query.lower() in r.keyword.lower()]
+
+    if not results:
+        await update.message.reply_text(f"🔍 لا توجد نتائج لـ: {query}", disable_web_page_preview=True)
+        return
+
+    text = f"🔍 **نتائج البحث لـ:** {query}\n\n"
+    for r in results[:10]:
+        text += f"`{r.id}` - 🔑 {r.keyword}\n📰 منشور: {r.news_id or 'بدون'}\n\n"
+
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+
+
 # ==================== الاسئلة الشائعة ====================
 
 async def question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -177,6 +319,58 @@ async def question_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_activity("add_question", f"News ID: {news_id}", update.effective_user.id)
     except Exception as e:
         await update.message.reply_text(f"❌ فشل إضافة السؤال: {str(e)}", disable_web_page_preview=True)
+
+
+async def question_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    questions = await get_all_questions()
+    if not questions:
+        await update.message.reply_text("📭 لا توجد أسئلة شائعة", disable_web_page_preview=True)
+        return
+
+    text = "❓ **الاسئلة الشائعة:**\n\n"
+    for q in questions[:20]:
+        text += f"`{q.id}` - 📁 {q.category or 'عام'}\n💬 {q.question[:40]}...\n\n"
+
+    if len(questions) > 20:
+        text += f"\n... و {len(questions) - 20} سؤال آخر"
+
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+
+
+async def question_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/q del \[رقم\]", disable_web_page_preview=True)
+        return
+
+    try:
+        question_id = int(context.args[0])
+        await delete_question(question_id)
+        await update.message.reply_text(f"✅ تمت حذف السؤال رقم {question_id}", disable_web_page_preview=True)
+        await log_activity("delete_question", f"ID: {question_id}", update.effective_user.id)
+    except ValueError:
+        await update.message.reply_text("❌ يجب إدخال رقم صحيح", disable_web_page_preview=True)
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل حذف السؤال: {str(e)}", disable_web_page_preview=True)
+
+
+async def question_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/q search \[كلمة\]", disable_web_page_preview=True)
+        return
+
+    query = ' '.join(context.args)
+    questions = await get_all_questions()
+    results = [q for q in questions if query.lower() in (q.question or '').lower() or query.lower() in (q.keywords or '').lower()]
+
+    if not results:
+        await update.message.reply_text(f"🔍 لا توجد نتائج لـ: {query}", disable_web_page_preview=True)
+        return
+
+    text = f"🔍 **نتائج البحث لـ:** {query}\n\n"
+    for q in results[:10]:
+        text += f"`{q.id}` - 💬 {q.question[:50]}...\n📝 {q.answer[:50]}...\n\n"
+
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
 # ==================== المنشورات ====================
@@ -503,20 +697,3 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"✅ تم الإرسال\n📤 نجح: {sent}\n❌ فشل: {failed}", disable_web_page_preview=True)
     await log_activity("broadcast", f"Sent: {sent}, Failed: {failed}", update.effective_user.id)
-
-
-# ==================== تسجيل الاوامر ====================
-
-def get_admin_handlers():
-    return [
-        CommandHandler("admin", admin_command),
-        CommandHandler("r", response_handler),
-        CommandHandler("q", question_handler),
-        CommandHandler("n", news_handler),
-        CommandHandler("stats", stats_command),
-        CommandHandler("groups", groups_command),
-        CommandHandler("broadcast", broadcast_command),
-        CommandHandler("ban", ban_command),
-        CommandHandler("unban", unban_command),
-        CommandHandler("banned", banned_list),
-    ]

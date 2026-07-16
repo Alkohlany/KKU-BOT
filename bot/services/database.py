@@ -24,6 +24,12 @@ engine = create_async_engine(DATABASE_URL, echo=False, **pool_settings)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
+def update_fields(obj, **kwargs):
+    for key, value in kwargs.items():
+        if value is not None and hasattr(obj, key):
+            setattr(obj, key, value)
+
+
 async def get_db():
     async with async_session() as session:
         yield session
@@ -33,65 +39,6 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created successfully")
-
-        await drop_publish_to_channel_column()
-        await drop_news_title_column()
-        await drop_news_publish_columns()
-
-        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
-        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES study_plan_groups(id)"))
-        await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
-        await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS specialization VARCHAR(200)"))
-        await conn.execute(text("ALTER TABLE study_plan_groups ADD COLUMN IF NOT EXISTS link VARCHAR(500)"))
-        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
-        await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS as_document BOOLEAN DEFAULT FALSE"))
-        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_url VARCHAR(500)"))
-        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
-        await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS file_url VARCHAR(500)"))
-        await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS file_name VARCHAR(255)"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS file_id VARCHAR(200)"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS thumbnail_url VARCHAR(500)"))
-        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_chat_id BIGINT"))
-        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_message_id INTEGER"))
-        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_tg_id VARCHAR(200)"))
-        await conn.execute(text("ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
-        await conn.execute(text("ALTER TABLE questions ADD COLUMN IF NOT EXISTS news_id INTEGER REFERENCES news(id)"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS channel_message_id INTEGER"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS target_channels TEXT"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS group_message_ids TEXT"))
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS files_json TEXT"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS files_json TEXT"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS file_name VARCHAR(255)"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS file_id VARCHAR(200)"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS thumbnail_url VARCHAR(500)"))
-
-        # Add target_channels to news, scheduled_posts, study_plans
-        await conn.execute(text("ALTER TABLE news ADD COLUMN IF NOT EXISTS target_channels TEXT"))
-        await conn.execute(text("ALTER TABLE scheduled_posts ADD COLUMN IF NOT EXISTS target_channels TEXT"))
-        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS target_channels TEXT"))
-
-        # Create channel_groups table if not exists
-        await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS channel_groups (
-                id SERIAL PRIMARY KEY,
-                chat_id BIGINT UNIQUE NOT NULL,
-                title VARCHAR(255) NOT NULL,
-                type VARCHAR(20) NOT NULL DEFAULT 'group',
-                member_count INTEGER DEFAULT 0,
-                invite_link VARCHAR(500),
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-
-        await conn.execute(text("ALTER TABLE channel_groups ADD COLUMN IF NOT EXISTS is_official BOOLEAN DEFAULT FALSE"))
 
 
 async def get_user(telegram_id: int) -> User | None:
@@ -183,25 +130,10 @@ async def remove_auto_responses_by_source(chat_id: int, message_id: int):
 
 async def update_auto_response(response_id: int, keyword: str = None, response: str = None, is_active: bool = None, file_url: str = None, file_type: str = None, as_document: bool = None, news_id: int = None):
     async with async_session() as session:
-        stmt = select(AutoResponse).where(AutoResponse.id == response_id)
-        result = await session.execute(stmt)
-        ar = result.scalar_one_or_none()
+        ar = (await session.execute(select(AutoResponse).where(AutoResponse.id == response_id))).scalar_one_or_none()
         if not ar:
             return None
-        if keyword is not None:
-            ar.keyword = keyword
-        if response is not None:
-            ar.response = response
-        if is_active is not None:
-            ar.is_active = is_active
-        if file_url is not None:
-            ar.file_url = file_url
-        if file_type is not None:
-            ar.file_type = file_type
-        if as_document is not None:
-            ar.as_document = as_document
-        if news_id is not None:
-            ar.news_id = news_id
+        update_fields(ar, keyword=keyword, response=response, is_active=is_active, file_url=file_url, file_type=file_type, as_document=as_document, news_id=news_id)
         await session.commit()
         await session.refresh(ar)
         return ar
@@ -275,36 +207,12 @@ async def get_news_by_id(news_id: int):
 
 async def update_news(news_id, content=None, image_url=None, file_url=None, as_document=None, channel_message_id=None, group_message_ids=None, target_channels=None, is_published=None, file_name=None, file_type=None, thumbnail_url=None, files_json=None):
     async with async_session() as session:
-        update_data = {}
-        if content is not None:
-            update_data["content"] = content
-        if image_url is not None:
-            update_data["image_url"] = image_url
-        if file_url is not None:
-            update_data["file_url"] = file_url
-        if as_document is not None:
-            update_data["as_document"] = as_document
-        if channel_message_id is not None:
-            update_data["channel_message_id"] = channel_message_id
-        if group_message_ids is not None:
-            update_data["group_message_ids"] = group_message_ids
-        if target_channels is not None:
-            update_data["target_channels"] = target_channels
-        if is_published is not None:
-            update_data["is_published"] = is_published
-        if file_name is not None:
-            update_data["file_name"] = file_name
-        if file_type is not None:
-            update_data["file_type"] = file_type
-        if thumbnail_url is not None:
-            update_data["thumbnail_url"] = thumbnail_url
-        if files_json is not None:
-            update_data["files_json"] = files_json
-        if update_data:
-            await session.execute(
-                update(News).where(News.id == news_id).values(**update_data)
-            )
-            await session.commit()
+        news = (await session.execute(select(News).where(News.id == news_id))).scalar_one_or_none()
+        if not news:
+            return None
+        update_fields(news, content=content, image_url=image_url, file_url=file_url, as_document=as_document, channel_message_id=channel_message_id, group_message_ids=group_message_ids, target_channels=target_channels, is_published=is_published, file_name=file_name, file_type=file_type, thumbnail_url=thumbnail_url, files_json=files_json)
+        await session.commit()
+        return news
 
 async def delete_all_news():
     async with async_session() as session:
@@ -378,26 +286,10 @@ async def delete_question(question_id):
 
 async def update_question(question_id: int, question: str = None, answer: str = None, category: str = None, keywords: str = None, file_url: str = None, file_type: str = None, as_document: bool = None):
     async with async_session() as session:
-        from sqlalchemy import select
-        stmt = select(Question).where(Question.id == question_id)
-        result = await session.execute(stmt)
-        q = result.scalar_one_or_none()
+        q = (await session.execute(select(Question).where(Question.id == question_id))).scalar_one_or_none()
         if not q:
             return None
-        if question is not None:
-            q.question = question
-        if answer is not None:
-            q.answer = answer
-        if category is not None:
-            q.category = category
-        if keywords is not None:
-            q.keywords = keywords
-        if file_url is not None:
-            q.file_url = file_url
-        if file_type is not None:
-            q.file_type = file_type
-        if as_document is not None:
-            q.as_document = as_document
+        update_fields(q, question=question, answer=answer, category=category, keywords=keywords, file_url=file_url, file_type=file_type, as_document=as_document)
         await session.commit()
         await session.refresh(q)
         return q
@@ -501,36 +393,6 @@ async def delete_all_scheduled_posts():
         await session.commit()
 
 
-async def drop_publish_to_channel_column():
-    async with engine.begin() as conn:
-        try:
-            await conn.execute(text("ALTER TABLE scheduled_posts DROP COLUMN IF EXISTS publish_to_channel"))
-            logger.info("Dropped publish_to_channel column from scheduled_posts")
-            await conn.execute(text("ALTER TABLE scheduled_posts DROP COLUMN IF EXISTS title"))
-            logger.info("Dropped title column from scheduled_posts")
-        except Exception as e:
-            logger.warning(f"Could not drop publish_to_channel column: {e}")
-
-
-async def drop_news_title_column():
-    async with engine.begin() as conn:
-        try:
-            await conn.execute(text("ALTER TABLE news DROP COLUMN IF EXISTS title"))
-            logger.info("Dropped title column from news")
-        except Exception as e:
-            logger.warning(f"Could not drop title column from news: {e}")
-
-
-async def drop_news_publish_columns():
-    async with engine.begin() as conn:
-        try:
-            await conn.execute(text("ALTER TABLE news DROP COLUMN IF EXISTS publish_to_channel"))
-            await conn.execute(text("ALTER TABLE news DROP COLUMN IF EXISTS publish_to_groups"))
-            logger.info("Dropped publish_to_channel and publish_to_groups columns from news")
-        except Exception as e:
-            logger.warning(f"Could not drop publish_to columns from news: {e}")
-
-
 # ==================== Study Plan Groups ====================
 async def get_all_study_plan_groups():
     async with async_session() as session:
@@ -556,23 +418,10 @@ async def create_study_plan_group(title: str, description: str = None, group_tag
 
 async def update_study_plan_group(group_id: int, title: str = None, description: str = None, group_tag: str = None, specialization: str = None, link: str = None, channel_message_id: int = None):
     async with async_session() as session:
-        stmt = select(StudyPlanGroup).where(StudyPlanGroup.id == group_id)
-        result = await session.execute(stmt)
-        group = result.scalar_one_or_none()
+        group = (await session.execute(select(StudyPlanGroup).where(StudyPlanGroup.id == group_id))).scalar_one_or_none()
         if not group:
             return None
-        if title is not None:
-            group.title = title
-        if description is not None:
-            group.description = description
-        if group_tag is not None:
-            group.group_tag = group_tag
-        if specialization is not None:
-            group.specialization = specialization
-        if link is not None:
-            group.link = link
-        if channel_message_id is not None:
-            group.channel_message_id = channel_message_id
+        update_fields(group, title=title, description=description, group_tag=group_tag, specialization=specialization, link=link, channel_message_id=channel_message_id)
         await session.commit()
         await session.refresh(group)
         return group
@@ -633,24 +482,10 @@ async def get_study_plans_by_faculty(faculty):
 
 async def update_study_plan(plan_id, title=None, description=None, faculty=None, level=None, plan_url=None):
     async with async_session() as session:
-        stmt = select(StudyPlan).where(StudyPlan.id == plan_id)
-        result = await session.execute(stmt)
-        plan = result.scalar_one_or_none()
-
+        plan = (await session.execute(select(StudyPlan).where(StudyPlan.id == plan_id))).scalar_one_or_none()
         if not plan:
             return None
-
-        if title is not None:
-            plan.title = title
-        if description is not None:
-            plan.description = description
-        if faculty is not None:
-            plan.faculty = faculty
-        if level is not None:
-            plan.level = level
-        if plan_url is not None:
-            plan.plan_url = plan_url
-
+        update_fields(plan, title=title, description=description, faculty=faculty, level=level, plan_url=plan_url)
         await session.commit()
         await session.refresh(plan)
         return plan

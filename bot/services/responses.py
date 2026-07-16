@@ -1,7 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 from bot.services.database import get_auto_responses, search_question, increment_question_usage, get_news_by_id, log_activity, get_setting
-from bot.services.responses_system import DEFAULT_RESPONSES
 from bot.services.ai import search_university_info, _call_model
 from bot.services.news_publisher import wrap_links_in_blockquote
 from bot.config import normalize_arabic
@@ -11,6 +10,17 @@ import asyncio
 from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_RESPONSES = {
+    "السلام عليكم": "وعليكم السلام ورحمة الله وبركاته 🌙",
+    "السلام": "وعليكم السلام ورحمة الله 🌙",
+    "اهلا": "أهلاً وسهلاً بك 💚",
+    "مرحبا": "مرحباً بك في جامعة الملك خالد 🎓",
+    "صباح الخير": "صباح النور ☀️",
+    "مساء الخير": "مساء النور 🌙",
+    "شكرا": "العفو، نحن في الخدمة 💚",
+    "يعطيك العافية": "وإياك، الله يعطيك العافية 🌸",
+}
 
 
 def find_best_match(text, responses):

@@ -5,7 +5,11 @@ from bot.config import BOT_TOKEN, ADMIN_IDS
 from bot.handlers.start import start_handler, feature_handler
 from bot.handlers.help import help_handler
 from bot.handlers.admin import admin_text, admin_reply
-from bot.handlers.admin_commands import get_admin_handlers
+from bot.handlers.admin_commands import (
+    admin_command, response_handler, question_handler, news_handler as admin_news_handler,
+    stats_command, groups_command, broadcast_command,
+    ban_command, unban_command, banned_list
+)
 from bot.handlers.news import news_handler
 from bot.handlers.questions import questions_handler
 from bot.handlers.study_plans import plans_handler, plans_text_handler
@@ -64,8 +68,16 @@ def main():
     application.add_handler(admin_text)
     application.add_handler(admin_reply)
 
-    for handler in get_admin_handlers():
-        application.add_handler(handler)
+    application.add_handler(CommandHandler("admin", admin_command))
+    application.add_handler(CommandHandler("r", response_handler))
+    application.add_handler(CommandHandler("q", question_handler))
+    application.add_handler(CommandHandler("n", admin_news_handler))
+    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("groups", groups_command))
+    application.add_handler(CommandHandler("broadcast", broadcast_command))
+    application.add_handler(CommandHandler("ban", ban_command))
+    application.add_handler(CommandHandler("unban", unban_command))
+    application.add_handler(CommandHandler("banned", banned_list))
 
     application.add_handler(check_subscription_handler)
     application.add_handler(global_subscription_handler, group=-1)
