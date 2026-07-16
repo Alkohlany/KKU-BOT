@@ -166,11 +166,10 @@ async def check_text_content(update, context, text):
             keyword_match = keyword
             break
 
-    if not keyword_match:
-        for pattern in SUSPICIOUS_PATTERNS:
-            if re.search(pattern, text):
-                pattern_match = pattern
-                break
+    for pattern in SUSPICIOUS_PATTERNS:
+        if re.search(pattern, text):
+            pattern_match = pattern
+            break
 
     if pattern_match:
         await _ban_user(update, context, user, chat, f"Suspicious pattern: {pattern_match}", "suspicious_pattern", pattern_match)
