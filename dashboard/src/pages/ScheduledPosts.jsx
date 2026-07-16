@@ -105,8 +105,8 @@ export default function ScheduledPosts() {
           target_channels: selectedChannels.length > 0 ? JSON.stringify(selectedChannels) : null,
         });
       }
-      setPosts([...posts, newItem]);
       setForm({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false, as_document: false });
+      loadPosts();
       setUploadFile(null);
       setUploadFiles([]);
       setSelectedChannels([]);
