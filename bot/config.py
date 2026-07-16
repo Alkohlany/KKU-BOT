@@ -6,14 +6,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ZERO_WIDTH = re.compile(r'[\u200b\u200c\u200d\ufeff\u00a0]')
+_TATWEEL = re.compile(r'ـ')
+_NON_ARABIC_ENGLISH = re.compile(r'[^\u0600-\u06FF\u0750-\u077Fa-zA-Z0-9]')
+_ARABIC_NORMALIZATIONS = [
+    ('ڪ', 'ك'),
+    ('٭', ''),
+    ('ؤ', 'و'),
+    ('ئ', 'ي'),
+    ('ة', 'ه'),
+    ('ى', 'ي'),
+    ('أ', 'ا'),
+    ('إ', 'ا'),
+    ('آ', 'ا'),
+    ('ٱ', 'ا'),
+]
 
 
 def normalize_arabic(text):
     text = ZERO_WIDTH.sub('', text)
+    text = _TATWEEL.sub('', text)
     text = unicodedata.normalize('NFKD', text)
+    for old, new in _ARABIC_NORMALIZATIONS:
+        text = text.replace(old, new)
     text = text.replace('ً', '').replace('ٌ', '').replace('ٍ', '')
     text = text.replace('َ', '').replace('ُ', '').replace('ِ', '').replace('ّ', '').replace('ْ', '')
-    text = text.replace('ة', 'ه').replace('ى', 'ي').replace('ؤ', 'و').replace('إ', 'ا').replace('أ', 'ا').replace('آ', 'ا')
+    text = _NON_ARABIC_ENGLISH.sub('', text)
     return text
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
