@@ -587,8 +587,10 @@ async def update_study_plan(
 
     if old_group_id and old_group_id != new_group_id:
         await update_group_post(old_group_id)
+        await _update_published_plan_captions(old_group_id)
     if new_group_id:
         await update_group_post(new_group_id)
+        await _update_published_plan_captions(new_group_id)
 
     return {"message": "Study plan updated successfully", "id": plan_id}
 
