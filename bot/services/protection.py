@@ -51,8 +51,8 @@ SPAM_KEYWORDS = [
 ]
 
 SUSPICIOUS_PATTERNS = [
-    r"(https?://\S+){3,}",
-    r"@[\w+]{15,}",
+    r"https?://\S+",
+    r"@\w{2,}",
     r"https?://\S*(?:wa\.me|whatsapp\.com/(?:channel|group)|chat\.whatsapp|t\.me|joinchat)\S*",
     r"(?:^|\s)(?:\+?967)?[71]\d{7}(?:\s|$)",
     r"(?:^|\s)05\d{8}(?:\s|$)",
