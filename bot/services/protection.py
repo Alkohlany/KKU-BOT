@@ -241,6 +241,17 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await check_text_content(update, context, update.message.text)
 
+    if update.message.reply_markup:
+        try:
+            for row in update.message.reply_markup.inline_keyboard:
+                for button in row:
+                    if button.text:
+                        await check_text_content(update, context, button.text)
+                    if button.url:
+                        await check_text_content(update, context, button.url)
+        except Exception as e:
+            logger.error(f"Error checking inline buttons: {e}")
+
 
 async def check_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """فحص الوسائط (صور/فيديو/ملفات)"""
