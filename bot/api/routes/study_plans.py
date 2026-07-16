@@ -571,10 +571,8 @@ async def update_study_plan(
             plan.title = title
         if group_id is not None:
             plan.group_id = group_id
-        if specialization is not None:
-            plan.specialization = specialization
-        if link is not None:
-            plan.link = link
+        plan.specialization = specialization if specialization else None
+        plan.link = link if link else None
 
         new_group_id = plan.group_id
 
