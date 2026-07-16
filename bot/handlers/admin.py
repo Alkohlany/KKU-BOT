@@ -378,6 +378,8 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Via reply
         if update.message.reply_to_message and update.message.reply_to_message.from_user:
             target_id = update.message.reply_to_message.from_user.id
+            if target_id == context.bot.id:
+                return
             parts = text.replace("حظر", "").strip().split(None, 1)
             reason = parts[0] if parts else "لا يوجد سبب"
 
@@ -421,6 +423,8 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Via reply
         if update.message.reply_to_message and update.message.reply_to_message.from_user:
             target_id = update.message.reply_to_message.from_user.id
+            if target_id == context.bot.id:
+                return
 
             from sqlalchemy import delete as sql_delete
             from bot.models.models import BannedUser
@@ -604,6 +608,9 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     target_user = update.message.reply_to_message.from_user
     target_user_id = target_user.id
+
+    if target_user_id == context.bot.id:
+        return
 
     if text.startswith("اضافه منشور") or text.startswith("أضف منشور") or text.startswith("اضافة منشور"):
         try:
