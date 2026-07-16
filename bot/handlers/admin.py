@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.constants import ChatMemberStatus, ParseMode
-from bot.config import ADMIN_IDS
+from bot.config import ADMIN_IDS, is_admin
 from bot.services.cloud_storage import upload_raw, upload_image, upload_file
 from bot.services.news_publisher import wrap_links_in_blockquote
 from bot.services.database import (
@@ -26,10 +26,6 @@ def detect_file_type(filename: str) -> str:
     if ext in ('mp4', 'avi', 'mov', 'mkv'):
         return 'video'
     return 'document'
-
-
-def is_admin(user_id: int) -> bool:
-    return user_id in ADMIN_IDS
 
 
 async def send_admin_message(context: ContextTypes.DEFAULT_TYPE, user_id: int, text: str, parse_mode='HTML'):

@@ -9,8 +9,22 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 
 
-def _call_model(prompt: str) -> str:
+def _call_model(prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg") -> str:
     import httpx
+
+    if image_bytes:
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+        image_url = f"data:{mime_type};base64,{image_b64}"
+        content = [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": image_url}},
+        ]
+        max_tokens = 4000
+        timeout_s = 120.0
+    else:
+        content = prompt
+        max_tokens = 3000
+        timeout_s = 90.0
 
     last_err = None
     for attempt in range(MAX_RETRIES):
@@ -23,14 +37,14 @@ def _call_model(prompt: str) -> str:
                 },
                 json={
                     "model": OPENCODE_AI_MODEL,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 3000,
+                    "messages": [{"role": "user", "content": content}],
+                    "max_tokens": max_tokens,
                     "extra_body": {
                         "thinking": {"type": "enabled"},
                         "reasoning_effort": "max",
                     },
                 },
-                timeout=httpx.Timeout(90.0, read=90.0),
+                timeout=httpx.Timeout(timeout_s, read=timeout_s),
             )
 
             if response.status_code == 503:
@@ -46,76 +60,11 @@ def _call_model(prompt: str) -> str:
             if not choices:
                 raise RuntimeError("no choices returned")
 
-            content = choices[0].get("message", {}).get("content", "")
-            if not content:
+            result = choices[0].get("message", {}).get("content", "")
+            if not result:
                 raise RuntimeError("empty content returned")
 
-            return content
-        except httpx.TimeoutException:
-            logger.warning(f"API timeout, retry {attempt+1}/{MAX_RETRIES}")
-            _time.sleep(2 * (attempt + 1))
-            last_err = RuntimeError(f"Timeout after {MAX_RETRIES} attempts")
-            continue
-        except Exception as e:
-            last_err = e
-            break
-
-    raise last_err or RuntimeError(f"API failed after {MAX_RETRIES} retries")
-
-
-def _call_model_with_image(prompt: str, image_bytes: bytes, mime_type: str = "image/jpeg") -> str:
-    import httpx
-
-    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-    image_url = f"data:{mime_type};base64,{image_b64}"
-
-    last_err = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            response = httpx.post(
-                OPENCODE_API_URL,
-                headers={
-                    "Authorization": f"Bearer {OPENCODE_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": OPENCODE_AI_MODEL,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {"type": "image_url", "image_url": {"url": image_url}},
-                            ],
-                        }
-                    ],
-                    "max_tokens": 4000,
-                    "extra_body": {
-                        "thinking": {"type": "enabled"},
-                        "reasoning_effort": "max",
-                    },
-                },
-                timeout=httpx.Timeout(120.0, read=120.0),
-            )
-
-            if response.status_code == 503:
-                logger.warning(f"API overloaded (503), retry {attempt+1}/{MAX_RETRIES}")
-                _time.sleep(2 * (attempt + 1))
-                continue
-
-            if response.status_code != 200:
-                raise RuntimeError(f"API error {response.status_code}: {response.text[:200]}")
-
-            data = response.json()
-            choices = data.get("choices", [])
-            if not choices:
-                raise RuntimeError("no choices returned")
-
-            content = choices[0].get("message", {}).get("content", "")
-            if not content:
-                raise RuntimeError("empty content returned")
-
-            return content
+            return result
         except httpx.TimeoutException:
             logger.warning(f"API timeout, retry {attempt+1}/{MAX_RETRIES}")
             _time.sleep(2 * (attempt + 1))
@@ -214,36 +163,6 @@ def _is_valid(item: str) -> bool:
     if item.endswith((":", "؟", "?", "!")):
         pass
     return True
-
-
-def extract_keywords_and_questions(text: str, max_keywords: int = 5, max_questions: int = 5) -> list[str]:
-    if not text or not text.strip():
-        return []
-
-    total = max_keywords + max_questions
-
-    prompt = f"""أنت طالب سعودي في قروب تيليجرام.
-
-حلل هذا النص وأعطني كلمات مفتاحية وأسئلة باللهجة السعودية:
-
-"{text}"
-
- الرد خمس أسطر فقط، كل سطر كلمة أو سؤال."""
-
-    try:
-        content = _call_model(prompt)
-        raw_lines = content.strip().split("\n")
-        cleaned = []
-        seen = set()
-        for line in raw_lines:
-            item = _clean_item(line)
-            if item and _is_valid(item) and item not in seen:
-                seen.add(item)
-                cleaned.append(item)
-        return cleaned[:total]
-    except Exception as e:
-        logger.error(f"AI failed: {e}")
-        raise RuntimeError(f"AI analysis failed: {e}")
 
 
 def generate_news_analysis(title: str, content: str) -> dict:
@@ -361,7 +280,7 @@ def enhance_content(title: str, content: str, image_bytes: bytes = None, mime_ty
 
     try:
         if has_image:
-            enhanced = _call_model_with_image(prompt, image_bytes, mime_type)
+            enhanced = _call_model(prompt, image_bytes, mime_type)
         else:
             enhanced = _call_model(prompt)
         return {"enhanced_content": enhanced.strip()}

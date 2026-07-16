@@ -13,6 +13,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 
 from bot.services.database import is_banned, ban_user, log_activity, get_channel_group_by_chat_id, get_setting, save_spam_pattern, check_spam_pattern
 from bot.services.ai import _call_model
+from bot.config import normalize_arabic
 
 logger = logging.getLogger(__name__)
 
@@ -54,26 +55,6 @@ SUSPICIOUS_PATTERNS = [
     r"(?:^|\s)05\d{8}(?:\s|$)",
     r"\+\d{10,}",
 ]
-
-
-def normalize_arabic(text):
-    """تطبيع النص العربي لمنع التجاوز"""
-    text = unicodedata.normalize("NFKD", text)
-    # إزالة الحركات
-    for ch in ("ً", "ٌ", "ٍ", "َ", "ُ", "ِ", "ّ", "ْ"):
-        text = text.replace(ch, "")
-    # استبدال الأحرف المشابهة
-    replacements = {
-        "ة": "ه",
-        "ى": "ي",
-        "ؤ": "و",
-        "إ": "ا",
-        "أ": "ا",
-        "آ": "ا",
-    }
-    for old, new in replacements.items():
-        text = text.replace(old, new)
-    return text
 
 
 _ai_cache: dict[str, tuple[bool, float]] = {}

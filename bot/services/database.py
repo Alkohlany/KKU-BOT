@@ -5,6 +5,7 @@ from sqlalchemy import select, update, delete, func, text
 from datetime import datetime, timezone, timedelta
 import logging
 import os
+from bot.config import normalize_arabic
 
 logger = logging.getLogger(__name__)
 
@@ -654,8 +655,7 @@ async def update_study_plan(plan_id, title=None, description=None, faculty=None,
         await session.refresh(plan)
         return plan
 
-def _normalize_arabic(text: str) -> str:
-    return text.replace("ة", "ه").replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+
 
 
 async def search_study_plans(query):
@@ -666,12 +666,12 @@ async def search_study_plans(query):
         result = await session.execute(stmt)
         plans = result.scalars().all()
 
-        query_norm = _normalize_arabic(query.lower())
+        query_norm = normalize_arabic(query.lower())
         words = [w for w in query_norm.split() if len(w) > 1]
 
         found = []
         for plan in plans:
-            searchable = _normalize_arabic(" ".join(filter(None, [
+            searchable = normalize_arabic(" ".join(filter(None, [
                 plan.title or "",
                 plan.faculty or "",
                 plan.description or ""

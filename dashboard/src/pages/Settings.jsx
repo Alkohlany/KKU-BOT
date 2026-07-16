@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useToast } from '../components/ToastContext';
 
-export default function Settings({ onLogout }) {
+export default function Settings() {
   const { showToast } = useToast();
   const [settings, setSettings] = useState({
     autoGreeting: "true",
@@ -10,7 +9,6 @@ export default function Settings({ onLogout }) {
     antiFlood: "true",
     floodLimit: 5,
     floodTime: 10,
-    botLanguage: 'ar',
   });
 
   const [saving, setSaving] = useState(false);
@@ -63,7 +61,6 @@ export default function Settings({ onLogout }) {
       antiFlood: "true",
       floodLimit: 5,
       floodTime: 10,
-      botLanguage: 'ar',
     });
     showToast('تمت إعادة التعيين', 'success');
   };

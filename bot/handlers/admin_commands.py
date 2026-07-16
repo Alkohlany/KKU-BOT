@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 from telegram.constants import ParseMode
-from bot.config import ADMIN_IDS
+from bot.config import is_admin
 from bot.services.database import (
     add_auto_response, get_all_auto_responses, remove_auto_response,
     add_question, get_all_questions, delete_question,
@@ -13,10 +13,6 @@ from bot.services.news_publisher import wrap_links_in_blockquote
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def is_admin(user_id: int) -> bool:
-    return user_id in ADMIN_IDS
 
 
 # ==================== القائمة الرئيسية ====================

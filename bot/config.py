@@ -1,7 +1,20 @@
 import os
+import re
+import unicodedata
 from dotenv import load_dotenv
 
 load_dotenv()
+
+ZERO_WIDTH = re.compile(r'[\u200b\u200c\u200d\ufeff\u00a0]')
+
+
+def normalize_arabic(text):
+    text = ZERO_WIDTH.sub('', text)
+    text = unicodedata.normalize('NFKD', text)
+    text = text.replace('ً', '').replace('ٌ', '').replace('ٍ', '')
+    text = text.replace('َ', '').replace('ُ', '').replace('ِ', '').replace('ّ', '').replace('ْ', '')
+    text = text.replace('ة', 'ه').replace('ى', 'ي').replace('ؤ', 'و').replace('إ', 'ا').replace('أ', 'ا').replace('آ', 'ا')
+    return text
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
@@ -21,6 +34,10 @@ if DATABASE_URL.startswith("postgres://"):
 elif DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "").split(",") if x]
+
+
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
 
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "")
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "")

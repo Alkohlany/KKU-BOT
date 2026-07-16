@@ -107,11 +107,6 @@ async def _send_file(chat_id: str, url: str, caption: str, original_filename: st
     return False
 
 
-async def _send_to_chat(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, files_json: str = None) -> bool:
-    msg_id = await _send_to_chat_and_get_id(chat_id, text, image_url, file_url, file_id, as_document, file_name, thumbnail_url, files_json=files_json)
-    return msg_id is not None
-
-
 async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = None, file_url: str = None, file_id: str = None, as_document: bool = False, file_name: str = None, thumbnail_url: str = None, files_json: str = None) -> int | list | None:
     logger.info(f"Sending to {chat_id}, as_document={as_document}, file_url={file_url}, image_url={image_url}")
 

@@ -4,30 +4,13 @@ from bot.services.database import get_auto_responses, search_question, increment
 from bot.services.responses_system import DEFAULT_RESPONSES
 from bot.services.ai import search_university_info, _call_model
 from bot.services.news_publisher import wrap_links_in_blockquote
+from bot.config import normalize_arabic
 import logging
 import re
 import asyncio
-import unicodedata
 from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
-
-ZERO_WIDTH = re.compile(r'[\u200b\u200c\u200d\ufeff\u00a0]')
-
-
-def normalize_arabic(text):
-    """تطبيع النص العربي"""
-    text = ZERO_WIDTH.sub('', text)
-    text = unicodedata.normalize('NFKD', text)
-    text = text.replace('ً', '').replace('ٌ', '').replace('ٍ', '')
-    text = text.replace('َ', '').replace('ُ', '').replace('ِ', '').replace('ّ', '').replace('ْ', '')
-    text = text.replace('ة', 'ه').replace('ى', 'ي').replace('ؤ', 'و').replace('إ', 'ا').replace('أ', 'ا').replace('آ', 'ا')
-    return text
-
-
-def fuzzy_match(text, keyword, threshold=0.7):
-    """تطابق ضبابي"""
-    return SequenceMatcher(None, text, keyword).ratio() >= threshold
 
 
 def find_best_match(text, responses):
