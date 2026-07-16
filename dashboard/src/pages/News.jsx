@@ -202,7 +202,7 @@ export default function News() {
       } else {
         newItem = await api.addNews({ ...form, title: '', target_channels: JSON.stringify(selectedChannels) });
       }
-      setNews([...news, newItem]);
+      loadNews();
       setForm({ content: '', as_document: false });
       setUploadFiles([]);
       setFileCaptions({});

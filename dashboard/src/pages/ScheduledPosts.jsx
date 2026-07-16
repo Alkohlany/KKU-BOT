@@ -106,7 +106,7 @@ export default function ScheduledPosts() {
         });
       }
       setForm({ content: '', scheduledTime: '', recurring: false, publish_to_channel: false, as_document: false });
-      loadPosts();
+      setPosts([...posts, newItem]);
       setUploadFile(null);
       setUploadFiles([]);
       setSelectedChannels([]);
