@@ -172,10 +172,12 @@ async def check_text_content(update, context, text):
                 pattern_match = pattern
                 break
 
-    if keyword_match or pattern_match:
-        reason = f"Spam keyword: {keyword_match}" if keyword_match else f"Suspicious pattern: {pattern_match}"
-        detail = keyword_match or pattern_match
-        asyncio.create_task(_process_ai_check(update, context, user, chat, text, reason, detail))
+    if pattern_match:
+        await _ban_user(update, context, user, chat, f"Suspicious pattern: {pattern_match}", "suspicious_pattern", pattern_match)
+        return
+
+    if keyword_match:
+        asyncio.create_task(_process_ai_check(update, context, user, chat, text, f"Spam keyword: {keyword_match}", keyword_match))
         return
 
 
