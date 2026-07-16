@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, ResponseCategory, Settings, SpamPattern
+from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, Settings, SpamPattern
 from bot.config import DATABASE_URL
 from sqlalchemy import select, update, delete, func, text
 from datetime import datetime, timezone, timedelta
@@ -91,20 +91,6 @@ async def init_db():
         """))
 
         await conn.execute(text("ALTER TABLE channel_groups ADD COLUMN IF NOT EXISTS is_official BOOLEAN DEFAULT FALSE"))
-
-        result = await conn.execute(select(StudyPlan).limit(1))
-        if not result.scalar_one_or_none():
-            for plan_data in [
-                ("خطة بكالوريوس هندسة الحاسب", "برنامج دراسي لدرجة البكالوريوس في هندسة الحاسب والمعلومات، يشمل البرمجة وشبكات الحاسب والذكاء الاصطناعي", "كلية الهندسة", "بكالوريوس"),
-                ("خطة بكالوريوس إدارة الأعمال", "برنامج دراسي لدرجة البكالوريوس في إدارة الأعمال، يشمل التسويق والمالية وإدارة الموارد البشرية", "كلية إدارة الأعمال", "بكالوريوس"),
-                ("خطة بكالوريوس الطب البشري", "برنامج دراسي لدرجة بكالوريوس الطب البشري، مدة 7 سنوات تشمل مرحلة العلوم الطبية والتمريض والتدريب السريري", "كلية الطب", "بكالوريوس"),
-                ("خطة بكالوريوس التربية", "برنامج دراسي لدرجة البكالوريوس في التربية، يشمل أساليب التدريس وعلم النفس التربوي والمناهج", "كلية التربية", "بكالوريوس"),
-            ]:
-                await conn.execute(
-                    text("INSERT INTO study_plans (title, description, faculty, level, is_active, created_at) VALUES (:title, :description, :faculty, :level, true, NOW())"),
-                    {"title": plan_data[0], "description": plan_data[1], "faculty": plan_data[2], "level": plan_data[3]}
-                )
-            logger.info("Seeded 4 test study plans")
 
 
 async def get_user(telegram_id: int) -> User | None:
@@ -702,25 +688,6 @@ async def search_study_plans(query):
 async def delete_study_plan(plan_id):
     async with async_session() as session:
         await session.execute(delete(StudyPlan).where(StudyPlan.id == plan_id))
-        await session.commit()
-
-
-# ==================== Response Categories ====================
-async def add_response_category(name, description=None, icon=None, order=0):
-    async with async_session() as session:
-        cat = ResponseCategory(name=name, description=description, icon=icon, order=order)
-        session.add(cat)
-        await session.commit()
-        return cat
-
-async def get_all_categories():
-    async with async_session() as session:
-        result = await session.execute(select(ResponseCategory).order_by(ResponseCategory.order))
-        return result.scalars().all()
-
-async def delete_response_category(cat_id):
-    async with async_session() as session:
-        await session.execute(delete(ResponseCategory).where(ResponseCategory.id == cat_id))
         await session.commit()
 
 

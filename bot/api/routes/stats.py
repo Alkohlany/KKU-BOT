@@ -112,15 +112,12 @@ async def get_settings(
 
     defaults = {
         "welcomeMessage": "مرحباً بك في مجموعة الجامعة! 👋",
-        "requireSubscription": "true",
         "autoGreeting": "true",
-        "linkFilter": "false",
         "ai_fallback_enabled": "true",
         "antiSpam": "true",
         "antiFlood": "true",
         "floodLimit": "5",
         "floodTime": "60",
-        "botLanguage": "ar",
     }
 
     for key, default in defaults.items():

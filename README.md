@@ -383,8 +383,7 @@ KKU BOT/
 | 8 | `scheduled_posts` | المنشورات المجدولة (content, schedule_time, is_recurring, recurring_interval) |
 | 9 | `study_plan_groups` | مجموعات الخطط الدراسية (title, specialization, link, channel_message_id) |
 | 10 | `study_plans` | الخطط الدراسية (group_id FK, faculty, level, plan_url, usage_count) |
-| 11 | `response_categories` | فئات الردود (name, icon, order) |
-| 12 | `settings` | الإعدادات (key unique, value) |
+| 11 | `settings` | الإعدادات (key unique, value) |
 
 ---
 

@@ -169,18 +169,6 @@ class StudyPlan(Base):
     group = relationship("StudyPlanGroup", back_populates="plans")
 
 
-class ResponseCategory(Base):
-    __tablename__ = "response_categories"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), nullable=False)
-    description = Column(Text)
-    icon = Column(String(50))
-    order = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-
-
 class Settings(Base):
     __tablename__ = 'settings'
 

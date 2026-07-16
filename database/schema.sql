@@ -92,13 +92,3 @@ CREATE TABLE study_plans (
     usage_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE TABLE response_categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    icon VARCHAR(50),
-    "order" INTEGER DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
