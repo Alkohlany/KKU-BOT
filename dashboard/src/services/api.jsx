@@ -206,6 +206,8 @@ const api = {
     if (data.title !== undefined) formData.append('title', data.title);
     if (data.group_id !== undefined) formData.append('group_id', data.group_id || '');
     if (data.file) formData.append('file', data.file);
+    if (data.specialization !== undefined) formData.append('specialization', data.specialization || '');
+    if (data.link !== undefined) formData.append('link', data.link || '');
     const token = localStorage.getItem('token');
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
