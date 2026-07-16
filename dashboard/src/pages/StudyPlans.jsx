@@ -17,7 +17,7 @@ export default function StudyPlans() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [publishing, setPublishing] = useState(null);
+
   const [publishingPlan, setPublishingPlan] = useState(null);
   const [editingPlan, setEditingPlan] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
@@ -82,13 +82,7 @@ export default function StudyPlans() {
     return { text: 'منشور كلياً', color: 'var(--primary)', bg: 'var(--primary-bg)', total: totalPlans, published: publishedPlans };
   };
 
-  const getPublishButtonText = (group) => {
-    const totalPlans = plans.filter((p) => p.group_id === group.id).length;
-    const publishedPlans = plans.filter((p) => p.group_id === group.id && p.channel_message_id).length;
-    if (totalPlans === 0 || publishedPlans === 0) return 'نشر الكل';
-    if (publishedPlans > 0 && publishedPlans < totalPlans) return `نشر ${totalPlans - publishedPlans}`;
-    return 'إعادة نشر';
-  };
+
 
   const handleSavePlan = async () => {
     if (!form.title) return;
@@ -217,20 +211,6 @@ const handlePlanPermanentDelete = async (id) => {
       showToast('تم حذف الخطة نهائياً', 'success');
     } catch (err) {
       showToast('حدث خطأ أثناء الحذف', 'error');
-    }
-  };
-
-  const handlePublishGroup = async (groupId) => {
-    setPublishing(groupId);
-    try {
-      const result = await api.publishGroupPlans(groupId);
-      showToast(result.message || 'تم النشر بنجاح', 'success');
-      await loadData();
-    } catch (err) {
-      console.error('Failed to publish group plans:', err);
-      showToast('حدث خطأ أثناء النشر', 'error');
-    } finally {
-      setPublishing(null);
     }
   };
 
@@ -417,9 +397,6 @@ const handlePlanPermanentDelete = async (id) => {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                        <button className="btn btn-primary btn-sm" style={{ fontSize: 12, padding: '6px 12px', minWidth: 70, textAlign: 'center' }} disabled={publishing === group.id} onClick={(e) => { e.stopPropagation(); handlePublishGroup(group.id); }}>
-                          {publishing === group.id ? '...' : getPublishButtonText(group)}
-                        </button>
                         <button className="btn btn-secondary btn-icon" style={{ padding: windowWidth < 768 ? 4 : 6 }} onClick={(e) => { e.stopPropagation(); openEditGroupModal(group); }}>
                           <svg width={windowWidth < 768 ? 11 : 13} height={windowWidth < 768 ? 11 : 13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />

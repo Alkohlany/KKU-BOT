@@ -200,7 +200,6 @@ const api = {
   getStudyPlanGroup: (id) => api.get(`/study-plans/groups/${id}`),
   addStudyPlanGroup: (data) => api.post('/study-plans/groups', data),
   deleteStudyPlanGroup: (id, mode = 'permanent') => api.delete(`/study-plans/groups/${id}?mode=${mode}`),
-  publishGroupPlans: (groupId) => api.post(`/study-plans/publish-group/${groupId}`),
   publishPlan: (planId) => api.post(`/study-plans/publish-plan/${planId}`),
   updateStudyPlan: (id, data) => {
     const formData = new FormData();
