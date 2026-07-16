@@ -183,5 +183,5 @@ class SpamPattern(Base):
     __tablename__ = 'spam_patterns'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    content = Column(Text, nullable=False)
+    content = Column(Text, nullable=False, unique=True)
     created_at = Column(TIMESTAMP, server_default=func.now())

@@ -619,16 +619,19 @@ async def set_official_channel(group_id: int):
 # ==================== Spam Patterns ====================
 async def save_spam_pattern(content: str):
     async with async_session() as session:
-        pattern = SpamPattern(content=content)
-        session.add(pattern)
+        existing = await session.execute(
+            select(SpamPattern).where(SpamPattern.content == content).limit(1)
+        )
+        if existing.scalar_one_or_none():
+            return  # already saved
+        session.add(SpamPattern(content=content))
         await session.commit()
 
 
 async def check_spam_pattern(content: str) -> bool:
     async with async_session() as session:
-        result = await session.execute(select(SpamPattern))
-        patterns = result.scalars().all()
-        for pattern in patterns:
-            if pattern.content in content or content in pattern.content:
-                return True
-        return False
+        result = await session.execute(
+            text("SELECT 1 FROM spam_patterns WHERE :content LIKE '%' || content || '%' OR content LIKE '%' || :content || '%' LIMIT 1"),
+            {"content": content}
+        )
+        return result.first() is not None
