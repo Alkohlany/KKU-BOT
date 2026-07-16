@@ -1,4 +1,5 @@
 import logging
+import sys
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from telegram.error import Conflict
 from bot.config import BOT_TOKEN, ADMIN_IDS
@@ -24,7 +25,8 @@ from bot.services.scheduler import check_scheduled_posts
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+    level=logging.INFO,
+    stream=sys.stdout
 )
 logger = logging.getLogger(__name__)
 

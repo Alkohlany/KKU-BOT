@@ -7,7 +7,7 @@ python -m bot.main &
 BOT_PID=$!
 
 # Start the API server
-uvicorn bot.api.main:app --host 0.0.0.0 --port ${PORT:-8000} &
+uvicorn bot.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --log-config logging.conf &
 API_PID=$!
 
 echo "Bot PID: $BOT_PID, API PID: $API_PID"
