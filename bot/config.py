@@ -7,7 +7,7 @@ load_dotenv()
 
 ZERO_WIDTH = re.compile(r'[\u200b\u200c\u200d\ufeff\u00a0]')
 _TATWEEL = re.compile(r'ـ')
-_NON_ARABIC_ENGLISH = re.compile(r'[^\u0600-\u06FF\u0750-\u077Fa-zA-Z0-9]')
+_NON_ARABIC_ENGLISH = re.compile(r'[^\u0600-\u06FF\u0750-\u077Fa-zA-Z0-9 ]')
 _ARABIC_NORMALIZATIONS = [
     ('ڪ', 'ك'),
     ('٭', ''),
