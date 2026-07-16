@@ -114,7 +114,7 @@ class ChannelGroupUpdate(BaseModel):
     invite_link: Optional[str] = None
     is_active: Optional[bool] = None
 
-@router.get("/")
+@router.get("")
 async def get_channel_groups():
     groups = await get_all_channel_groups()
     result = []
@@ -152,7 +152,7 @@ async def get_active_channel_groups_endpoint():
         })
     return result
 
-@router.post("/")
+@router.post("")
 async def create_channel_group(data: ChannelGroupCreate):
     if data.type not in ["channel", "group"]:
         raise HTTPException(status_code=400, detail="Type must be 'channel' or 'group'")

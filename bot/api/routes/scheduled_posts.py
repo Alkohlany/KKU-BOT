@@ -87,7 +87,7 @@ class ScheduledPostCreate(BaseModel):
     removed_existing: Optional[str] = None
 
 
-@router.get("/")
+@router.get("")
 async def get_scheduled_posts():
     items = await get_all_scheduled_posts()
     return [
@@ -113,7 +113,7 @@ async def get_scheduled_posts():
     ]
 
 
-@router.post("/")
+@router.post("")
 async def create_scheduled_post(data: ScheduledPostCreate):
     dt = data.schedule_time
     if dt.tzinfo is not None:
@@ -363,7 +363,7 @@ async def update_scheduled_post(post_id: int, post: ScheduledPostCreate):
     return updated
 
 
-@router.delete("/")
+@router.delete("")
 async def delete_all_scheduled_posts():
     from ...services.database import delete_all_scheduled_posts as delete_all
     await delete_all()

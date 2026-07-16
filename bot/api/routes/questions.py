@@ -12,7 +12,7 @@ class QuestionCreate(BaseModel):
     news_id: Optional[int] = None
 
 
-@router.get("/")
+@router.get("")
 async def get_questions():
     items = await get_all_questions()
     return [
@@ -27,7 +27,7 @@ async def get_questions():
     ]
 
 
-@router.post("/")
+@router.post("")
 async def create_question(data: QuestionCreate):
     q = await add_question(question=data.question, answer=data.answer,
                            category=None, keywords=data.keywords, news_id=data.news_id)

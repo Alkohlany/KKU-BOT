@@ -417,7 +417,7 @@ async def delete_study_plan_group_endpoint(group_id: int, mode: str = "permanent
 
 
 # ==================== Study Plans ====================
-@router.get("/")
+@router.get("")
 async def get_study_plans(group_id: Optional[int] = None, faculty: Optional[str] = None):
     if group_id:
         return await get_study_plans_by_group(group_id)
@@ -426,7 +426,7 @@ async def get_study_plans(group_id: Optional[int] = None, faculty: Optional[str]
     return await get_all_study_plans()
 
 
-@router.post("/")
+@router.post("")
 async def create_study_plan(data: StudyPlanCreate):
     return await add_study_plan(title=data.title,
                                plan_url=data.plan_url, file_url=data.file_url,

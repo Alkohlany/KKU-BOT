@@ -95,7 +95,7 @@ class RelinkPayload(BaseModel):
     questions: list[str] = []
 
 
-@router.get("/")
+@router.get("")
 async def get_news():
     items = await get_all_news()
     return [
@@ -130,7 +130,7 @@ async def analyze_news(data: NewsAnalyze):
         raise HTTPException(status_code=500, detail=f"فشل تحليل المحتوى: {str(e)}")
 
 
-@router.post("/")
+@router.post("")
 async def create_news(data: NewsCreate):
     n = await add_news(content=data.content,
                          image_url=data.image_url, file_url=data.file_url,
@@ -530,7 +530,7 @@ async def delete_from_channel_endpoint(news_id: int):
     return {"status": "deleted_from_channel"}
 
 
-@router.delete("/")
+@router.delete("")
 async def delete_all_news_endpoint():
     import json
     items = await get_all_news()
