@@ -223,8 +223,9 @@ export default function FileUpload(props) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }} onClick={function() { setShowBrowser(false); }}>
           <div style={{
-            background: 'var(--bg)', borderRadius: 12, width: '90%', maxWidth: 700,
+            background: 'var(--white)', borderRadius: 12, width: '90%', maxWidth: 700,
             maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: 'var(--shadow-lg)',
           }} onClick={function(e) { e.stopPropagation(); }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: 16 }}>تصفح الملفات المرفوعة</h3>
