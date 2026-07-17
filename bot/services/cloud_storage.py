@@ -80,26 +80,34 @@ def list_all_folders():
 def list_all_folders_recursive():
     try:
         result = s3.list_objects_v2(Bucket=R2_BUCKET_NAME, Prefix="kku-bot/", Delimiter="/")
-        folders = {"kku-bot": []}
+        folders = {}
+        root_files = []
         for prefix in result.get("CommonPrefixes", []):
             folder_path = prefix["Prefix"].rstrip("/")
-            folders[folder_path] = list_objects(folder_path)
+            folders[folder_path] = {
+                "files": list_objects(folder_path),
+                "subfolders": list_subfolders(folder_path),
+            }
         for obj in result.get("Contents", []):
             key = obj["Key"]
             if key.endswith("/"):
                 continue
             name = key.split("/")[-1]
-            folders["kku-bot"].append({
+            root_files.append({
                 "key": key,
                 "url": R2_PUBLIC_URL + "/" + key,
                 "name": name,
                 "size": obj["Size"],
                 "folder": "kku-bot",
             })
+        folders["kku-bot"] = {
+            "files": root_files,
+            "subfolders": [{"path": p["Prefix"].rstrip("/"), "name": p["Prefix"].rstrip("/").split("/")[-1]} for p in result.get("CommonPrefixes", [])],
+        }
         return folders
     except Exception as e:
         logger.error("List all folders recursive failed: %s", e)
-        return {"kku-bot": []}
+        return {"kku-bot": {"files": [], "subfolders": []}}
 
 
 def list_subfolders(folder="kku-bot"):
