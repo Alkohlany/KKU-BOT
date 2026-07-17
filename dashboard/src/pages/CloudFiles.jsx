@@ -46,38 +46,42 @@ function DotsButton(props) {
 }
 
 function ActionsMenu(props) {
-  var item = props.item;
-  var type = props.type;
   var onRename = props.onRename;
   var onDelete = props.onDelete;
   var onMove = props.onMove;
   var onOpen = props.onOpen;
+  var type = props.type;
+  var onClose = props.onClose;
   return (
-    <div style={{ position: 'absolute', top: '100%', right: 0, background: 'var(--white)', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.18)', border: '1px solid var(--gray-100)', padding: 4, zIndex: 200, minWidth: 170 }}>
-      {type === 'file' && (
-        <>
-          <MenuBtn icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>} label="فتح" onClick={onOpen} />
-          <MenuBtn icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>} label="إعادة تسمية" onClick={onRename} />
-          <MenuBtn icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/></svg>} label="نقل إلى..." onClick={onMove} />
-          <div style={{ height: 1, background: 'var(--gray-100)', margin: '2px 8px' }} />
-          <MenuBtn icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>} label="حذف" onClick={onDelete} danger />
-        </>
-      )}
-      {type === 'folder' && (
-        <>
-          <MenuBtn icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>} label="فتح" onClick={onOpen} />
-          <MenuBtn icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>} label="إعادة تسمية" onClick={onRename} />
-          <div style={{ height: 1, background: 'var(--gray-100)', margin: '2px 8px' }} />
-          <MenuBtn icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>} label="حذف المجلد" onClick={onDelete} danger />
-        </>
-      )}
+    <div onClick={function(e) { e.stopPropagation(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 300 }} onMouseDown={onClose}>
+      <div onMouseDown={function(e) { e.stopPropagation(); }}
+        style={{ background: 'var(--white)', borderRadius: '16px 16px 0 0', padding: '8px 0', width: '100%', maxWidth: 400, boxShadow: '0 -4px 20px rgba(0,0,0,0.15)', animation: 'slideUp 0.2s ease' }}>
+        <div style={{ width: 36, height: 4, background: 'var(--gray-300)', borderRadius: 2, margin: '0 auto 12px' }} />
+        {type === 'file' && (
+          <>
+            <MenuBtn icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>} label="فتح" onClick={onOpen} />
+            <MenuBtn icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>} label="إعادة تسمية" onClick={onRename} />
+            <MenuBtn icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/></svg>} label="نقل إلى..." onClick={onMove} />
+            <div style={{ height: 1, background: 'var(--gray-100)', margin: '4px 16px' }} />
+            <MenuBtn icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>} label="حذف" onClick={onDelete} danger />
+          </>
+        )}
+        {type === 'folder' && (
+          <>
+            <MenuBtn icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>} label="فتح" onClick={onOpen} />
+            <MenuBtn icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>} label="إعادة تسمية" onClick={onRename} />
+            <div style={{ height: 1, background: 'var(--gray-100)', margin: '4px 16px' }} />
+            <MenuBtn icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>} label="حذف المجلد" onClick={onDelete} danger />
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 function MenuBtn(props) {
   return (
-    <button onClick={props.onClick} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, textAlign: 'right', color: props.danger ? 'var(--danger)' : 'var(--gray-700)' }}>
+    <button onClick={function(e) { e.stopPropagation(); props.onClick(); }} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '14px 20px', borderRadius: 0, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 15, textAlign: 'right', color: props.danger ? 'var(--danger)' : 'var(--gray-700)' }}>
       {props.icon}
       {props.label}
     </button>
@@ -472,7 +476,7 @@ export default function CloudFiles() {
                 >
                   <div style={{ position: 'absolute', top: 6, left: 6 }}>
                     <DotsButton onClick={function(e) { setActiveMenu(isOpen ? null : { key: sf.path, item: sf, type: 'folder' }); }} />
-                    {isOpen && <ActionsMenu item={sf} type="folder"
+                    {isOpen && <ActionsMenu item={sf} type="folder" onClose={function() { setActiveMenu(null); }}
                       onOpen={function() { navigateTo(sf.path); }}
                       onRename={function() { handleRename(sf.path, sf.name); }}
                       onDelete={function() { handleDeleteFolder(sf.path, sf.name); }} />}
@@ -496,7 +500,7 @@ export default function CloudFiles() {
                 >
                   <div style={{ position: 'absolute', top: 6, left: 6 }}>
                     <DotsButton onClick={function(e) { setActiveMenu(isOpen ? null : { key: file.key, item: file, type: 'file' }); }} />
-                    {isOpen && <ActionsMenu item={file} type="file"
+                    {isOpen && <ActionsMenu item={file} type="file" onClose={function() { setActiveMenu(null); }}
                       onOpen={function() { window.open(file.url, '_blank'); }}
                       onRename={function() { handleRename(file.key, file.name); }}
                       onMove={function() { handleMove(file.key); }}
@@ -545,7 +549,7 @@ export default function CloudFiles() {
                   <span className="desktop-only" style={{ color: 'var(--gray-400)', fontSize: 12 }}>—</span>
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     <DotsButton onClick={function(e) { setActiveMenu(isOpen ? null : { key: sf.path, item: sf, type: 'folder' }); }} />
-                    {isOpen && <ActionsMenu item={sf} type="folder"
+                    {isOpen && <ActionsMenu item={sf} type="folder" onClose={function() { setActiveMenu(null); }}
                       onOpen={function() { navigateTo(sf.path); }}
                       onRename={function() { handleRename(sf.path, sf.name); }}
                       onDelete={function() { handleDeleteFolder(sf.path, sf.name); }} />}
@@ -569,7 +573,7 @@ export default function CloudFiles() {
                   <span className="desktop-only" style={{ color: 'var(--gray-400)', fontSize: 12, flexShrink: 0 }}>{formatSize(file.size)}</span>
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     <DotsButton onClick={function(e) { setActiveMenu(isOpen ? null : { key: file.key, item: file, type: 'file' }); }} />
-                    {isOpen && <ActionsMenu item={file} type="file"
+                    {isOpen && <ActionsMenu item={file} type="file" onClose={function() { setActiveMenu(null); }}
                       onOpen={function() { window.open(file.url, '_blank'); }}
                       onRename={function() { handleRename(file.key, file.name); }}
                       onMove={function() { handleMove(file.key); }}
