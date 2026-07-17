@@ -229,6 +229,10 @@ const api = {
     });
   },
   updateStudyPlanGroup: (id, data) => api.put(`/study-plans/groups/${id}`, data),
+
+  // Cloud Files
+  getCloudFiles: (folder) => api.get('/files' + (folder ? '?folder=' + encodeURIComponent(folder) : '')),
+  deleteCloudFile: (key) => api.delete('/files?key=' + encodeURIComponent(key)),
 };
 
 export default api;

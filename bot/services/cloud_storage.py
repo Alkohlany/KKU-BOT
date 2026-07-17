@@ -44,3 +44,43 @@ def download_raw(file_url: str) -> bytes | None:
     except Exception as e:
         logger.error(f"Download failed: {e}")
     return None
+
+
+def list_objects(folder="kku-bot"):
+    try:
+        result = s3.list_objects_v2(Bucket=R2_BUCKET_NAME, Prefix=folder + "/")
+        files = []
+        for obj in result.get("Contents", []):
+            key = obj["Key"]
+            if key.endswith("/"):
+                continue
+            name = key.split("/")[-1]
+            files.append({
+                "key": key,
+                "url": R2_PUBLIC_URL + "/" + key,
+                "name": name,
+                "size": obj["Size"],
+                "folder": folder,
+            })
+        return files
+    except Exception as e:
+        logger.error("List objects failed: %s", e)
+        return []
+
+
+def list_all_folders():
+    folders = {}
+    for folder in ["kku-bot/news", "kku-bot/plans", "kku-bot/scheduled"]:
+        files = list_objects(folder)
+        if files:
+            folders[folder] = files
+    return folders
+
+
+def delete_object(key):
+    try:
+        s3.delete_object(Bucket=R2_BUCKET_NAME, Key=key)
+        return True
+    except Exception as e:
+        logger.error("Delete object failed: %s", e)
+        return False
