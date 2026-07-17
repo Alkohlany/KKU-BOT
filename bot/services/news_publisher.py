@@ -216,11 +216,27 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
         except Exception as e:
             logger.warning(f"send_document with thumb failed for {chat_id}: {e}")
 
-    # Fallback: send document as URL (no thumbnail, Telegram auto-generates preview)
+    # Fallback: download bytes and upload directly
+    file_bytes = None
     try:
-        return await bot.send_document(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
-    except Exception as e:
-        logger.warning(f"send_document URL failed for {chat_id}: {e}")
+        file_bytes = await asyncio.to_thread(download_raw, url)
+    except Exception:
+        pass
+
+    if not file_bytes:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    file_bytes = resp.content
+        except Exception:
+            pass
+
+    if file_bytes:
+        try:
+            return await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption, parse_mode='HTML')
+        except Exception as e:
+            logger.warning(f"send_document bytes failed for {chat_id}: {e}")
 
     return None
 
