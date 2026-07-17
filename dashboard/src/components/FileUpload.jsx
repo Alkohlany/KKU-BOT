@@ -264,6 +264,8 @@ export default function FileUpload(props) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
                   {filteredFiles.map(function(file) {
                     var isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+                    var isVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(file.name);
+                    var isPdf = /\.pdf$/i.test(file.name);
                     var isSelected = existingFiles.some(function(f) { return f.url === file.url; }) || files.some(function(f) { return f._cloudUrl === file.url; });
                     return (
                       <div
@@ -273,6 +275,18 @@ export default function FileUpload(props) {
                       >
                         {isImage ? (
                           <img src={file.url} alt={file.name} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                        ) : isVideo ? (
+                          <div style={{ width: '100%', height: 120, position: 'relative', background: '#000' }}>
+                            <video src={file.url} preload="metadata" style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ color: 'white', fontSize: 14, marginLeft: -2 }}>▶</span>
+                            </div>
+                          </div>
+                        ) : isPdf ? (
+                          <div style={{ width: '100%', height: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#FFF3E0' }}>
+                            <span style={{ fontSize: 32 }}>📕</span>
+                            <span style={{ fontSize: 10, color: '#E65100', marginTop: 4 }}>PDF</span>
+                          </div>
                         ) : (
                           <div style={{ width: '100%', height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gray-50)' }}>
                             <span style={{ fontSize: 32 }}>📄</span>
