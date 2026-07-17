@@ -11,6 +11,7 @@ import ScheduledPosts from './pages/ScheduledPosts'
 import BannedUsers from './pages/BannedUsers'
 import ActivityLog from './pages/ActivityLog'
 import Settings from './pages/Settings'
+import CloudFiles from './pages/CloudFiles'
 import Login from './pages/Login'
 import { ToastProvider } from './components/ToastContext'
 import { ConfirmProvider } from './components/ConfirmDialog'
@@ -27,6 +28,7 @@ const pageTitles = {
   '/banned': { title: 'المحظورين', subtitle: 'إدارة المستخدمين المحظورين' },
   '/activity': { title: 'سجل النشاطات', subtitle: 'تتبع جميع أنشطة البوت' },
   '/settings': { title: 'الإعدادات', subtitle: 'تخصيص إعدادات البوت' },
+  '/cloud-files': { title: 'إدارة الملفات', subtitle: 'تصفح وحذف الملفات المرفوعة على السحابة' },
 }
 
 function Layout({ sidebarOpen, setSidebarOpen }) {
@@ -49,6 +51,7 @@ function Layout({ sidebarOpen, setSidebarOpen }) {
             <Route path="/banned" element={<BannedUsers />} />
             <Route path="/activity" element={<ActivityLog />} />
             <Route path="/settings" element={<Settings onLogout={() => { localStorage.removeItem('isLoggedIn'); localStorage.removeItem('token'); window.location.href = '/login'; }} />} />
+            <Route path="/cloud-files" element={<CloudFiles />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

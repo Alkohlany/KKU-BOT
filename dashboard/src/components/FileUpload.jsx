@@ -296,10 +296,6 @@ export default function FileUpload(props) {
                           <div style={{ fontSize: 11, color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
                           <div style={{ fontSize: 10, color: 'var(--gray-400)', marginTop: 2 }}>{(file.size / 1024).toFixed(0)} KB</div>
                         </div>
-                        <button
-                          onClick={function(e) { handleDeleteCloudFile(file.key, e); }}
-                          style={{ position: 'absolute', top: 6, left: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(220,53,69,0.9)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >✕</button>
                       </div>
                     );
                   })}
