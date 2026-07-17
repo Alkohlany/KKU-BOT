@@ -1,11 +1,42 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 
-var FOLDER_MAP = {
-  'kku-bot/news': 'الأخبار',
-  'kku-bot/plans': 'الخطط الدراسية',
-  'kku-bot/scheduled': 'المنشورات المجدولة',
-};
+function fileIcon(name) {
+  if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name)) return '🖼️';
+  if (/\.(mp4|webm|mov|avi|mkv)$/i.test(name)) return '🎬';
+  if (/\.pdf$/i.test(name)) return '📕';
+  if (/\.(zip|rar|7z)$/i.test(name)) return '📦';
+  if (/\.(mp3|wav|ogg|m4a)$/i.test(name)) return '🎵';
+  return '📄';
+}
+
+function fmtSize(b) {
+  if (!b) return '0 B';
+  if (b > 1048576) return (b / 1048576).toFixed(1) + ' MB';
+  if (b > 1024) return (b / 1024).toFixed(0) + ' KB';
+  return b + ' B';
+}
+
+function FileItem(props) {
+  var file = props.file;
+  var onRemove = props.onRemove;
+  var tag = props.tag;
+  var tagColor = props.tagColor || 'var(--primary)';
+  var isCloud = file._isCloud;
+  var isImage = file.type && file.type.startsWith('image/');
+  return (
+    <div className="fu-file-item">
+      <div className="fu-file-icon">
+        {isCloud ? <span>☁️</span> : isImage ? <img src={URL.createObjectURL(file)} alt="" /> : <span>{fileIcon(file.name)}</span>}
+      </div>
+      <div className="fu-file-info">
+        <span className="fu-file-name">{file.name}</span>
+        {tag && <span className="fu-file-tag" style={{ color: tagColor, background: tagColor + '15' }}>{tag}</span>}
+      </div>
+      <button type="button" className="fu-file-remove" onClick={onRemove}>✕</button>
+    </div>
+  );
+}
 
 export default function FileUpload(props) {
   var files = props.files;
@@ -17,290 +48,216 @@ export default function FileUpload(props) {
   var onRemoveExisting = props.onRemoveExisting;
 
   var _r = useState([]);
-  var removedExisting = _r[0];
-  var setRemovedExisting = _r[1];
-
+  var removedExisting = _r[0], setRemovedExisting = _r[1];
   var _b = useState(false);
-  var showBrowser = _b[0];
-  var setShowBrowser = _b[1];
+  var showBrowser = _b[0], setShowBrowser = _b[1];
+  var _cloud = useState({});
+  var cloudData = _cloud[0], setCloudData = _cloud[1];
+  var _loading = useState(false);
+  var loadingCloud = _loading[0], setLoadingCloud = _loading[1];
+  var _path = useState('kku-bot');
+  var cloudPath = _path[0], setCloudPath = _path[1];
+  var _search = useState('');
+  var search = _search[0], setSearch = _search[1];
+  var _selected = useState([]);
+  var selected = _selected[0], setSelected = _selected[1];
 
-  var _c = useState({});
-  var cloudFiles = _c[0];
-  var setCloudFiles = _c[1];
-
-  var _l = useState(false);
-  var loadingCloud = _l[0];
-  var setLoadingCloud = _l[1];
-
-  var _f = useState(null);
-  var activeFolder = _f[0];
-  var setActiveFolder = _f[1];
-
-  var _s = useState('');
-  var searchQuery = _s[0];
-  var setSearchQuery = _s[1];
-
-  var handleFileChange = function(e) {
-    var selected = Array.from(e.target.files);
-    setFiles(function(prev) { return prev.concat(selected); });
-  };
-
-  var removeFile = function(index) {
-    setFiles(files.filter(function(_, i) { return i !== index; }));
-  };
-
-  var loadCloudFiles = function() {
+  function loadCloud(path) {
     setLoadingCloud(true);
-    api.getCloudFiles(props.cloudFolder).then(function(data) {
-      if (props.cloudFolder) {
-        var obj = {};
-        obj[props.cloudFolder] = data;
-        setCloudFiles(obj);
-        setActiveFolder(props.cloudFolder);
-      } else {
-        setCloudFiles(data);
-      }
-    }).catch(function(err) {
-      console.error('Failed to load cloud files:', err);
-    }).finally(function() {
-      setLoadingCloud(false);
-    });
-  };
+    var q = path === 'kku-bot' ? '' : path;
+    api.getCloudFiles(q).then(function(d) {
+      setCloudData(function(prev) {
+        var next = Object.assign({}, prev);
+        if (path === 'kku-bot') { Object.keys(d).forEach(function(k) { next[k] = d[k]; }); }
+        else { next[path] = d; }
+        return next;
+      });
+    }).catch(function() {}).finally(function() { setLoadingCloud(false); });
+  }
 
   useEffect(function() {
     if (showBrowser) {
-      loadCloudFiles();
+      setSelected([]);
+      setCloudPath('kku-bot');
+      loadCloud('kku-bot');
     }
   }, [showBrowser]);
 
-  var handleSelectCloudFile = function(file) {
-    var isSelected = existingFiles.some(function(f) { return f.url === file.url; }) ||
-                     files.some(function(f) { return f._cloudUrl === file.url; });
-    if (isSelected) return;
-    var fakeFile = new File(['cloud'], file.name, { type: 'text/plain' });
-    fakeFile._cloudUrl = file.url;
-    fakeFile._cloudKey = file.key;
-    fakeFile._isCloud = true;
-    setFiles(function(prev) { return prev.concat([fakeFile]); });
-    setShowBrowser(false);
-  };
+  function navCloud(path) {
+    setCloudPath(path);
+    setSearch('');
+    loadCloud(path);
+  }
 
-  var handleDeleteCloudFile = function(key, e) {
-    e.stopPropagation();
-    api.deleteCloudFile(key).then(function() {
-      loadCloudFiles();
-    }).catch(function(err) {
-      console.error('Failed to delete:', err);
-    });
-  };
+  var currentCloud = cloudData[cloudPath] || { files: [], subfolders: [] };
+  var cFiles = (currentCloud.files || []).filter(function(f) { return !search || f.name.toLowerCase().includes(search.toLowerCase()); });
+  var cFolders = (currentCloud.subfolders || []).filter(function(s) { return !search || s.name.toLowerCase().includes(search.toLowerCase()); });
 
-  var allFiles = [];
-  if (activeFolder) {
-    allFiles = cloudFiles[activeFolder] || [];
-  } else {
-    Object.keys(cloudFiles).forEach(function(k) {
-      allFiles = allFiles.concat(cloudFiles[k] || []);
+  var breadcrumbs = cloudPath.split('/').map(function(_, i, arr) {
+    var p = arr.slice(0, i + 1).join('/');
+    return { label: arr[i], path: p };
+  });
+
+  function isAlreadySelected(url) {
+    return existingFiles.some(function(f) { return f.url === url; }) || files.some(function(f) { return f._cloudUrl === url; });
+  }
+
+  function toggleSelect(file) {
+    if (isAlreadySelected(file.url)) return;
+    setSelected(function(prev) {
+      var exists = prev.some(function(f) { return f.url === file.url; });
+      if (exists) return prev.filter(function(f) { return f.url !== file.url; });
+      return prev.concat([file]);
     });
   }
 
-  var filteredFiles = allFiles.filter(function(f) {
-    if (!searchQuery) return true;
-    return f.name.toLowerCase().indexOf(searchQuery.toLowerCase()) !== -1;
-  });
+  function confirmCloudSelect() {
+    var newFiles = selected.map(function(f) {
+      var fake = new File(['cloud'], f.name, { type: 'text/plain' });
+      fake._cloudUrl = f.url;
+      fake._cloudKey = f.key;
+      fake._isCloud = true;
+      return fake;
+    });
+    setFiles(function(prev) { return prev.concat(newFiles); });
+    setShowBrowser(false);
+  }
+
+  function handleLocalFiles(e) {
+    var selected = Array.from(e.target.files);
+    setFiles(function(prev) { return prev.concat(selected); });
+  }
+
+  function removeFile(index) {
+    setFiles(files.filter(function(_, i) { return i !== index; }));
+  }
 
   return (
-    <div style={{ border: '1px solid var(--gray-200)', borderRadius: 8, overflow: 'hidden' }}>
-      <div style={{ padding: '8px 12px', background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-700)' }}>{label}</span>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--gray-500)', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={asDocument}
-            onChange={function(e) { setAsDocument(e.target.checked); }}
-            style={{ width: 14, height: 14, accentColor: 'var(--primary)' }}
-          />
-          إرسال كملف
+    <div className="fu-container">
+      {/* Header */}
+      <div className="fu-header">
+        <span className="fu-label">{label}</span>
+        <label className="fu-doc-toggle">
+          <input type="checkbox" checked={asDocument} onChange={function(e) { setAsDocument(e.target.checked); }} />
+          <span>إرسال كملف</span>
         </label>
       </div>
-      <div style={{ padding: 12 }}>
+
+      <div className="fu-body">
+        {/* Existing Files */}
         {existingFiles.length > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: 'var(--gray-400)', marginBottom: 6 }}>الملفات الحالية:</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {existingFiles.map(function(file, originalIdx) {
-                if (removedExisting.indexOf(originalIdx) !== -1) return null;
-                return (
-                  <div key={'existing-' + originalIdx} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '6px 10px', background: 'rgba(46,125,50,0.04)',
-                    border: '1px solid rgba(46,125,50,0.15)', borderRadius: 6, fontSize: 12,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                      {/\.(jpg|jpeg|png|gif|webp)$/i.test(file.thumbnail || file.url || '') ? (
-                        <img src={file.thumbnail || file.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
-                      ) : (
-                        <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
-                      )}
-                      <div style={{ overflow: 'hidden' }}>
-                        <span style={{ color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{file.name}</span>
-                      </div>
-                      <span style={{ fontSize: 10, color: 'var(--primary)', background: 'rgba(46,125,50,0.1)', padding: '1px 6px', borderRadius: 4, flexShrink: 0 }}>حالي</span>
-                    </div>
-                    {onRemoveExisting && (
-                      <button
-                        type="button"
-                        onClick={function() {
-                          var newRemoved = removedExisting.concat([originalIdx]);
-                          setRemovedExisting(newRemoved);
-                          if (onRemoveExisting) onRemoveExisting(newRemoved);
-                        }}
-                        style={{ background: 'none', border: 'none', color: 'var(--danger, #dc3545)', cursor: 'pointer', fontSize: 14, padding: '0 4px', flexShrink: 0 }}
-                      >✕</button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <label style={{
-            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-            padding: '14px', border: '2px dashed var(--gray-300)', borderRadius: 8,
-            cursor: 'pointer', transition: 'all 0.2s', background: 'var(--gray-50)',
-          }}>
-            <span style={{ fontSize: 20, color: 'var(--gray-400)' }}>📎</span>
-            <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>اختيار ملفات جديدة</span>
-            <input type="file" multiple onChange={handleFileChange} style={{ display: 'none' }} />
-          </label>
-          <button
-            type="button"
-            onClick={function() { setShowBrowser(true); }}
-            style={{
-              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-              padding: '14px', border: '2px dashed var(--primary)', borderRadius: 8,
-              cursor: 'pointer', transition: 'all 0.2s', background: 'rgba(46,125,50,0.04)',
-            }}
-          >
-            <span style={{ fontSize: 20, color: 'var(--primary)' }}>☁️</span>
-            <span style={{ fontSize: 12, color: 'var(--primary)' }}>اختيار من السحابة</span>
-          </button>
-        </div>
-        {files.length > 0 && (
-          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 11, color: 'var(--gray-400)' }}>ملفات جديدة:</div>
-            {files.map(function(file, i) {
+          <div className="fu-section">
+            <div className="fu-section-title">الملفات الحالية</div>
+            {existingFiles.map(function(file, idx) {
+              if (removedExisting.indexOf(idx) !== -1) return null;
               return (
-                <div key={'new-' + i} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '6px 10px', background: 'var(--gray-50)', borderRadius: 6, fontSize: 12,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                    {file._isCloud ? (
-                      <span style={{ color: 'var(--primary)', flexShrink: 0 }}>☁️</span>
-                    ) : file.type && file.type.startsWith('image/') ? (
-                      <img src={URL.createObjectURL(file)} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
-                    ) : (
-                      <span style={{ color: 'var(--primary)', flexShrink: 0 }}>📄</span>
-                    )}
-                    <span style={{ color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={function() { removeFile(i); }}
-                    style={{ background: 'none', border: 'none', color: 'var(--danger, #dc3545)', cursor: 'pointer', fontSize: 14, padding: '0 4px', flexShrink: 0 }}
-                  >✕</button>
-                </div>
+                <FileItem key={'ex-' + idx} file={file} tag="حالي" tagColor="var(--success)"
+                  onRemove={function() {
+                    var next = removedExisting.concat([idx]);
+                    setRemovedExisting(next);
+                    if (onRemoveExisting) onRemoveExisting(next);
+                  }} />
               );
             })}
           </div>
         )}
+
+        {/* New Files */}
+        {files.length > 0 && (
+          <div className="fu-section">
+            <div className="fu-section-title">ملفات جديدة</div>
+            {files.map(function(file, i) {
+              return (
+                <FileItem key={'new-' + i} file={file}
+                  tag={file._isCloud ? 'سحابة' : null} tagColor="var(--info)"
+                  onRemove={function() { removeFile(i); }} />
+              );
+            })}
+          </div>
+        )}
+
+        {/* Add Buttons */}
+        <div className="fu-add-row">
+          <label className="fu-add-btn">
+            <span className="fu-add-icon">📎</span>
+            <span>ملفات جديدة</span>
+            <input type="file" multiple hidden onChange={handleLocalFiles} />
+          </label>
+          <button type="button" className="fu-add-btn fu-add-cloud" onClick={function() { setShowBrowser(true); }}>
+            <span className="fu-add-icon">☁️</span>
+            <span>اختيار من السحابة</span>
+          </button>
+        </div>
       </div>
 
+      {/* Cloud Browser Modal */}
       {showBrowser && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-        }} onClick={function() { setShowBrowser(false); }}>
-          <div style={{
-            background: 'var(--white)', borderRadius: 12, width: '90%', maxWidth: 700,
-            maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            boxShadow: 'var(--shadow-lg)',
-          }} onClick={function(e) { e.stopPropagation(); }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: 16 }}>تصفح الملفات المرفوعة</h3>
-              <button onClick={function() { setShowBrowser(false); }} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--gray-500)' }}>✕</button>
+        <div className="fu-overlay" onClick={function() { setShowBrowser(false); }}>
+          <div className="fu-browser" onClick={function(e) { e.stopPropagation(); }}>
+            {/* Browser Header */}
+            <div className="fu-browser-header">
+              <h3>اختيار من السحابة</h3>
+              <button className="fu-browser-close" onClick={function() { setShowBrowser(false); }}>✕</button>
             </div>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--gray-200)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                onClick={function() { setActiveFolder(null); }}
-                style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid var(--gray-200)', background: !activeFolder ? 'var(--primary)' : 'var(--gray-50)', color: !activeFolder ? 'white' : 'var(--gray-600)', fontSize: 12, cursor: 'pointer' }}
-              >الكل</button>
-              {Object.keys(FOLDER_MAP).map(function(key) {
-                return (
-                  <button
-                    key={key}
-                    onClick={function() { setActiveFolder(key); }}
-                    style={{ padding: '6px 14px', borderRadius: 20, border: '1px solid var(--gray-200)', background: activeFolder === key ? 'var(--primary)' : 'var(--gray-50)', color: activeFolder === key ? 'white' : 'var(--gray-600)', fontSize: 12, cursor: 'pointer' }}
-                  >{FOLDER_MAP[key]}</button>
-                );
-              })}
+
+            {/* Breadcrumbs */}
+            <div className="fu-browser-nav">
+              <div className="fu-browser-breadcrumbs">
+                {breadcrumbs.map(function(bc, i) {
+                  return (
+                    <React.Fragment key={bc.path}>
+                      {i > 0 && <span>/</span>}
+                      <button className={i === breadcrumbs.length - 1 ? 'active' : ''} onClick={function() { navCloud(bc.path); }}>{bc.label}</button>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+              <div className="fu-browser-search">
+                <input type="text" placeholder="بحث..." value={search} onChange={function(e) { setSearch(e.target.value); }} />
+              </div>
             </div>
-            <div style={{ padding: '12px 20px' }}>
-              <input
-                type="text"
-                placeholder="بحث في الملفات..."
-                value={searchQuery}
-                onChange={function(e) { setSearchQuery(e.target.value); }}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--gray-200)', borderRadius: 8, fontSize: 13, outline: 'none' }}
-              />
-            </div>
-            <div style={{ flex: 1, overflow: 'auto', padding: '0 20px 20px' }}>
+
+            {/* Content */}
+            <div className="fu-browser-content">
               {loadingCloud ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>جاري التحميل...</div>
-              ) : filteredFiles.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>لا توجد ملفات</div>
+                <div className="fu-browser-empty">جاري التحميل...</div>
+              ) : !cFolders.length && !cFiles.length ? (
+                <div className="fu-browser-empty">لا توجد ملفات</div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-                  {filteredFiles.map(function(file) {
-                    var isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
-                    var isVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(file.name);
-                    var isPdf = /\.pdf$/i.test(file.name);
-                    var isSelected = existingFiles.some(function(f) { return f.url === file.url; }) || files.some(function(f) { return f._cloudUrl === file.url; });
+                <div className="fu-browser-grid">
+                  {cFolders.map(function(sf) {
                     return (
-                      <div
-                        key={file.key}
-                        onClick={function() { if (!isSelected) handleSelectCloudFile(file); }}
-                        style={{ border: '1px solid var(--gray-200)', borderRadius: 8, overflow: 'hidden', cursor: isSelected ? 'default' : 'pointer', opacity: isSelected ? 0.5 : 1, transition: 'all 0.2s', position: 'relative' }}
-                      >
-                        {isImage ? (
-                          <img src={file.url} alt={file.name} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
-                        ) : isVideo ? (
-                          <div style={{ width: '100%', height: 120, position: 'relative', background: '#000' }}>
-                            <video src={file.url} preload="metadata" style={{ width: '100%', height: 120, objectFit: 'cover' }} />
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <span style={{ color: 'white', fontSize: 14, marginLeft: -2 }}>▶</span>
-                            </div>
-                          </div>
-                        ) : isPdf ? (
-                          <div style={{ width: '100%', height: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#FFF3E0' }}>
-                            <span style={{ fontSize: 32 }}>📕</span>
-                            <span style={{ fontSize: 10, color: '#E65100', marginTop: 4 }}>PDF</span>
-                          </div>
-                        ) : (
-                          <div style={{ width: '100%', height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gray-50)' }}>
-                            <span style={{ fontSize: 32 }}>📄</span>
-                          </div>
-                        )}
-                        <div style={{ padding: '8px 10px' }}>
-                          <div style={{ fontSize: 11, color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
-                          <div style={{ fontSize: 10, color: 'var(--gray-400)', marginTop: 2 }}>{(file.size / 1024).toFixed(0)} KB</div>
-                        </div>
+                      <div key={sf.path} className="fu-browser-folder" onClick={function() { navCloud(sf.path); }}>
+                        <span>📁</span>
+                        <span className="fu-browser-folder-name">{sf.name}</span>
+                      </div>
+                    );
+                  })}
+                  {cFiles.map(function(f) {
+                    var isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(f.name);
+                    var isVid = /\.(mp4|webm|mov|avi|mkv)$/i.test(f.name);
+                    var done = isAlreadySelected(f.url);
+                    var sel = selected.some(function(s) { return s.url === f.url; });
+                    return (
+                      <div key={f.key} className={'fu-browser-file' + (done ? ' disabled' : '') + (sel ? ' selected' : '')} onClick={function() { toggleSelect(f); }}>
+                        <div className="fu-browser-check">{sel ? '✓' : ''}</div>
+                        {isImg ? <img src={f.url} alt="" className="fu-browser-thumb" /> : isVid ? <div className="fu-browser-thumb fu-browser-video"><span>▶</span></div> : <div className="fu-browser-thumb fu-browser-icon"><span>{fileIcon(f.name)}</span></div>}
+                        <div className="fu-browser-file-name">{f.name}</div>
+                        <div className="fu-browser-file-size">{fmtSize(f.size)}</div>
                       </div>
                     );
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Footer */}
+            <div className="fu-browser-footer">
+              <span className="fu-browser-count">{selected.length} ملف محدد</span>
+              <div className="fu-browser-actions">
+                <button className="cf-btn cf-btn-outline" onClick={function() { setShowBrowser(false); }}>إلغاء</button>
+                <button className="cf-btn cf-btn-primary" disabled={!selected.length} onClick={confirmCloudSelect}>اختيار ({selected.length})</button>
+              </div>
             </div>
           </div>
         </div>
