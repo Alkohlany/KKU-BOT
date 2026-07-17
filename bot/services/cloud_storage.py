@@ -177,3 +177,12 @@ def move_object(old_key, new_folder):
     except Exception as e:
         logger.error("Move object failed: %s", e)
         return False
+
+
+def delete_object(key):
+    try:
+        s3.delete_object(Bucket=R2_BUCKET_NAME, Key=key)
+        return True
+    except Exception as e:
+        logger.error("Delete object failed: %s", e)
+        return False

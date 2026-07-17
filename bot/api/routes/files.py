@@ -1,11 +1,13 @@
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from bot.services.cloud_storage import (
     list_all_folders, list_objects, delete_object,
     list_all_folders_recursive, list_subfolders,
     create_folder, delete_folder, rename_object, move_object,
     upload_raw,
 )
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -23,9 +25,19 @@ async def upload_cloud_file(
     file: UploadFile = File(...),
     folder: str = Form("kku-bot"),
 ):
-    content = await file.read()
-    url = upload_raw(content, file.filename, folder)
-    return {"url": url, "name": file.filename, "folder": folder}
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Empty file")
+        url = upload_raw(content, file.filename, folder)
+        if not url:
+            raise HTTPException(status_code=500, detail="Upload failed")
+        return {"url": url, "name": file.filename, "folder": folder}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Upload failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @router.delete("")
