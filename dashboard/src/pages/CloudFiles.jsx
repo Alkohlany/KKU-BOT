@@ -1,12 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 import { useToast } from '../components/ToastContext';
 
-var FOLDER_MAP = {
+var FOLDER_LABELS = {
+  'kku-bot': 'الكل',
   'kku-bot/news': 'الأخبار',
   'kku-bot/plans': 'الخطط الدراسية',
   'kku-bot/scheduled': 'المنشورات المجدولة',
 };
+
+function getFileIcon(name) {
+  if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name)) return '🖼️';
+  if (/\.(mp4|webm|mov|avi|mkv)$/i.test(name)) return '🎬';
+  if (/\.pdf$/i.test(name)) return '📕';
+  if (/\.(doc|docx|txt|rtf)$/i.test(name)) return '📄';
+  if (/\.(zip|rar|7z|tar|gz)$/i.test(name)) return '📦';
+  if (/\.(mp3|wav|ogg|flac|m4a)$/i.test(name)) return '🎵';
+  if (/\.(xls|xlsx|csv)$/i.test(name)) return '📊';
+  if (/\.(ppt|pptx)$/i.test(name)) return '📽️';
+  return '📄';
+}
+
+function formatSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  if (bytes > 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+  if (bytes > 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return bytes + ' B';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  var now = new Date();
+  var diff = now - d;
+  if (diff < 60000) return 'الآن';
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' دقيقة';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' ساعة';
+  return d.toLocaleDateString('ar-EG');
+}
 
 export default function CloudFiles() {
   var _t = useToast();
@@ -17,204 +48,553 @@ export default function CloudFiles() {
   var _l = useState(true);
   var loading = _l[0];
   var setLoading = _l[1];
+  var _p = useState('kku-bot');
+  var currentPath = _p[0];
+  var setCurrentPath = _p[1];
   var _s = useState('');
   var search = _s[0];
   var setSearch = _s[1];
-  var _a = useState(null);
-  var activeFolder = _a[0];
-  var setActiveFolder = _a[1];
-  var _d = useState(null);
-  var deleting = _d[0];
-  var setDeleting = _d[1];
+  var _v = useState('grid');
+  var viewMode = _v[0];
+  var setViewMode = _v[1];
+  var _sel = useState(null);
+  var selectedItem = _sel[0];
+  var setSelectedItem = _sel[1];
+  var _cm = useState(null);
+  var contextMenu = _cm[0];
+  var setContextMenu = _cm[1];
+  var _rn = useState(null);
+  var renaming = _rn[0];
+  var setRenaming = _rn[1];
+  var _rnVal = useState('');
+  var renameValue = _rnVal[0];
+  var setRenameValue = _rnVal[1];
+  var _cf = useState(false);
+  var showCreateFolder = _cf[0];
+  var setShowCreateFolder = _cf[1];
+  var _cfv = useState('');
+  var createFolderValue = _cfv[0];
+  var setCreateFolderValue = _cfv[1];
+  var _ul = useState(false);
+  var uploading = _ul[0];
+  var setUploading = _ul[1];
+  var _dp = useState(false);
+  var isDragOver = _dp[0];
+  var setIsDragOver = _dp[1];
+  var _mv = useState(null);
+  var movingItem = _mv[0];
+  var setMovingItem = _mv[1];
+  var fileInputRef = useRef(null);
 
-  var loadFiles = function() {
+  var loadAll = useCallback(function() {
     setLoading(true);
     api.getCloudFiles().then(function(data) {
       setFiles(data);
     }).catch(function(err) {
-      console.error('Failed to load files:', err);
+      console.error('Failed to load:', err);
       showToast('فشل تحميل الملفات', 'error');
     }).finally(function() {
       setLoading(false);
     });
-  };
-
-  useEffect(function() {
-    loadFiles();
   }, []);
 
-  var handleDelete = function(key, name) {
-    setDeleting(key);
-    api.deleteCloudFile(key).then(function() {
-      showToast('تم حذف الملف: ' + name, 'success');
-      loadFiles();
-    }).catch(function(err) {
-      console.error('Failed to delete:', err);
-      showToast('فشل حذف الملف', 'error');
-    }).finally(function() {
-      setDeleting(null);
-    });
-  };
+  useEffect(function() {
+    loadAll();
+  }, []);
 
-  var allFiles = [];
-  if (activeFolder) {
-    allFiles = files[activeFolder] || [];
-  } else {
-    Object.keys(files).forEach(function(k) {
-      allFiles = allFiles.concat(files[k] || []);
-    });
+  var currentData = files[currentPath] || { files: [], subfolders: [] };
+  var currentFiles = currentData.files || [];
+  var currentSubfolders = currentData.subfolders || [];
+
+  if (currentPath !== 'kku-bot' && files[currentPath] && !files[currentPath].files) {
+    currentFiles = [];
+    currentSubfolders = [];
   }
 
-  var filtered = allFiles.filter(function(f) {
+  var breadcrumbs = currentPath.split('/').map(function(part, i, arr) {
+    return { name: FOLDER_LABELS[arr.slice(0, i + 1).join('/')] || part, path: arr.slice(0, i + 1).join('/') };
+  });
+
+  var filtered = currentFiles.filter(function(f) {
     if (!search) return true;
     return f.name.toLowerCase().indexOf(search.toLowerCase()) !== -1;
   });
 
-  var totalSize = allFiles.reduce(function(sum, f) { return sum + (f.size || 0); }, 0);
-  var formatSize = function(bytes) {
-    if (bytes > 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
-    if (bytes > 1024) return (bytes / 1024).toFixed(0) + ' KB';
-    return bytes + ' B';
+  var filteredSubfolders = currentSubfolders.filter(function(sf) {
+    if (!search) return true;
+    return sf.name.toLowerCase().indexOf(search.toLowerCase()) !== -1;
+  });
+
+  var totalSize = currentFiles.reduce(function(sum, f) { return sum + (f.size || 0); }, 0);
+
+  var navigateTo = function(path) {
+    setCurrentPath(path);
+    setSearch('');
+    setSelectedItem(null);
+    setContextMenu(null);
+    setRenaming(null);
+    if (!files[path]) {
+      setLoading(true);
+      api.getCloudFiles(path).then(function(data) {
+        setFiles(function(prev) {
+          var next = Object.assign({}, prev);
+          next[path] = data;
+          return next;
+        });
+      }).finally(function() {
+        setLoading(false);
+      });
+    }
   };
 
-  if (loading) {
-    return <div style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>جاري تحميل الملفات...</div>;
+  var goUp = function() {
+    var parts = currentPath.split('/');
+    if (parts.length > 1) {
+      parts.pop();
+      navigateTo(parts.join('/'));
+    }
+  };
+
+  var handleCreateFolder = function() {
+    if (!createFolderValue.trim()) return;
+    var path = currentPath + '/' + createFolderValue.trim();
+    api.createCloudFolder(path).then(function() {
+      showToast('تم إنشاء المجلد', 'success');
+      setShowCreateFolder(false);
+      setCreateFolderValue('');
+      loadAll();
+    }).catch(function() {
+      showToast('فشل إنشاء المجلد', 'error');
+    });
+  };
+
+  var handleDeleteFolder = function(path, name) {
+    if (!confirm('هل أنت متأكد من حذف المجلد "' + name + '" وكل محتوياته؟')) return;
+    api.deleteCloudFolder(path).then(function() {
+      showToast('تم حذف المجلد: ' + name, 'success');
+      if (currentPath === path) goUp();
+      loadAll();
+    }).catch(function() {
+      showToast('فشل حذف المجلد', 'error');
+    });
+  };
+
+  var handleDeleteFile = function(key, name) {
+    if (!confirm('هل أنت متأكد من حذف "' + name + '"؟')) return;
+    api.deleteCloudFile(key).then(function() {
+      showToast('تم حذف الملف: ' + name, 'success');
+      loadAll();
+    }).catch(function() {
+      showToast('فشل حذف الملف', 'error');
+    });
+  };
+
+  var handleRename = function(key, currentName) {
+    setRenaming(key);
+    setRenameValue(currentName);
+  };
+
+  var confirmRename = function() {
+    if (!renameValue.trim() || !renaming) return;
+    api.renameCloudFile(renaming, renameValue.trim()).then(function() {
+      showToast('تمت إعادة التسمية', 'success');
+      setRenaming(null);
+      setRenameValue('');
+      loadAll();
+    }).catch(function() {
+      showToast('فشل إعادة التسمية', 'error');
+    });
+  };
+
+  var handleUpload = function(selectedFiles) {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    setUploading(true);
+    var total = selectedFiles.length;
+    var done = 0;
+    var errors = 0;
+    Array.from(selectedFiles).forEach(function(file) {
+      api.uploadCloudFile(file, currentPath).then(function() {
+        done++;
+      }).catch(function() {
+        errors++;
+      }).finally(function() {
+        if (done + errors === total) {
+          setUploading(false);
+          showToast('تم رفع ' + done + ' ملف' + (errors > 0 ? ' (' + errors + ' فشل)' : ''), errors > 0 ? 'warning' : 'success');
+          loadAll();
+        }
+      });
+    });
+  };
+
+  var handleDrop = function(e) {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleUpload(e.dataTransfer.files);
+  };
+
+  var handleDragOver = function(e) {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  var handleDragLeave = function() {
+    setIsDragOver(false);
+  };
+
+  var handleMove = function(key) {
+    setMovingItem(key);
+  };
+
+  var confirmMove = function(destFolder) {
+    if (!movingItem) return;
+    api.moveCloudFile(movingItem, destFolder).then(function() {
+      showToast('تم نقل الملف', 'success');
+      setMovingItem(null);
+      loadAll();
+    }).catch(function() {
+      showToast('فشل نقل الملف', 'error');
+    });
+  };
+
+  var handleContextMenu = function(e, item, type) {
+    e.preventDefault();
+    setSelectedItem(item);
+    setContextMenu({ x: e.clientX, y: e.clientY, item: item, type: type });
+  };
+
+  useEffect(function() {
+    var close = function() { setContextMenu(null); };
+    if (contextMenu) {
+      document.addEventListener('click', close);
+      return function() { document.removeEventListener('click', close); };
+    }
+  }, [contextMenu]);
+
+  if (loading && Object.keys(files).length === 0) {
+    return <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-400)' }}>
+      <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+      <div>جاري تحميل الملفات...</div>
+    </div>;
   }
 
   return (
-    <div className="card">
-      <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div className="search-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input type="text" placeholder="بحث في الملفات..." value={search} onChange={function(e) { setSearch(e.target.value); }} />
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--gray-500)' }}>
-          {allFiles.length} ملف | {formatSize(totalSize)}
-        </div>
-      </div>
-
-      <div style={{ padding: '0 20px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button
-          onClick={function() { setActiveFolder(null); }}
-          style={{ padding: '6px 16px', borderRadius: 20, border: '1px solid var(--gray-200)', background: !activeFolder ? 'var(--primary)' : 'var(--gray-50)', color: !activeFolder ? 'white' : 'var(--gray-600)', fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' }}
-        >الكل</button>
-        {Object.keys(FOLDER_MAP).map(function(key) {
-          var count = (files[key] || []).length;
-          return (
-            <button
-              key={key}
-              onClick={function() { setActiveFolder(key); }}
-              style={{ padding: '6px 16px', borderRadius: 20, border: '1px solid var(--gray-200)', background: activeFolder === key ? 'var(--primary)' : 'var(--gray-50)', color: activeFolder === key ? 'white' : 'var(--gray-600)', fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' }}
-            >{FOLDER_MAP[key]} ({count})</button>
-          );
-        })}
-      </div>
-
-      <div className="table-container desktop-only">
-        <table>
-          <thead>
-            <tr>
-              <th>الملف</th>
-              <th>المجلد</th>
-              <th>الحجم</th>
-              <th>إجراءات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(function(file) {
-              var isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
-              var isVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(file.name);
-              var isPdf = /\.pdf$/i.test(file.name);
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: 'var(--white)', borderRadius: '12px 12px 0 0', borderBottom: '1px solid var(--gray-100)', flexWrap: 'wrap' }}>
+        <button onClick={goUp} disabled={currentPath === 'kku-bot'} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--gray-200)', background: currentPath === 'kku-bot' ? 'var(--gray-50)' : 'var(--white)', cursor: currentPath === 'kku-bot' ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentPath === 'kku-bot' ? 0.4 : 1 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            {breadcrumbs.map(function(bc, i) {
               return (
-                <tr key={file.key}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {isImage ? (
-                        <img src={file.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
-                      ) : isVideo ? (
-                        <div style={{ width: 40, height: 40, borderRadius: 6, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ color: 'white', fontSize: 14 }}>▶</span>
-                        </div>
-                      ) : isPdf ? (
-                        <div style={{ width: 40, height: 40, borderRadius: 6, background: '#FFF3E0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ fontSize: 18 }}>📕</span>
-                        </div>
-                      ) : (
-                        <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--gray-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ fontSize: 18 }}>📄</span>
-                        </div>
-                      )}
-                      <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontSize: 13, color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>{file.name}</div>
-                        <a href={file.url} target="_blank" rel="noopener" style={{ fontSize: 11, color: 'var(--primary)', textDecoration: 'none' }}>فتح الرابط</a>
-                      </div>
-                    </div>
-                  </td>
-                  <td><span style={{ fontSize: 12, color: 'var(--gray-500)' }}>{FOLDER_MAP[file.folder] || file.folder}</span></td>
-                  <td><span style={{ fontSize: 12, color: 'var(--gray-500)' }}>{formatSize(file.size)}</span></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <a href={file.url} download={file.name} className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>تحميل</a>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        disabled={deleting === file.key}
-                        onClick={function() { if (confirm('هل أنت متأكد من حذف هذا الملف؟')) handleDelete(file.key, file.name); }}
-                      >{deleting === file.key ? '...' : 'حذف'}</button>
-                    </div>
-                  </td>
-                </tr>
+                <React.Fragment key={bc.path}>
+                  {i > 0 && <span style={{ color: 'var(--gray-400)', fontSize: 12 }}>/</span>}
+                  <button
+                    onClick={function() { navigateTo(bc.path); }}
+                    style={{ padding: '2px 8px', borderRadius: 6, border: 'none', background: i === breadcrumbs.length - 1 ? 'var(--primary-bg)' : 'transparent', color: i === breadcrumbs.length - 1 ? 'var(--primary)' : 'var(--gray-600)', fontSize: 13, fontWeight: i === breadcrumbs.length - 1 ? 600 : 400, cursor: 'pointer' }}
+                  >{bc.name}</button>
+                </React.Fragment>
               );
             })}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, color: 'var(--gray-300)', marginBottom: 12 }}>
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-            </svg>
-            <h4>لا توجد ملفات</h4>
           </div>
-        )}
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="بحث..."
+              value={search}
+              onChange={function(e) { setSearch(e.target.value); }}
+              style={{ width: 180, padding: '6px 12px 6px 30px', borderRadius: 8, border: '1px solid var(--gray-200)', fontSize: 13, outline: 'none' }}
+            />
+            <svg style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--gray-400)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <button onClick={function() { setShowCreateFolder(true); }} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--gray-200)', background: 'var(--white)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            مجلد
+          </button>
+          <button onClick={function() { fileInputRef.current.click(); }} disabled={uploading} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontSize: 13, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: uploading ? 0.6 : 1 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            {uploading ? 'جاري الرفع...' : 'رفع ملف'}
+          </button>
+          <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={function(e) { handleUpload(e.target.files); e.target.value = ''; }} />
+        </div>
+        <div style={{ display: 'flex', gap: 2, background: 'var(--gray-100)', borderRadius: 6, padding: 2 }}>
+          <button onClick={function() { setViewMode('grid'); }} style={{ width: 28, height: 28, borderRadius: 4, border: 'none', background: viewMode === 'grid' ? 'var(--white)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </button>
+          <button onClick={function() { setViewMode('list'); }} style={{ width: 28, height: 28, borderRadius: 4, border: 'none', background: viewMode === 'list' ? 'var(--white)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>
+          {currentFiles.length} ملف | {formatSize(totalSize)}
+        </div>
       </div>
 
-      <div className="mobile-cards">
-        {filtered.map(function(file) {
-          var isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
-          var isVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(file.name);
-          return (
-            <div key={file.key} className="mobile-card">
-              <div className="mobile-card-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {isImage ? (
-                    <img src={file.url} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }} />
-                  ) : isVideo ? (
-                    <div style={{ width: 36, height: 36, borderRadius: 4, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ color: 'white', fontSize: 12 }}>▶</span>
-                    </div>
-                  ) : (
-                    <span style={{ fontSize: 20 }}>📄</span>
-                  )}
-                  <strong style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</strong>
-                </div>
-              </div>
-              <div className="mobile-card-body">
-                <p style={{ fontSize: 12, color: 'var(--gray-500)' }}>{FOLDER_MAP[file.folder] || file.folder} | {formatSize(file.size)}</p>
-              </div>
-              <div className="mobile-card-meta">
-                <a href={file.url} target="_blank" rel="noopener" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>فتح</a>
-                <a href={file.url} download={file.name} className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>تحميل</a>
-                <button
-                  className="btn btn-danger btn-sm"
-                  disabled={deleting === file.key}
-                  onClick={function() { if (confirm('هل أنت متأكد من حذف هذا الملف؟')) handleDelete(file.key, file.name); }}
-                >حذف</button>
+      {/* Content */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        style={{
+          flex: 1,
+          overflow: 'auto',
+          background: 'var(--white)',
+          borderRadius: '0 0 12px 12px',
+          padding: 16,
+          border: isDragOver ? '2px dashed var(--primary)' : '2px dashed transparent',
+          transition: 'border 0.2s',
+        }}
+      >
+        {isDragOver && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(var(--primary-rgb, 59,130,246), 0.05)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, pointerEvents: 'none' }}>
+            <div style={{ textAlign: 'center', color: 'var(--primary)' }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 8px' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>أفلت الملفات هنا</div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Folder Modal */}
+        {showCreateFolder && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={function() { setShowCreateFolder(false); }}>
+            <div style={{ background: 'var(--white)', borderRadius: 12, padding: 24, width: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={function(e) { e.stopPropagation(); }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600 }}>مجلد جديد</h3>
+              <input
+                autoFocus
+                type="text"
+                placeholder="اسم المجلد"
+                value={createFolderValue}
+                onChange={function(e) { setCreateFolderValue(e.target.value); }}
+                onKeyDown={function(e) { if (e.key === 'Enter') handleCreateFolder(); }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--gray-200)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+                <button onClick={function() { setShowCreateFolder(false); }} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--gray-200)', background: 'var(--white)', fontSize: 13, cursor: 'pointer' }}>إلغاء</button>
+                <button onClick={handleCreateFolder} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontSize: 13, cursor: 'pointer' }}>إنشاء</button>
               </div>
             </div>
-          );
-        })}
+          </div>
+        )}
+
+        {/* Rename Modal */}
+        {renaming && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={function() { setRenaming(null); }}>
+            <div style={{ background: 'var(--white)', borderRadius: 12, padding: 24, width: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={function(e) { e.stopPropagation(); }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600 }}>إعادة تسمية</h3>
+              <input
+                autoFocus
+                type="text"
+                value={renameValue}
+                onChange={function(e) { setRenameValue(e.target.value); }}
+                onKeyDown={function(e) { if (e.key === 'Enter') confirmRename(); }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--gray-200)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+                <button onClick={function() { setRenaming(null); }} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--gray-200)', background: 'var(--white)', fontSize: 13, cursor: 'pointer' }}>إلغاء</button>
+                <button onClick={confirmRename} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontSize: 13, cursor: 'pointer' }}>حفظ</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Move Modal */}
+        {movingItem && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={function() { setMovingItem(null); }}>
+            <div style={{ background: 'var(--white)', borderRadius: 12, padding: 24, width: 360, maxHeight: 400, overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={function(e) { e.stopPropagation(); }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 600 }}>نقل إلى</h3>
+              {Object.keys(FOLDER_LABELS).map(function(path) {
+                return (
+                  <button
+                    key={path}
+                    onClick={function() { confirmMove(path); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'right', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--gray-100)', background: path === currentPath ? 'var(--primary-bg)' : 'var(--white)', cursor: 'pointer', marginBottom: 6, fontSize: 13 }}
+                  >{FOLDER_LABELS[path]}</button>
+                );
+              })}
+              <button onClick={function() { setMovingItem(null); }} style={{ width: '100%', padding: '8px 16px', borderRadius: 8, border: '1px solid var(--gray-200)', background: 'var(--white)', fontSize: 13, cursor: 'pointer', marginTop: 8 }}>إلغاء</button>
+            </div>
+          </div>
+        )}
+
+        {/* Context Menu */}
+        {contextMenu && (
+          <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: 'var(--white)', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)', border: '1px solid var(--gray-100)', padding: 6, zIndex: 200, minWidth: 180 }}>
+            {contextMenu.type === 'file' && (
+              <>
+                <button onClick={function() { window.open(contextMenu.item.url, '_blank'); setContextMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, textAlign: 'right' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  فتح
+                </button>
+                <button onClick={function() { handleRename(contextMenu.item.key, contextMenu.item.name); setContextMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, textAlign: 'right' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  إعادة تسمية
+                </button>
+                <button onClick={function() { handleMove(contextMenu.item.key); setContextMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, textAlign: 'right' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/></svg>
+                  نقل إلى...
+                </button>
+                <div style={{ height: 1, background: 'var(--gray-100)', margin: '4px 8px' }} />
+                <button onClick={function() { handleDeleteFile(contextMenu.item.key, contextMenu.item.name); setContextMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, color: 'var(--danger)', textAlign: 'right' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  حذف
+                </button>
+              </>
+            )}
+            {contextMenu.type === 'folder' && (
+              <>
+                <button onClick={function() { navigateTo(contextMenu.item.path); setContextMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, textAlign: 'right' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  فتح
+                </button>
+                <button onClick={function() { handleRename(contextMenu.item.path, contextMenu.item.name); setContextMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, textAlign: 'right' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  إعادة تسمية
+                </button>
+                <div style={{ height: 1, background: 'var(--gray-100)', margin: '4px 8px' }} />
+                <button onClick={function() { handleDeleteFolder(contextMenu.item.path, contextMenu.item.name); setContextMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, color: 'var(--danger)', textAlign: 'right' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  حذف المجلد
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {filteredSubfolders.length === 0 && filtered.length === 0 && !search && (
+          <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-400)' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 56, height: 56, margin: '0 auto 12px', color: 'var(--gray-300)' }}>
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+            <h4 style={{ margin: '0 0 4px', color: 'var(--gray-600)' }}>مجلد فارغ</h4>
+            <p style={{ fontSize: 13 }}>اسحب ملفات هنا أو اضغط "رفع ملف"</p>
+          </div>
+        )}
+
+        {search && filteredSubfolders.length === 0 && filtered.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-400)' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, margin: '0 auto 12px', color: 'var(--gray-300)' }}>
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <h4 style={{ margin: '0 0 4px', color: 'var(--gray-600)' }}>لا نتائج</h4>
+            <p style={{ fontSize: 13 }}>لا توجد ملفات تطابق "{search}"</p>
+          </div>
+        )}
+
+        {/* Grid View */}
+        {viewMode === 'grid' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
+            {filteredSubfolders.map(function(sf) {
+              var count = (files[sf.path] && files[sf.path].files) ? files[sf.path].files.length : 0;
+              return (
+                <div
+                  key={sf.path}
+                  onDoubleClick={function() { navigateTo(sf.path); }}
+                  onContextMenu={function(e) { handleContextMenu(e, sf, 'folder'); }}
+                  style={{ padding: 16, borderRadius: 10, border: '1px solid var(--gray-100)', background: 'var(--white)', cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center' }}
+                  onMouseEnter={function(e) { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'var(--primary-bg)'; }}
+                  onMouseLeave={function(e) { e.currentTarget.style.borderColor = 'var(--gray-100)'; e.currentTarget.style.background = 'var(--white)'; }}
+                >
+                  <div style={{ fontSize: 36, marginBottom: 6 }}>📁</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sf.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>{count} ملف</div>
+                </div>
+              );
+            })}
+            {filtered.map(function(file) {
+              var isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+              var isVid = /\.(mp4|webm|mov|avi|mkv)$/i.test(file.name);
+              return (
+                <div
+                  key={file.key}
+                  onContextMenu={function(e) { handleContextMenu(e, file, 'file'); }}
+                  onClick={function() { setSelectedItem(selectedItem && selectedItem.key === file.key ? null : file); }}
+                  onDoubleClick={function() { window.open(file.url, '_blank'); }}
+                  style={{ padding: 12, borderRadius: 10, border: selectedItem && selectedItem.key === file.key ? '2px solid var(--primary)' : '1px solid var(--gray-100)', background: 'var(--white)', cursor: 'pointer', transition: 'all 0.15s', textAlign: 'center' }}
+                  onMouseEnter={function(e) { if (!(selectedItem && selectedItem.key === file.key)) e.currentTarget.style.borderColor = 'var(--primary-light)'; }}
+                  onMouseLeave={function(e) { if (!(selectedItem && selectedItem.key === file.key)) e.currentTarget.style.borderColor = 'var(--gray-100)'; }}
+                >
+                  {isImg ? (
+                    <img src={file.url} alt="" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 6, marginBottom: 8 }} />
+                  ) : isVid ? (
+                    <div style={{ width: '100%', height: 80, borderRadius: 6, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                      <span style={{ color: 'white', fontSize: 24 }}>▶</span>
+                    </div>
+                  ) : (
+                    <div style={{ width: '100%', height: 80, borderRadius: 6, background: 'var(--gray-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 32 }}>{getFileIcon(file.name)}</span>
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--gray-700)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>{formatSize(file.size)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* List View */}
+        {viewMode === 'list' && (
+          <div style={{ borderRadius: 8, border: '1px solid var(--gray-100)', overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 120px', padding: '8px 12px', background: 'var(--gray-50)', fontSize: 12, fontWeight: 600, color: 'var(--gray-500)', borderBottom: '1px solid var(--gray-100)' }}>
+              <span>الاسم</span>
+              <span>النوع</span>
+              <span>الحجم</span>
+              <span>إجراءات</span>
+            </div>
+            {filteredSubfolders.map(function(sf) {
+              return (
+                <div
+                  key={sf.path}
+                  onDoubleClick={function() { navigateTo(sf.path); }}
+                  onContextMenu={function(e) { handleContextMenu(e, sf, 'folder'); }}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 120px', padding: '10px 12px', fontSize: 13, borderBottom: '1px solid var(--gray-50)', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }}
+                  onMouseEnter={function(e) { e.currentTarget.style.background = 'var(--gray-50)'; }}
+                  onMouseLeave={function(e) { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>📁</span>
+                    <span style={{ fontWeight: 500 }}>{sf.name}</span>
+                  </span>
+                  <span style={{ color: 'var(--gray-400)' }}>مجلد</span>
+                  <span style={{ color: 'var(--gray-400)' }}>—</span>
+                  <span style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={function(e) { e.stopPropagation(); handleRename(sf.path, sf.name); }} style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--gray-200)', background: 'var(--white)', fontSize: 11, cursor: 'pointer' }}>إعادة تسمية</button>
+                    <button onClick={function(e) { e.stopPropagation(); handleDeleteFolder(sf.path, sf.name); }} style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--danger-light)', background: 'var(--white)', fontSize: 11, cursor: 'pointer', color: 'var(--danger)' }}>حذف</button>
+                  </span>
+                </div>
+              );
+            })}
+            {filtered.map(function(file) {
+              var ext = file.name.split('.').pop().toUpperCase();
+              return (
+                <div
+                  key={file.key}
+                  onContextMenu={function(e) { handleContextMenu(e, file, 'file'); }}
+                  onClick={function() { setSelectedItem(selectedItem && selectedItem.key === file.key ? null : file); }}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 120px', padding: '10px 12px', fontSize: 13, borderBottom: '1px solid var(--gray-50)', cursor: 'pointer', alignItems: 'center', background: selectedItem && selectedItem.key === file.key ? 'var(--primary-bg)' : 'transparent', transition: 'background 0.1s' }}
+                  onMouseEnter={function(e) { if (!(selectedItem && selectedItem.key === file.key)) e.currentTarget.style.background = 'var(--gray-50)'; }}
+                  onMouseLeave={function(e) { if (!(selectedItem && selectedItem.key === file.key)) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>{getFileIcon(file.name)}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                  </span>
+                  <span style={{ color: 'var(--gray-400)', fontSize: 11 }}>{ext}</span>
+                  <span style={{ color: 'var(--gray-400)' }}>{formatSize(file.size)}</span>
+                  <span style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={function(e) { e.stopPropagation(); handleRename(file.key, file.name); }} style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--gray-200)', background: 'var(--white)', fontSize: 11, cursor: 'pointer' }}>إعادة تسمية</button>
+                    <button onClick={function(e) { e.stopPropagation(); handleDeleteFile(file.key, file.name); }} style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--danger-light)', background: 'var(--white)', fontSize: 11, cursor: 'pointer', color: 'var(--danger)' }}>حذف</button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

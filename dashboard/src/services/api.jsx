@@ -233,6 +233,30 @@ const api = {
   // Cloud Files
   getCloudFiles: (folder) => api.get('/files' + (folder ? '?folder=' + encodeURIComponent(folder) : '')),
   deleteCloudFile: (key) => api.delete('/files?key=' + encodeURIComponent(key)),
+  renameCloudFile: (oldKey, newName) => {
+    var fd = new FormData();
+    fd.append('old_key', oldKey);
+    fd.append('new_name', newName);
+    return api.put('/files/rename', fd);
+  },
+  moveCloudFile: (key, newFolder) => {
+    var fd = new FormData();
+    fd.append('key', key);
+    fd.append('new_folder', newFolder);
+    return api.put('/files/move', fd);
+  },
+  createCloudFolder: (path) => {
+    var fd = new FormData();
+    fd.append('path', path);
+    return api.post('/files/folder', fd);
+  },
+  deleteCloudFolder: (path) => api.delete('/files/folder?path=' + encodeURIComponent(path)),
+  uploadCloudFile: (file, folder) => {
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', folder || 'kku-bot');
+    return api.post('/files', fd);
+  },
 };
 
 export default api;

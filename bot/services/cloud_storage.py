@@ -77,10 +77,103 @@ def list_all_folders():
     return folders
 
 
-def delete_object(key):
+def list_all_folders_recursive():
     try:
-        s3.delete_object(Bucket=R2_BUCKET_NAME, Key=key)
+        result = s3.list_objects_v2(Bucket=R2_BUCKET_NAME, Prefix="kku-bot/", Delimiter="/")
+        folders = {"kku-bot": []}
+        for prefix in result.get("CommonPrefixes", []):
+            folder_path = prefix["Prefix"].rstrip("/")
+            folders[folder_path] = list_objects(folder_path)
+        for obj in result.get("Contents", []):
+            key = obj["Key"]
+            if key.endswith("/"):
+                continue
+            name = key.split("/")[-1]
+            folders["kku-bot"].append({
+                "key": key,
+                "url": R2_PUBLIC_URL + "/" + key,
+                "name": name,
+                "size": obj["Size"],
+                "folder": "kku-bot",
+            })
+        return folders
+    except Exception as e:
+        logger.error("List all folders recursive failed: %s", e)
+        return {"kku-bot": []}
+
+
+def list_subfolders(folder="kku-bot"):
+    try:
+        result = s3.list_objects_v2(Bucket=R2_BUCKET_NAME, Prefix=folder + "/", Delimiter="/")
+        subfolders = []
+        for prefix in result.get("CommonPrefixes", []):
+            path = prefix["Prefix"].rstrip("/")
+            name = path.split("/")[-1]
+            subfolders.append({"path": path, "name": name})
+        return subfolders
+    except Exception as e:
+        logger.error("List subfolders failed: %s", e)
+        return []
+
+
+def create_folder(folder_path):
+    try:
+        key = folder_path.rstrip("/") + "/"
+        s3.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=b"")
         return True
     except Exception as e:
-        logger.error("Delete object failed: %s", e)
+        logger.error("Create folder failed: %s", e)
+        return False
+
+
+def delete_folder(prefix):
+    try:
+        prefix = prefix.rstrip("/") + "/"
+        paginator = s3.get_paginator("list_objects_v2")
+        to_delete = []
+        for page in paginator.paginate(Bucket=R2_BUCKET_NAME, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                to_delete.append({"Key": obj["Key"]})
+        if not to_delete:
+            return True
+        for i in range(0, len(to_delete), 1000):
+            s3.delete_objects(
+                Bucket=R2_BUCKET_NAME,
+                Delete={"Objects": to_delete[i:i+1000]}
+            )
+        return True
+    except Exception as e:
+        logger.error("Delete folder failed: %s", e)
+        return False
+
+
+def rename_object(old_key, new_key):
+    try:
+        s3.copy_object(
+            Bucket=R2_BUCKET_NAME,
+            CopySource={"Bucket": R2_BUCKET_NAME, "Key": old_key},
+            Key=new_key,
+        )
+        s3.delete_object(Bucket=R2_BUCKET_NAME, Key=old_key)
+        return True
+    except Exception as e:
+        logger.error("Rename object failed: %s", e)
+        return False
+
+
+def move_object(old_key, new_folder):
+    try:
+        name = old_key.split("/")[-1]
+        new_key = new_folder.rstrip("/") + "/" + name
+        if old_key == new_key:
+            return True
+        s3.copy_object(
+            Bucket=R2_BUCKET_NAME,
+            CopySource={"Bucket": R2_BUCKET_NAME, "Key": old_key},
+            Key=new_key,
+        )
+        s3.delete_object(Bucket=R2_BUCKET_NAME, Key=old_key)
+        return True
+    except Exception as e:
+        logger.error("Move object failed: %s", e)
         return False
