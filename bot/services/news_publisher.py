@@ -129,6 +129,9 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
                     if file_type_item == "photo" and not as_document:
                         msg = await bot.send_photo(chat_id=chat_id, photo=file_url_item, caption=text, parse_mode='HTML')
                         return msg.message_id
+                    elif file_type_item == "video" and not as_document:
+                        msg = await bot.send_video(chat_id=chat_id, video=file_url_item, caption=text, parse_mode='HTML', filename=file_name_item)
+                        return msg.message_id
                     else:
                         msg = await _send_file_and_get_id(chat_id, file_url_item, text, original_filename=file_name_item, thumb_url=file_thumb_item)
                         if msg:
@@ -174,17 +177,33 @@ async def _send_to_chat_and_get_id(chat_id: str, text: str, image_url: str = Non
 async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_filename: str = None, thumb_url: str = None):
     filename = original_filename or url.split("/")[-1].split("?")[0] if url.startswith('http') else (original_filename or os.path.basename(url) if os.path.exists(url) else "file")
 
+    is_video = filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv'))
+    is_image = filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))
+
     # Try to upload with thumbnail via raw multipart POST (thumbnail requires upload)
     if thumb_url and thumb_url.startswith('http'):
         try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
-                pdf_resp = await client.get(url)
-                if pdf_resp.status_code == 200:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
+                file_resp = await client.get(url, timeout=60)
+                if file_resp.status_code == 200:
+                    if is_video:
+                        mime = "video/mp4"
+                        endpoint = "sendVideo"
+                        field_name = "video"
+                    elif is_image:
+                        mime = "image/jpeg"
+                        endpoint = "sendPhoto"
+                        field_name = "photo"
+                    else:
+                        mime = "application/pdf"
+                        endpoint = "sendDocument"
+                        field_name = "document"
+
                     form = [
                         ("chat_id", (None, chat_id)),
                         ("caption", (None, caption)),
                         ("parse_mode", (None, "HTML")),
-                        ("document", (filename, pdf_resp.content, "application/pdf")),
+                        (field_name, (filename, file_resp.content, mime)),
                     ]
                     try:
                         tresp = await client.get(thumb_url, timeout=15)
@@ -205,16 +224,16 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
                         pass
 
                     resp = await client.post(
-                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/{endpoint}",
                         files=form,
-                        timeout=30
+                        timeout=120
                     )
                     result = resp.json()
                     if result.get("ok"):
                         return type('Msg', (), {"message_id": result["result"]["message_id"]})()
-                    logger.warning(f"Telegram sendDocument with thumb failed: {result}")
+                    logger.warning(f"Telegram {endpoint} with thumb failed: {result}")
         except Exception as e:
-            logger.warning(f"send_document with thumb failed for {chat_id}: {e}")
+            logger.warning(f"send with thumb failed for {chat_id}: {e}")
 
     # Fallback: download bytes and upload directly
     file_bytes = None
@@ -234,9 +253,14 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
 
     if file_bytes:
         try:
-            return await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption, parse_mode='HTML')
+            if is_video:
+                return await bot.send_video(chat_id=chat_id, video=file_bytes, caption=caption, parse_mode='HTML', filename=filename)
+            elif is_image:
+                return await bot.send_photo(chat_id=chat_id, photo=file_bytes, caption=caption, parse_mode='HTML')
+            else:
+                return await bot.send_document(chat_id=chat_id, document=file_bytes, filename=filename, caption=caption, parse_mode='HTML')
         except Exception as e:
-            logger.warning(f"send_document bytes failed for {chat_id}: {e}")
+            logger.warning(f"send file bytes failed for {chat_id}: {e}")
 
     return None
 
@@ -280,7 +304,13 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
                     doc_key = f"doc{i}"
                     files_upload[doc_key] = (file_name_item, fresp.content, mime)
 
-                    item = {"type": "document" if not (ext in ("jpg", "jpeg", "png", "gif", "webp") and not as_document) else "photo", "media": f"attach://{doc_key}"}
+                    if ext in ("jpg", "jpeg", "png", "gif", "webp") and not as_document:
+                        media_type = "photo"
+                    elif ext in ("mp4", "avi", "mov", "webm", "mkv") and not as_document:
+                        media_type = "video"
+                    else:
+                        media_type = "document"
+                    item = {"type": media_type, "media": f"attach://{doc_key}"}
                     if item_caption:
                         item["caption"] = item_caption
                         item["parse_mode"] = "HTML"
