@@ -183,10 +183,14 @@ export default function CloudFiles() {
     setActiveMenu(null);
     setRenaming(null);
     setLoading(true);
-    api.getCloudFiles(path).then(function(data) {
+    api.getCloudFiles(path === 'kku-bot' ? '' : path).then(function(data) {
       setFiles(function(prev) {
         var next = Object.assign({}, prev);
-        next[path] = data;
+        if (path === 'kku-bot') {
+          Object.keys(data).forEach(function(k) { next[k] = data[k]; });
+        } else {
+          next[path] = data;
+        }
         return next;
       });
     }).finally(function() {
