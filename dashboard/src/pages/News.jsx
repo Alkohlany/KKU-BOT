@@ -188,15 +188,25 @@ export default function News() {
   };
 
   const handleSave = async () => {
-    if (!form.content) return;
+    const hasFiles = uploadFiles.length > 0;
+    const hasContent = perFileContent
+      ? Object.values(fileCaptions).some(c => c && c.trim())
+      : !!form.content?.trim();
+    if (!hasContent) return;
     setSaving(true);
     setUploadProgress(0);
     try {
+      let contentToSend = form.content;
+      if (perFileContent && hasFiles) {
+        const parts = uploadFiles.map((f, i) => fileCaptions[i] || '').filter(Boolean);
+        contentToSend = parts.join('\n\n---\n\n');
+        if (!contentToSend.trim()) return;
+      }
       let newItem;
-      if (uploadFiles.length > 0) {
+      if (hasFiles) {
         const formData = new FormData();
         formData.append('title', '');
-        formData.append('content', form.content);
+        formData.append('content', contentToSend);
         uploadFiles.forEach(f => formData.append('files', f));
         formData.append('as_document', form.as_document);
         formData.append('file_captions', JSON.stringify(fileCaptions));
@@ -208,7 +218,14 @@ export default function News() {
           setUploadProgress(percent);
         });
       } else {
-        newItem = await api.addNews({ ...form, title: '', target_channels: JSON.stringify(selectedChannels), linked_response_id: linkedResponseId || '' });
+        newItem = await api.addNews({
+          content: contentToSend,
+          title: '',
+          target_channels: JSON.stringify(selectedChannels),
+          selected_keywords: JSON.stringify(selectedKeywords),
+          selected_questions: JSON.stringify(selectedQuestions),
+          linked_response_id: linkedResponseId || '',
+        });
       }
       loadNews();
       setForm({ content: '', as_document: false });
@@ -897,7 +914,7 @@ export default function News() {
                   <button
                     className="btn btn-primary"
                     onClick={() => setAddWizardStep(addWizardStep + 1)}
-                    disabled={addWizardStep === 2 && !form.content && (perFileContent ? uploadFiles.length === 0 : true)}
+                    disabled={addWizardStep === 2 && !(perFileContent && uploadFiles.length > 0 ? Object.values(fileCaptions).some(c => c && c.trim()) : form.content?.trim())}
                   >
                     التالي
                   </button>

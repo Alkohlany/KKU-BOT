@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id
+from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id, update_auto_response
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages, resend_published_messages
 from bot.services.cloud_storage import upload_image, upload_raw
 
@@ -83,6 +83,9 @@ class NewsCreate(BaseModel):
     target_channels: Optional[str] = None
     files_json: Optional[str] = None
     removed_existing: Optional[str] = None
+    selected_keywords: Optional[str] = None
+    selected_questions: Optional[str] = None
+    linked_response_id: Optional[str] = None
 
 
 class NewsAnalyze(BaseModel):
@@ -132,6 +135,7 @@ async def analyze_news(data: NewsAnalyze):
 
 @router.post("")
 async def create_news(data: NewsCreate):
+    import json
     n = await add_news(content=data.content,
                          image_url=data.image_url, file_url=data.file_url,
                          file_name=data.file_name,
@@ -139,6 +143,31 @@ async def create_news(data: NewsCreate):
                          file_id=data.file_id,
                          target_channels=data.target_channels,
                          files_json=data.files_json)
+
+    if data.selected_keywords:
+        try:
+            keywords = json.loads(data.selected_keywords)
+        except:
+            keywords = []
+        for kw in keywords:
+            if kw and kw.strip() and len(kw.strip()) >= 2 and not kw.startswith('#') and not kw.startswith('http'):
+                await add_auto_response(keyword=kw.strip(), response=f"رد تلقائي لكلمة: {kw}", created_by=None, news_id=n.id)
+
+    if data.selected_questions:
+        try:
+            questions = json.loads(data.selected_questions)
+        except:
+            questions = []
+        for q in questions:
+            if q and q.strip() and len(q.strip()) >= 2 and not q.startswith('#') and not q.startswith('http'):
+                await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
+
+    if data.linked_response_id:
+        try:
+            await update_auto_response(int(data.linked_response_id), news_id=n.id)
+        except:
+            pass
+
     return {"id": n.id, "content": n.content,
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
             "published": n.is_published,
@@ -155,6 +184,7 @@ async def create_news_with_file(
     selected_keywords: str = Form("[]"),
     selected_questions: str = Form("[]"),
     file_captions: str = Form("{}"),
+    linked_response_id: str = Form(""),
 ):
     try:
         import json
@@ -241,6 +271,12 @@ async def create_news_with_file(
         for q in questions:
             if is_valid_item(q):
                 await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
+
+        if linked_response_id:
+            try:
+                await update_auto_response(int(linked_response_id), news_id=n.id)
+            except:
+                pass
 
         return {"id": n.id, "content": n.content,
                 "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
