@@ -37,6 +37,13 @@ def find_best_match(text, responses):
         if keyword_normalized in normalized or (len(normalized) >= 3 and normalized in keyword_normalized):
             return response
 
+    for response in responses:
+        keyword_normalized = normalize_arabic(response.keyword.lower().strip())
+        kw_words = set(keyword_normalized.split())
+        txt_words = set(normalized.split())
+        if kw_words and len(kw_words & txt_words) / len(kw_words) >= 0.7:
+            return response
+
     best_match = None
     best_score = 0
     for response in responses:
