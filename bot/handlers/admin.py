@@ -973,25 +973,25 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     news_id = news.id
 
         created_count = 0
-        for keyword in keywords_list:
-            try:
-                ar = AutoResponse(
-                    keyword=keyword,
-                    response=response_text,
-                    created_by=user.id,
-                    file_url=file_url,
-                    file_type=file_type,
-                    file_tg_id=file_tg_id,
-                    news_id=news_id,
-                    source_chat_id=chat.id,
-                    source_message_id=replied.message_id,
-                )
-                async with async_session() as session:
-                    session.add(ar)
-                    await session.commit()
-                created_count += 1
-            except Exception as e:
-                logger.error(f"Could not create auto response for '{keyword}': {e}")
+        try:
+            combined_keywords = " ".join(keywords_list)
+            ar = AutoResponse(
+                keyword=combined_keywords,
+                response=response_text,
+                created_by=user.id,
+                file_url=file_url,
+                file_type=file_type,
+                file_tg_id=file_tg_id,
+                news_id=news_id,
+                source_chat_id=chat.id,
+                source_message_id=replied.message_id,
+            )
+            async with async_session() as session:
+                session.add(ar)
+                await session.commit()
+            created_count = 1
+        except Exception as e:
+            logger.error(f"Could not create auto response: {e}")
 
         if created_count > 0:
             news_info = f"\n📰 مرتبط بمنشور" if news_id else ""
