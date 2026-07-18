@@ -9,7 +9,7 @@ from bot.services.database import (
     add_auto_response, get_all_auto_responses, remove_auto_response,
     add_question, get_all_questions, delete_question,
     get_all_news, get_news_by_id, delete_news, add_news,
-    get_news_by_channel_message_id,
+    get_news_by_channel_message_id, get_news_by_group_message_id,
     ban_user, get_all_banned, is_banned,
     get_active_channel_groups, log_activity, async_session
 )
@@ -867,6 +867,18 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             except Exception as e:
                 logger.warning(f"Could not upload file from replied message: {e}")
 
+            # Detect news_id if replied message is from bot
+            news_id = None
+            replied_from_bot = replied.from_user and replied.from_user.id == context.bot.id
+            if replied_from_bot:
+                news = await get_news_by_channel_message_id(replied.message_id)
+                if news:
+                    news_id = news.id
+                else:
+                    news = await get_news_by_group_message_id(chat.id, replied.message_id)
+                    if news:
+                        news_id = news.id
+
             created_count = 0
             for keyword in keywords:
                 try:
@@ -879,6 +891,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                         file_tg_id=file_tg_id,
                         source_chat_id=chat.id,
                         source_message_id=replied.message_id,
+                        news_id=news_id,
                     )
                     async with async_session() as session:
                         session.add(ar)
