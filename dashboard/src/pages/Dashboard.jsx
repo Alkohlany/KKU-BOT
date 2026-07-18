@@ -19,6 +19,8 @@ export default function Dashboard() {
   const [activities, setActivities] = useState([]);
   const [channels, setChannels] = useState([]);
   const [groupsList, setGroupsList] = useState([]);
+  const [activitiesLimit, setActivitiesLimit] = useState(3);
+  const [connectionsLimit, setConnectionsLimit] = useState(5);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function Dashboard() {
           .map(([name, value]) => ({ name, value }))
       );
 
-      setActivities(activityData.slice(0, 6) || []);
+      setActivities(activityData || []);
       const channelsList = channelsData.filter(c => c.type === 'channel');
       const groupsListData = channelsData.filter(c => c.type === 'group');
       setChannels(channelsList);
@@ -206,7 +208,7 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {allConnections.slice(0, 10).map((item, index) => (
+                    {allConnections.slice(0, connectionsLimit).map((item, index) => (
                       <tr key={item.id || index} style={{ borderBottom: '1px solid #f0f0f0' }}>
                         <td style={{ padding: '10px 12px', fontWeight: 500 }}>
                           {item.title || `عنصر ${index + 1}`}
@@ -256,7 +258,7 @@ export default function Dashboard() {
 
               {/* بطاقات الهاتف */}
               <div className="mobile-cards">
-                {allConnections.slice(0, 10).map((item, index) => (
+                {allConnections.slice(0, connectionsLimit).map((item, index) => (
                   <div className="mobile-card" key={item.id || index}>
                     <div className="mobile-card-header">
                       <span style={{ fontWeight: 600 }}>{item.title || `عنصر ${index + 1}`}</span>
@@ -281,6 +283,15 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
+              {allConnections.length > connectionsLimit && (
+                <button
+                  className="btn btn-secondary"
+                  style={{ width: '100%', marginTop: 12 }}
+                  onClick={() => setConnectionsLimit(connectionsLimit + 5)}
+                >
+                  عرض المزيد
+                </button>
+              )}
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>
@@ -317,10 +328,9 @@ export default function Dashboard() {
       <div className="card">
         <div className="card-header">
           <h3>آخر النشاطات</h3>
-          <button className="btn btn-secondary btn-sm">عرض الكل</button>
         </div>
         <div className="card-body">
-          {activities.length > 0 ? activities.map((act, index) => (
+          {activities.length > 0 ? activities.slice(0, activitiesLimit).map((act, index) => (
             <div className="activity-item" key={act.id || index}>
               <div className={`activity-dot ${act.type === 'حظر' ? 'red' : act.type === 'قروب' ? 'blue' : act.type === 'رد' ? 'green' : 'orange'}`} />
               <div className="activity-text">
@@ -332,6 +342,15 @@ export default function Dashboard() {
             <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>
               لا توجد نشاطات حديثة
             </div>
+          )}
+          {activities.length > activitiesLimit && (
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%', marginTop: 12 }}
+              onClick={() => setActivitiesLimit(activitiesLimit + 3)}
+            >
+              عرض المزيد
+            </button>
           )}
         </div>
       </div>

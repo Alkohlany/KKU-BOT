@@ -472,6 +472,7 @@ body {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--gray-200);
   overflow: hidden;
+  margin-bottom: 20px;
 }
 
 .card-header {
