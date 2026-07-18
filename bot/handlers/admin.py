@@ -925,6 +925,42 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, "❌ لم يتم استخراج كلمات مفتاحية. جرب:\nاضافه رد [كلمات مفتاحية]")
             return
 
+        file_url = None
+        file_type = None
+        file_tg_id = None
+
+        try:
+            if replied.photo:
+                file_obj = replied.photo[-1]
+                file_type = "photo"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                file_url = upload_image(bytes(file_bytes), folder="kku-bot/responses")
+            elif replied.video:
+                file_obj = replied.video
+                file_type = "video"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                file_url = upload_file(bytes(file_bytes), folder="kku-bot/responses")
+            elif replied.document:
+                file_obj = replied.document
+                file_type = "document"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                file_url = upload_raw(bytes(file_bytes), filename=file_obj.file_name or "file", folder="kku-bot/responses")
+            elif replied.voice or replied.audio:
+                file_obj = replied.voice or replied.audio
+                file_type = "document"
+                file_tg_id = file_obj.file_id
+                tg_file = await file_obj.get_file()
+                file_bytes = await tg_file.download_as_bytearray()
+                file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/responses")
+        except Exception as e:
+            logger.warning(f"Could not upload file from replied message: {e}")
+
         news_id = None
         replied_from_bot = replied.from_user and replied.from_user.id == context.bot.id
         if replied_from_bot:
@@ -939,6 +975,9 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     keyword=keyword,
                     response=response_text,
                     created_by=user.id,
+                    file_url=file_url,
+                    file_type=file_type,
+                    file_tg_id=file_tg_id,
                     news_id=news_id,
                     source_chat_id=chat.id,
                     source_message_id=replied.message_id,
@@ -952,7 +991,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         if created_count > 0:
             news_info = f"\n📰 مرتبط بمنشور" if news_id else ""
-            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords_list)}{news_info}")
+            file_info = f"\n📎 مرفق: {file_type}" if file_type else ""
+            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords_list)}{news_info}{file_info}")
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
         return
