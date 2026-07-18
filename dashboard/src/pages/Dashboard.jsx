@@ -192,65 +192,96 @@ export default function Dashboard() {
         </div>
         <div className="card-body">
           {allConnections.length > 0 ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Tajawal', direction: 'rtl' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #eee', textAlign: 'right' }}>
-                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>الاسم</th>
-                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>النوع</th>
-                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>عدد الأعضاء</th>
-                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>المنشورات</th>
-                    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>الحالة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allConnections.slice(0, 10).map((item, index) => (
-                    <tr key={item.id || index} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '10px 12px', fontWeight: 500 }}>
-                        {item.title || `عنصر ${index + 1}`}
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <span style={{
-                          padding: '2px 10px',
-                          borderRadius: 12,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          background: item.type === 'channel' ? '#E3F2FD' : '#E8F5E9',
-                          color: item.type === 'channel' ? '#1976D2' : '#2E7D32',
-                        }}>
-                          {item.type === 'channel' ? 'قناة' : 'جروب'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#666' }}>
-                        {(item.memberCount || 0).toLocaleString()}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#666' }}>
-                        {item.postCount || 0}
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          color: item.isActive ? '#2E7D32' : '#D32F2F',
-                        }}>
-                          <span style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            background: item.isActive ? '#2E7D32' : '#D32F2F',
-                            display: 'inline-block',
-                          }} />
-                          {item.isActive ? 'نشط' : 'غير نشط'}
-                        </span>
-                      </td>
+            <>
+              {/* جدول سطح المكتب */}
+              <div className="table-container desktop-only">
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Tajawal', direction: 'rtl' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #eee', textAlign: 'right' }}>
+                      <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>الاسم</th>
+                      <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>النوع</th>
+                      <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>عدد الأعضاء</th>
+                      <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>المنشورات</th>
+                      <th style={{ padding: '10px 12px', fontWeight: 600, color: '#555' }}>الحالة</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {allConnections.slice(0, 10).map((item, index) => (
+                      <tr key={item.id || index} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 500 }}>
+                          {item.title || `عنصر ${index + 1}`}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{
+                            padding: '2px 10px',
+                            borderRadius: 12,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            background: item.type === 'channel' ? '#E3F2FD' : '#E8F5E9',
+                            color: item.type === 'channel' ? '#1976D2' : '#2E7D32',
+                          }}>
+                            {item.type === 'channel' ? 'قناة' : 'جروب'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#666' }}>
+                          {(item.memberCount || 0).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#666' }}>
+                          {item.postCount || 0}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: item.isActive ? '#2E7D32' : '#D32F2F',
+                          }}>
+                            <span style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              background: item.isActive ? '#2E7D32' : '#D32F2F',
+                              display: 'inline-block',
+                            }} />
+                            {item.isActive ? 'نشط' : 'غير نشط'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* بطاقات الهاتف */}
+              <div className="mobile-cards">
+                {allConnections.slice(0, 10).map((item, index) => (
+                  <div className="mobile-card" key={item.id || index}>
+                    <div className="mobile-card-header">
+                      <span style={{ fontWeight: 600 }}>{item.title || `عنصر ${index + 1}`}</span>
+                      <span style={{
+                        padding: '2px 10px',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: item.type === 'channel' ? '#E3F2FD' : '#E8F5E9',
+                        color: item.type === 'channel' ? '#1976D2' : '#2E7D32',
+                      }}>
+                        {item.type === 'channel' ? 'قناة' : 'جروب'}
+                      </span>
+                    </div>
+                    <div className="mobile-card-meta">
+                      <span>{(item.memberCount || 0).toLocaleString()} عضو</span>
+                      <span>{item.postCount || 0} منشور</span>
+                      <span style={{ color: item.isActive ? '#2E7D32' : '#D32F2F' }}>
+                        {item.isActive ? 'نشط' : 'غير نشط'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>
               لا توجد قنوات أو جروبات متصلة

@@ -1288,6 +1288,18 @@ textarea.form-input {
     width: 100%;
     min-width: auto;
   }
+  
+  .chart-container {
+    height: 220px;
+  }
+
+  .recharts-wrapper {
+    overflow: visible;
+  }
+
+  .recharts-pie-label text {
+    font-size: 11px !important;
+  }
 }
 
 /* Small Mobile (< 480px) */
