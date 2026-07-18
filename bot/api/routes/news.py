@@ -185,6 +185,7 @@ async def create_news_with_file(
     selected_questions: str = Form("[]"),
     file_captions: str = Form("{}"),
     linked_response_id: str = Form(""),
+    cloud_files: str = Form("[]"),
 ):
     try:
         import json
@@ -202,9 +203,21 @@ async def create_news_with_file(
         except:
             file_captions_dict = {}
 
+        try:
+            cloud_files_list = json.loads(cloud_files) if cloud_files else []
+        except:
+            cloud_files_list = []
+        cloud_urls_map = {cf['index']: cf['url'] for cf in cloud_files_list}
+
         if files_list:
             for i, f in enumerate(files_list):
-                file_data = await f.read()
+                if i in cloud_urls_map:
+                    import httpx
+                    async with httpx.AsyncClient() as client:
+                        resp = await client.get(cloud_urls_map[i])
+                        file_data = resp.content
+                else:
+                    file_data = await f.read()
                 ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
                 ft = detect_file_type(f.filename)
                 remote_url = None
@@ -428,6 +441,7 @@ async def edit_news_with_file(
     selected_keywords: str = Form("[]"),
     selected_questions: str = Form("[]"),
     linked_response_id: str = Form(""),
+    cloud_files: str = Form("[]"),
 ):
     import json
 
@@ -442,6 +456,12 @@ async def edit_news_with_file(
         file_captions_dict = json.loads(file_captions) if file_captions else {}
     except:
         file_captions_dict = {}
+
+    try:
+        cloud_files_list = json.loads(cloud_files) if cloud_files else []
+    except:
+        cloud_files_list = []
+    cloud_urls_map = {cf['index']: cf['url'] for cf in cloud_files_list}
 
     kept_existing = []
     if removed_existing:
@@ -472,7 +492,13 @@ async def edit_news_with_file(
 
     if files_list:
         for i, f in enumerate(files_list):
-            file_data = await f.read()
+            if i in cloud_urls_map:
+                import httpx
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(cloud_urls_map[i])
+                    file_data = resp.content
+            else:
+                file_data = await f.read()
             ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
             ft = detect_file_type(f.filename)
             remote_url = None
