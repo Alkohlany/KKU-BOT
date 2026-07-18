@@ -310,7 +310,10 @@ export default function News() {
   };
 
   const handleEditSave = async () => {
-    if (!editForm.content?.trim() || !editItem) {
+    const hasEditContent = editPerFileContent
+      ? Object.values(editFileCaptions).some(c => c && c.trim())
+      : !!editForm.content?.trim();
+    if (!hasEditContent || !editItem) {
       showToast('يرجى كتابة المحتوى أولاً', 'error');
       return;
     }
