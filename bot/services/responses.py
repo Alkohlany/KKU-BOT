@@ -39,10 +39,18 @@ def find_best_match(text, responses):
 
     for response in responses:
         keyword_normalized = normalize_arabic(response.keyword.lower().strip())
-        kw_words = set(keyword_normalized.split())
+        kw_list = keyword_normalized.split()
         txt_words = set(normalized.split())
-        if kw_words and len(kw_words & txt_words) / len(kw_words) >= 0.7:
-            return response
+        # Check if 3+ consecutive keyword words appear in text
+        for i in range(len(kw_list) - 2):
+            if all(w in txt_words for w in kw_list[i:i+3]):
+                return response
+        # Also check set overlap both directions
+        if kw_words := set(kw_list):
+            overlap = len(kw_words & txt_words) / len(kw_words)
+            reverse = len(kw_words & txt_words) / len(txt_words) if txt_words else 0
+            if overlap >= 0.7 or reverse >= 0.5:
+                return response
 
     best_match = None
     best_score = 0
