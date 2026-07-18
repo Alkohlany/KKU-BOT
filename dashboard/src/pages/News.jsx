@@ -814,7 +814,7 @@ export default function News() {
                             disabled={enhancingContent || !form.content}
                             style={{ fontSize: 12, padding: '4px 12px' }}
                           >
-                            {enhancingContent ? 'جاري التحسين...' : uploadFiles.length > 0 ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                            {enhancingContent ? 'جاري التحسين...' : 'تحسين بالذكاء الاصطناعي'}
                           </button>
                         </label>
                         <textarea
@@ -1050,7 +1050,7 @@ export default function News() {
                           disabled={enhancingContent || !editForm.content}
                           style={{ fontSize: 12, padding: '4px 12px' }}
                         >
-                          {enhancingContent ? 'جاري التحسين...' : (editUploadFiles.length > 0 || editUploadFile) ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                          {enhancingContent ? 'جاري التحسين...' : 'تحسين بالذكاء الاصطناعي'}
                         </button>
                       </label>
                       <textarea
