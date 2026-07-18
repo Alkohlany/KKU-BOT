@@ -51,12 +51,13 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         member = await chat.get_member(user.id)
         is_chat_admin = member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
-    except:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to check admin status: {e}")
 
     is_bot_admin = user.id in context.bot_data.get('admin_ids', [])
 
     if not is_chat_admin and not is_bot_admin:
+        await send_admin_message(context, user.id, "❌ ليس لديك صلاحية تنفيذ هذا الأمر")
         return
 
     # ==================== الردود التلقائية ====================
@@ -601,12 +602,13 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         member = await chat.get_member(user.id)
         is_chat_admin = member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
-    except:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to check admin status: {e}")
 
     is_bot_admin = user.id in context.bot_data.get('admin_ids', [])
 
     if not is_chat_admin and not is_bot_admin:
+        await send_admin_message(context, user.id, "❌ ليس لديك صلاحية تنفيذ هذا الأمر")
         return
 
     target_user = update.message.reply_to_message.from_user
