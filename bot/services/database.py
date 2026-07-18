@@ -229,6 +229,20 @@ async def get_news_by_channel_message_id(channel_message_id):
         result = await session.execute(select(News).where(News.channel_message_id == channel_message_id))
         return result.scalar_one_or_none()
 
+async def get_news_by_group_message_id(chat_id, message_id):
+    import json as _json
+    async with async_session() as session:
+        result = await session.execute(select(News))
+        for news in result.scalars().all():
+            if news.group_message_ids:
+                try:
+                    ids = _json.loads(news.group_message_ids)
+                    if str(chat_id) in ids and ids[str(chat_id)] == message_id:
+                        return news
+                except Exception:
+                    pass
+    return None
+
 
 # ==================== Questions ====================
 async def add_question(question, answer, category=None, keywords=None, file_url=None, file_type=None, as_document=False, news_id=None):
