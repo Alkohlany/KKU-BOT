@@ -36,6 +36,7 @@ export default function News() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savePhase, setSavePhase] = useState('');
   const [enhancingContent, setEnhancingContent] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [relinkItem, setRelinkItem] = useState(null);
@@ -194,7 +195,8 @@ export default function News() {
       : !!form.content?.trim();
     if (!hasContent) return;
     setSaving(true);
-    setUploadProgress(0);
+    setSavePhase(hasFiles ? 'جاري رفع الملفات' : 'جاري الحفظ');
+    setUploadProgress(hasFiles ? 0 : null);
     try {
       let contentToSend = form.content;
       if (perFileContent && hasFiles) {
@@ -214,10 +216,13 @@ export default function News() {
         formData.append('selected_keywords', JSON.stringify(selectedKeywords));
         formData.append('selected_questions', JSON.stringify(selectedQuestions));
         formData.append('linked_response_id', linkedResponseId || '');
+        setSavePhase('جاري رفع الملفات');
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
+          if (percent >= 100) setSavePhase('جاري الحفظ');
         });
       } else {
+        setSavePhase('جاري الحفظ');
         newItem = await api.addNews({
           content: contentToSend,
           title: '',
@@ -227,6 +232,9 @@ export default function News() {
           linked_response_id: linkedResponseId || '',
         });
       }
+      setSavePhase('تم بنجاح');
+      setUploadProgress(100);
+      await new Promise(r => setTimeout(r, 800));
       loadNews();
       setForm({ content: '', as_document: false });
       setUploadFiles([]);
@@ -244,9 +252,11 @@ export default function News() {
       showToast('تم إضافة المنشور بنجاح', 'success');
     } catch (err) {
       console.error('Failed to save news:', err);
+      setSavePhase('');
       showToast('فشل حفظ المنشور', 'error');
     } finally {
       setSaving(false);
+      setSavePhase('');
       setUploadProgress(null);
     }
   };
@@ -1199,6 +1209,65 @@ export default function News() {
               <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 8, textAlign: 'center' }}>
                 حذف المنشور وجميع بياناته نهائياً
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {saving && savePhase && (
+        <div className="save-overlay">
+          <div className="save-progress-container">
+            <div className="save-circle-wrapper">
+              <div className="save-ripple" />
+              <div className="save-particles">
+                <div className="save-particle" />
+                <div className="save-particle" />
+                <div className="save-particle" />
+                <div className="save-particle" />
+                <div className="save-particle" />
+                <div className="save-particle" />
+              </div>
+              <svg className="save-circle-bg" viewBox="0 0 128 128">
+                <circle cx="64" cy="64" r="60" />
+              </svg>
+              <svg className="save-circle-progress" viewBox="0 0 128 128">
+                <circle
+                  cx="64" cy="64" r="60"
+                  style={{
+                    strokeDashoffset: uploadProgress !== null
+                      ? 377 - (377 * uploadProgress) / 100
+                      : 377 - (377 * 70) / 100
+                  }}
+                />
+              </svg>
+              {savePhase === 'تم بنجاح' ? (
+                <svg className="save-success-icon" viewBox="0 0 52 52">
+                  <circle cx="26" cy="26" r="25" fill="none" stroke="var(--primary)" strokeWidth="2" />
+                  <path className="save-success-check" fill="none" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" d="M14 27l7 7 16-16" />
+                </svg>
+              ) : uploadProgress !== null ? (
+                <div className="save-circle-percent">{Math.round(uploadProgress)}%</div>
+              ) : (
+                <svg className="save-circle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+              )}
+            </div>
+            <div className="save-info">
+              <div className="save-phase" key={savePhase}>{savePhase}</div>
+              {uploadProgress !== null && savePhase !== 'تم بنجاح' && (
+                <div className="save-detail">
+                  {uploadFiles.length} {uploadFiles.length === 1 ? 'ملف' : 'ملفات'}
+                  {uploadProgress < 100 ? ` — ${Math.round(uploadProgress)}%` : ''}
+                </div>
+              )}
+              {savePhase !== 'تم بنجاح' && (
+                <div className="save-dots">
+                  <span /><span /><span />
+                </div>
+              )}
             </div>
           </div>
         </div>
