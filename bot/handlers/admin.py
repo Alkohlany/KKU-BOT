@@ -967,6 +967,10 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             news = await get_news_by_channel_message_id(replied.message_id)
             if news:
                 news_id = news.id
+            else:
+                news = await get_news_by_group_message_id(chat.id, replied.message_id)
+                if news:
+                    news_id = news.id
 
         created_count = 0
         for keyword in keywords_list:
