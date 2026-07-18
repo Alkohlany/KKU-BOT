@@ -1288,7 +1288,13 @@ export default function News() {
                 {editWizardStep > 1 && (
                   <button
                     className="btn btn-secondary"
-                    onClick={() => setEditWizardStep(editWizardStep - 1)}
+                    onClick={() => {
+                      if (editIsPublished && editWizardStep === 3) {
+                        setEditWizardStep(1);
+                      } else {
+                        setEditWizardStep(editWizardStep - 1);
+                      }
+                    }}
                   >
                     السابق
                   </button>
@@ -1296,7 +1302,13 @@ export default function News() {
                 {editWizardStep < (editIsPublished ? 3 : 4) ? (
                   <button
                     className="btn btn-primary"
-                    onClick={() => setEditWizardStep(editWizardStep + 1)}
+                    onClick={() => {
+                      if (editIsPublished && editWizardStep === 1) {
+                        setEditWizardStep(3);
+                      } else {
+                        setEditWizardStep(editWizardStep + 1);
+                      }
+                    }}
                     disabled={editWizardStep === 1 && !editForm.content?.trim()}
                   >
                     التالي
