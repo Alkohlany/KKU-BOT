@@ -110,7 +110,7 @@ async def get_news():
             keywords = [row[0] for row in kw_result.all()]
             q_result = await session.execute(sa_select(Question.question).where(Question.news_id == n.id))
             questions = [row[0] for row in q_result.all()]
-            lr_result = await session.execute(sa_select(AutoResponse.id).where(AutoResponse.news_id == n.id, AutoResponse.is_response == True))
+            lr_result = await session.execute(sa_select(AutoResponse.id).where(AutoResponse.news_id == n.id))
             linked_row = lr_result.first()
             result.append({
                 "id": n.id,
