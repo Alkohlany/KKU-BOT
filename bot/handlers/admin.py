@@ -614,10 +614,9 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     target_user = update.message.reply_to_message.from_user
     target_user_id = target_user.id
 
-    if target_user_id == context.bot.id:
-        return
-
     if text.startswith("اضافه منشور") or text.startswith("أضف منشور") or text.startswith("اضافة منشور"):
+        if target_user_id == context.bot.id:
+            return
         try:
             await update.message.delete()
         except: pass
@@ -726,6 +725,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         pass
 
     if text in ["حذف", "حذفا", "ازالة", "ازل", "زل", "امسح", "مسح"]:
+        if target_user_id == context.bot.id:
+            return
         try:
             await update.message.delete()
         except: pass
@@ -736,6 +737,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, f"❌ فشل في حذف الرسالة: {e}")
 
     elif text in ["حظر", "احظر", "ban"]:
+        if target_user_id == context.bot.id:
+            return
         try:
             await update.message.delete()
         except: pass
@@ -746,6 +749,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, f"❌ فشل في حظر المستخدم: {e}")
 
     elif text in ["الغاء حظر", "الغاء الحظر", "الغي حظر", "شيل حظر", "شيل الحظر", "الغي الحظر", "unban"]:
+        if target_user_id == context.bot.id:
+            return
         try:
             await update.message.delete()
         except: pass
@@ -772,6 +777,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, f"❌ فشل في إلغاء الحظر: {e}")
 
     elif text in ["طرد", "اطرد", "kick"]:
+        if target_user_id == context.bot.id:
+            return
         try:
             await update.message.delete()
         except: pass
@@ -783,6 +790,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, f"❌ فشل في طرد المستخدم: {e}")
 
     elif text in ["تثبيت", "ثبت", "pin"]:
+        if target_user_id == context.bot.id:
+            return
         try:
             await update.message.reply_to_message.pin()
             await send_admin_message(context, user.id, f"📌 تم تثبيت رسالة {target_user.first_name}")
@@ -790,6 +799,8 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, f"❌ فشل في تثبيت الرسالة: {e}")
 
     elif text in ["الغاء تثبيت", "الغي تثبيت", "unpin"]:
+        if target_user_id == context.bot.id:
+            return
         try:
             await update.message.reply_to_message.unpin()
             await send_admin_message(context, user.id, f"📌 تم الغاء تثبيت رسالة {target_user.first_name}")
