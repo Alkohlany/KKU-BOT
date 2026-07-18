@@ -57,7 +57,6 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     is_bot_admin = user.id in context.bot_data.get('admin_ids', [])
 
     if not is_chat_admin and not is_bot_admin:
-        await send_admin_message(context, user.id, "❌ ليس لديك صلاحية تنفيذ هذا الأمر")
         return
 
     # ==================== الردود التلقائية ====================
@@ -134,12 +133,11 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     # Handle cancel for pending operations
-    if text.strip() == "إلغاء" and ('pending_keyword' in context.user_data or 'pending_analysis' in context.user_data):
+    if text.strip() == "إلغاء" and 'pending_keyword' in context.user_data:
         try:
             await update.message.delete()
         except: pass
         context.user_data.pop('pending_keyword', None)
-        context.user_data.pop('pending_analysis', None)
         await send_admin_message(context, user.id, "✅ تم الإلغاء")
         return
 
@@ -608,7 +606,6 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     is_bot_admin = user.id in context.bot_data.get('admin_ids', [])
 
     if not is_chat_admin and not is_bot_admin:
-        await send_admin_message(context, user.id, "❌ ليس لديك صلاحية تنفيذ هذا الأمر")
         return
 
     target_user = update.message.reply_to_message.from_user
@@ -898,122 +895,49 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         # Empty keywords: AI analysis path
-        # Extract text from replied message
         analysis_text = response_text
         if not analysis_text:
             await send_admin_message(context, user.id, "❌ لا يوجد نص في الرسالة المُشار إليها للتحليل")
             return
 
-        # Check for pending analysis conflict
-        if 'pending_analysis' in context.user_data:
-            await send_admin_message(context, user.id, "❌ أكمل التحليل السابق أولاً أو اكتب 'إلغاء'")
-            return
-
         try:
             result = generate_news_analysis(title="", content=analysis_text)
             keywords_list = result.get("keywords", [])
-            questions_list = result.get("questions", [])
         except Exception as e:
             logger.error(f"AI analysis failed: {e}")
             await send_admin_message(context, user.id, "❌ فشل التحليل الذكي. يمكنك استخدام الصيغة:\nاضافه رد [كلمات مفتاحية]")
             return
 
-        if not keywords_list and not questions_list:
-            await send_admin_message(context, user.id, "❌ لم يتم استخراج كلمات أو أسئلة. جرب:\nاضافه رد [كلمات مفتاحية]")
+        if not keywords_list:
+            await send_admin_message(context, user.id, "❌ لم يتم استخراج كلمات مفتاحية. جرب:\nاضافه رد [كلمات مفتاحية]")
             return
 
-        # Store analysis for later selection
-        context.user_data['pending_analysis'] = {
-            'keywords': keywords_list,
-            'questions': questions_list,
-            'replied_message_id': replied.message_id,
-            'replied_chat_id': chat.id,
-            'response_text': response_text,
-        }
-
-        # Build numbered list
-        num = 1
-        items = []
-        msg = "🤖 **تحليل المحتوى الذكي:**\n\n🔑 **الكلمات المفتاحية:**\n"
-        for kw in keywords_list:
-            msg += f"`{num}` {kw}\n"
-            items.append({"num": num, "type": "keyword", "value": kw})
-            num += 1
-
-        msg += "\n❓ **الأسئلة المقترحة:**\n"
-        for q in questions_list:
-            msg += f"`{num}` {q}\n"
-            items.append({"num": num, "type": "question", "value": q})
-            num += 1
-
-        context.user_data['pending_analysis']['items'] = items
-
-        # Check if replied message is from bot (news post)
+        news_id = None
         replied_from_bot = replied.from_user and replied.from_user.id == context.bot.id
         if replied_from_bot:
             news = await get_news_by_channel_message_id(replied.message_id)
             if news:
-                context.user_data['pending_analysis']['news_id'] = news.id
+                news_id = news.id
 
-        msg += "\n💡 **أرسل الأرقام المطلوبة:**\n"
-        msg += "مثال: `1,2,3` أو `1-3` أو `1 2 3`"
-        
-        await send_admin_message(context, user.id, msg)
-        return
-
-    # Handle AI analysis number selection
-    elif 'pending_analysis' in context.user_data:
-        try:
-            await update.message.delete()
-        except: pass
-
-        analysis = context.user_data.pop('pending_analysis')
-        items = analysis['items']
-
-        # Parse numbers: "1,2,3" or "1-3" or "1 2 3"
-        text_clean = text.replace("،", ",").replace("-", ",").replace(" ", ",")
-        try:
-            selected_nums = [int(n.strip()) for n in text_clean.split(",") if n.strip()]
-        except ValueError:
-            await send_admin_message(context, user.id, "❌ أدخل أرقام صحيحة مثل: 1,2,3")
-            return
-
-        selected = [item for item in items if item['num'] in selected_nums]
-        if not selected:
-            await send_admin_message(context, user.id, "❌ لم يتم اختيار أي عنصر. أرقام متاحة: " + ", ".join(str(i['num']) for i in items))
-            return
-
-        # Get file from replied message (if any)
-        file_url = None
-        file_type = None
-        file_tg_id = None
-        # We don't have the original message object anymore, so skip file upload for AI path
-        # Files are linked via source_chat_id/source_message_id on the AutoResponse
-
-        news_id = analysis.get('news_id')
         created_count = 0
-        for item in selected:
+        for keyword in keywords_list:
             try:
                 ar = AutoResponse(
-                    keyword=item['value'],
-                    response=analysis['response_text'],
+                    keyword=keyword,
+                    response="تم الرد عبر المنشور",
                     created_by=user.id,
                     news_id=news_id,
-                    source_chat_id=analysis['replied_chat_id'],
-                    source_message_id=analysis['replied_message_id'],
                 )
                 async with async_session() as session:
                     session.add(ar)
                     await session.commit()
                 created_count += 1
             except Exception as e:
-                logger.error(f"Could not create auto response for '{item['value']}': {e}")
+                logger.error(f"Could not create auto response for '{keyword}': {e}")
 
         if created_count > 0:
-            kw_labels = [f"🔑 {i['value']}" if i['type'] == 'keyword' else f"❓ {i['value']}" for i in selected]
-            news_info = f"\n📰 المنشور: {news_id}" if news_id else ""
-            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n\n" + "\n".join(kw_labels) + news_info)
-            await log_activity("add_response", f"AI selected: {[i['value'] for i in selected]}, News: {news_id}", user.id)
+            news_info = f"\n📰 مرتبط بمنشور" if news_id else ""
+            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords_list)}{news_info}")
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
         return
