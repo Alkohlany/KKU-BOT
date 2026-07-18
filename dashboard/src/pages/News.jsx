@@ -997,16 +997,10 @@ export default function News() {
                 ) : (
                   <button
                     className="btn btn-primary"
-                    onClick={() => {
-                      if (editIsPublished && editWizardStep === 1) {
-                        setEditWizardStep(3);
-                      } else {
-                        setEditWizardStep(editWizardStep + 1);
-                      }
-                    }}
-                    disabled={editWizardStep === 1 && !editForm.content?.trim()}
+                    onClick={handleSave}
+                    disabled={saving}
                   >
-                    التالي
+                    {saving ? 'جاري الحفظ...' : 'نشر'}
                   </button>
                 )}
               </div>
