@@ -539,7 +539,7 @@ async def edit_news_with_file(
                       file_name=file_name, file_type=file_type,
                       thumbnail_url=thumbnail_url,
                       as_document=as_document, target_channels=target_channels,
-                      files_json=json.dumps(files_json_data) if files_json_data else None)
+                      files_json=json.dumps(files_json_data))
 
     try:
         keywords = json.loads(selected_keywords) if selected_keywords else []
