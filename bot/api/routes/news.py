@@ -100,27 +100,39 @@ class RelinkPayload(BaseModel):
 
 @router.get("")
 async def get_news():
+    from bot.models.models import AutoResponse, Question
     items = await get_all_news()
-    return [
-        {
-            "id": n.id,
-            "content": n.content,
-            "imageUrl": n.image_url,
-            "fileUrl": n.file_url,
-            "thumbnailUrl": n.thumbnail_url,
-            "fileName": n.file_name,
-            "fileId": n.file_id,
-            "fileType": n.file_type,
-            "published": n.is_published,
-            "asDocument": n.as_document,
-            "channelMessageId": n.channel_message_id,
-            "targetChannels": n.target_channels,
-            "filesJson": n.files_json,
-            "publishedAt": n.published_at.isoformat() if n.published_at else None,
-            "createdAt": n.created_at.isoformat() if n.created_at else None,
-        }
-        for n in items
-    ]
+    async with async_session() as session:
+        from sqlalchemy import select as sa_select
+        result = []
+        for n in items:
+            kw_result = await session.execute(sa_select(AutoResponse.keyword).where(AutoResponse.news_id == n.id))
+            keywords = [row[0] for row in kw_result.all()]
+            q_result = await session.execute(sa_select(Question.question).where(Question.news_id == n.id))
+            questions = [row[0] for row in q_result.all()]
+            lr_result = await session.execute(sa_select(AutoResponse.id).where(AutoResponse.news_id == n.id, AutoResponse.is_response == True))
+            linked_row = lr_result.first()
+            result.append({
+                "id": n.id,
+                "content": n.content,
+                "imageUrl": n.image_url,
+                "fileUrl": n.file_url,
+                "thumbnailUrl": n.thumbnail_url,
+                "fileName": n.file_name,
+                "fileId": n.file_id,
+                "fileType": n.file_type,
+                "published": n.is_published,
+                "asDocument": n.as_document,
+                "channelMessageId": n.channel_message_id,
+                "targetChannels": n.target_channels,
+                "filesJson": n.files_json,
+                "publishedAt": n.published_at.isoformat() if n.published_at else None,
+                "createdAt": n.created_at.isoformat() if n.created_at else None,
+                "selectedKeywords": keywords,
+                "selectedQuestions": questions,
+                "linked_response_id": linked_row[0] if linked_row else None,
+            })
+        return result
 
 
 @router.post("/analyze")

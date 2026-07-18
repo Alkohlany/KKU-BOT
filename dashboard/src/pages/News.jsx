@@ -1135,6 +1135,29 @@ export default function News() {
 
                 {editWizardStep === 3 && (
                   <>
+                    {(editSelectedKeywords.length > 0 || editSelectedQuestions.length > 0) && (
+                      <div style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, border: '1px solid var(--gray-200)', marginBottom: 12 }}>
+                        <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الكلمات المحفوظة</label>
+                        {editSelectedKeywords.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: editSelectedQuestions.length > 0 ? 10 : 0 }}>
+                            {editSelectedKeywords.map((kw, i) => (
+                              <span key={i} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 12, background: 'var(--primary)', color: 'white' }}>
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {editSelectedQuestions.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {editSelectedQuestions.map((q, i) => (
+                              <span key={i} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 12, background: 'var(--success, #22c55e)', color: 'white' }}>
+                                {q}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="form-group">
                       <button
                         className="btn btn-secondary"
