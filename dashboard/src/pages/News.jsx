@@ -56,6 +56,15 @@ export default function News() {
   const [linkedResponseId, setLinkedResponseId] = useState('');
   const [availableResponses, setAvailableResponses] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
+  const [editWizardStep, setEditWizardStep] = useState(1);
+  const [editAiKeywords, setEditAiKeywords] = useState([]);
+  const [editAiQuestions, setEditAiQuestions] = useState([]);
+  const [editSelectedKeywords, setEditSelectedKeywords] = useState([]);
+  const [editSelectedQuestions, setEditSelectedQuestions] = useState([]);
+  const [editShowAiPanel, setEditShowAiPanel] = useState(false);
+  const [editGenerating, setEditGenerating] = useState(false);
+  const [editLinkedResponseId, setEditLinkedResponseId] = useState('');
+  const [editAvailableResponses, setEditAvailableResponses] = useState([]);
   const [channelGroups, setChannelGroups] = useState([]);
 
   useEffect(() => {
@@ -92,6 +101,12 @@ export default function News() {
       api.getResponses().then(data => setAvailableResponses(data || [])).catch(() => {});
     }
   }, [addWizardStep]);
+
+  useEffect(() => {
+    if (showEditModal && editWizardStep === 3) {
+      api.getResponses().then(data => setEditAvailableResponses(data || [])).catch(() => {});
+    }
+  }, [showEditModal, editWizardStep]);
 
   const loadNews = async () => {
     try {
@@ -188,6 +203,39 @@ export default function News() {
     );
   };
 
+  const toggleEditKeyword = (kw) => {
+    setEditSelectedKeywords(prev =>
+      prev.includes(kw) ? prev.filter(k => k !== kw) : [...prev, kw]
+    );
+  };
+
+  const toggleEditQuestion = (q) => {
+    setEditSelectedQuestions(prev =>
+      prev.includes(q) ? prev.filter(item => item !== q) : [...prev, q]
+    );
+  };
+
+  const handleEditGenerateAI = async () => {
+    if (!editForm.content) {
+      showToast('يرجى كتابة المحتوى أولاً', 'error');
+      return;
+    }
+    setEditGenerating(true);
+    try {
+      const result = await api.analyzeNews({ title: '', content: editForm.content });
+      setEditAiKeywords(result.keywords || []);
+      setEditAiQuestions(result.questions || []);
+      setEditSelectedKeywords([]);
+      setEditSelectedQuestions([]);
+      setEditShowAiPanel(true);
+    } catch (err) {
+      console.error('Failed to generate AI content:', err);
+      showToast('فشل توليد المحتوى بالذكاء الاصطناعي', 'error');
+    } finally {
+      setEditGenerating(false);
+    }
+  };
+
   const handleSave = async () => {
     const hasFiles = uploadFiles.length > 0;
     const hasContent = perFileContent
@@ -262,44 +310,82 @@ export default function News() {
   };
 
   const handleEditSave = async () => {
-    if (!editForm.content || !editItem) return;
+    if (!editForm.content?.trim() || !editItem) {
+      showToast('يرجى كتابة المحتوى أولاً', 'error');
+      return;
+    }
     setSaving(true);
-    setEditUploadProgress(0);
+    setSavePhase('جاري الحفظ');
     try {
+      let contentToSend = editForm.content;
+      if (editPerFileContent) {
+        const parts = editExistingFiles.map((f, i) => editRemovedExisting.includes(i) ? '' : (editFileCaptions[i] || '')).filter(Boolean);
+        const newParts = editUploadFiles.map((f, i) => editFileCaptions[`new_${i}`] || '').filter(Boolean);
+        const allParts = [...parts, ...newParts];
+        if (allParts.length > 0) {
+          contentToSend = allParts.join('\n\n---\n\n');
+        }
+      }
       const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
-      if (allEditFiles.length > 0 || editRemovedExisting.length > 0 || editPerFileContent) {
+      const hasFiles = allEditFiles.length > 0 || editRemovedExisting.length > 0;
+      if (hasFiles || editPerFileContent) {
+        setUploadProgress(0);
+        setSavePhase('جاري رفع الملفات');
         const formData = new FormData();
         formData.append('title', '');
-        formData.append('content', editForm.content);
+        formData.append('content', contentToSend);
         formData.append('as_document', editForm.as_document);
         formData.append('target_channels', JSON.stringify(editSelectedChannels));
         formData.append('removed_existing', JSON.stringify(editRemovedExisting));
         formData.append('file_captions', JSON.stringify(editFileCaptions));
+        formData.append('selected_keywords', JSON.stringify(editSelectedKeywords));
+        formData.append('selected_questions', JSON.stringify(editSelectedQuestions));
+        formData.append('linked_response_id', editLinkedResponseId || '');
         allEditFiles.forEach(f => formData.append('files', f));
         await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, (percent) => {
-          setEditUploadProgress(percent);
+          setUploadProgress(percent);
+          if (percent >= 100) setSavePhase('جاري الحفظ');
         }, 'PUT');
       } else {
-        await api.put(`/news/${editItem.id}`, { content: editForm.content, as_document: editForm.as_document, target_channels: JSON.stringify(editSelectedChannels) });
+        await api.put(`/news/${editItem.id}`, {
+          content: contentToSend,
+          as_document: editForm.as_document,
+          target_channels: JSON.stringify(editSelectedChannels),
+          selected_keywords: JSON.stringify(editSelectedKeywords),
+          selected_questions: JSON.stringify(editSelectedQuestions),
+          linked_response_id: editLinkedResponseId || '',
+        });
       }
-      setNews(news.map(n => n.id === editItem.id ? { 
-        ...n, 
-        content: editForm.content, 
-        as_document: editForm.as_document,
-      } : n));
+      setSavePhase('تم بنجاح');
+      setUploadProgress(100);
+      await new Promise(r => setTimeout(r, 800));
+      loadNews();
       setShowEditModal(false);
       setEditItem(null);
+      setEditForm({ content: '', as_document: false });
       setEditUploadFile(null);
       setEditUploadFiles([]);
+      setEditExistingFiles([]);
+      setEditRemovedExisting([]);
       setEditPerFileContent(false);
       setEditFileCaptions({});
+      setEditSelectedChannels([]);
+      setEditWizardStep(1);
+      setEditAiKeywords([]);
+      setEditAiQuestions([]);
+      setEditSelectedKeywords([]);
+      setEditSelectedQuestions([]);
+      setEditShowAiPanel(false);
+      setEditLinkedResponseId('');
       showToast('تم تعديل المنشور بنجاح', 'success');
     } catch (err) {
       console.error('Failed to edit news:', err);
+      setSavePhase('');
       showToast('فشل تعديل المنشور', 'error');
     } finally {
       setSaving(false);
-      setEditUploadProgress(null);
+      setSavePhase('');
+      setUploadProgress(null);
     }
   };
 
@@ -413,9 +499,18 @@ export default function News() {
       as_document: item.as_document || false,
     });
     const channels = item.targetChannels || item.target_channels;
-    setEditSelectedChannels(channels ? (typeof channels === 'string' ? JSON.parse(channels) : channels) : []);
+    try {
+      setEditSelectedChannels(channels ? (typeof channels === 'string' ? JSON.parse(channels) : channels) : []);
+    } catch { setEditSelectedChannels([]); }
     setEditUploadFile(null);
     setEditUploadFiles([]);
+    setEditWizardStep(1);
+    setEditAiKeywords([]);
+    setEditAiQuestions([]);
+    setEditSelectedKeywords([]);
+    setEditSelectedQuestions([]);
+    setEditShowAiPanel(false);
+    setEditLinkedResponseId('');
     try {
       const fj = item.filesJson ? (typeof item.filesJson === 'string' ? JSON.parse(item.filesJson) : item.filesJson) : [];
       setEditExistingFiles(Array.isArray(fj) ? fj : []);
@@ -944,128 +1039,278 @@ export default function News() {
       )}
 
       {showEditModal && (
-        <div className="modal-overlay" onClick={() => { setShowEditModal(false); setEditPerFileContent(false); setEditFileCaptions({}); }}>
+        <div className="modal-overlay" onClick={() => { setShowEditModal(false); setEditPerFileContent(false); setEditFileCaptions({}); setEditRemovedExisting([]); setEditWizardStep(1); setEditShowAiPanel(false); setEditAiKeywords([]); setEditAiQuestions([]); setEditSelectedKeywords([]); setEditSelectedQuestions([]); setEditLinkedResponseId(''); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>تعديل المنشور</h3>
-              <button className="modal-close" onClick={() => { setShowEditModal(false); setEditPerFileContent(false); setEditFileCaptions({}); }}>✕</button>
+              <button className="modal-close" onClick={() => { setShowEditModal(false); setEditPerFileContent(false); setEditFileCaptions({}); setEditRemovedExisting([]); setEditWizardStep(1); setEditShowAiPanel(false); setEditAiKeywords([]); setEditAiQuestions([]); setEditSelectedKeywords([]); setEditSelectedQuestions([]); setEditLinkedResponseId(''); }}>✕</button>
             </div>
             <div className="modal-body">
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  المحتوى
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleEditEnhance}
-                    disabled={enhancingContent || !editForm.content}
-                    style={{ fontSize: 12, padding: '4px 12px' }}
-                  >
-                    {enhancingContent ? 'جاري التحسين...' : (editUploadFiles.length > 0 || editUploadFile) ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
-                  </button>
-                </label>
-                <textarea
-                  className="form-input"
-                  placeholder="محتوى المنشور..."
-                  value={editForm.content}
-                  onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                  style={{ minHeight: 150 }}
-                />
+              <div className="wizard-steps">
+                {[
+                  { num: 1, label: 'المحتوى' },
+                  { num: 2, label: 'الملفات' },
+                  { num: 3, label: 'الكلمات' },
+                  { num: 4, label: 'النشر' },
+                ].map((step, i) => (
+                  <React.Fragment key={step.num}>
+                    <div className={`wizard-step ${editWizardStep === step.num ? 'active' : ''} ${editWizardStep > step.num ? 'completed' : ''}`}>
+                      <div className="wizard-step-circle">{editWizardStep > step.num ? '✓' : step.num}</div>
+                      <div className="wizard-step-label">{step.label}</div>
+                    </div>
+                    {i < 3 && <div className={`wizard-connector ${editWizardStep > step.num ? 'completed' : ''}`} />}
+                  </React.Fragment>
+                ))}
               </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={editPerFileContent}
-                    onChange={(e) => setEditPerFileContent(e.target.checked)}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  إضافة محتوى خاص لكل ملف
-                </label>
-              </div>
-              {editPerFileContent && editExistingFiles.length > 0 && (
-                <>
-                  <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
-                  <div className="form-group">
-                    <label>محتوى لكل ملف</label>
-                    {editExistingFiles.map((f, idx) => {
-                      if (editRemovedExisting.includes(idx)) return null;
-                      return (
-                        <div key={idx} style={{ marginBottom: 10, padding: 10, border: '1px solid var(--gray-200)', borderRadius: 6 }}>
-                          <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 4 }}>
-                            {f.name || f.url?.split('/').pop() || `ملف ${idx + 1}`} <span style={{ color: 'var(--gray-400)' }}>(حالي)</span>
-                          </div>
-                          <textarea
-                            className="form-input"
-                            placeholder={`محتوى ${f.name || `ملف ${idx + 1}`}...`}
-                            value={editFileCaptions[idx] || ''}
-                            onChange={(e) => setEditFileCaptions({ ...editFileCaptions, [idx]: e.target.value })}
-                            style={{ minHeight: 80 }}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-              {editPerFileContent && editUploadFiles.length > 0 && (
-                <>
-                  <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
-                  <div className="form-group">
-                    <label>محتوى للملفات الجديدة</label>
-                    {editUploadFiles.map((f, idx) => (
-                      <div key={`new-${idx}`} style={{ marginBottom: 10, padding: 10, border: '1px solid var(--gray-200)', borderRadius: 6 }}>
-                        <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 4 }}>{f.name}</div>
-                        <textarea
-                          className="form-input"
-                          placeholder={`محتوى ${f.name}...`}
-                          value={editFileCaptions[`new_${idx}`] || ''}
-                          onChange={(e) => setEditFileCaptions({ ...editFileCaptions, [`new_${idx}`]: e.target.value })}
-                          style={{ minHeight: 80 }}
+
+              <div className="wizard-content">
+                {editWizardStep === 1 && (
+                  <>
+                    <div className="form-group">
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        المحتوى
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={handleEditEnhance}
+                          disabled={enhancingContent || !editForm.content}
+                          style={{ fontSize: 12, padding: '4px 12px' }}
+                        >
+                          {enhancingContent ? 'جاري التحسين...' : (editUploadFiles.length > 0 || editUploadFile) ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                        </button>
+                      </label>
+                      <textarea
+                        className="form-input"
+                        placeholder="محتوى المنشور..."
+                        value={editForm.content}
+                        onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                        style={{ minHeight: 150 }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={editPerFileContent}
+                          onChange={(e) => setEditPerFileContent(e.target.checked)}
+                          style={{ width: 18, height: 18 }}
                         />
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              <FileUpload
-                files={editUploadFiles}
-                setFiles={(newFiles) => { setEditUploadFiles(newFiles); setEditUploadFile(newFiles[0] || null); }}
-                asDocument={editForm.as_document}
-                setAsDocument={(val) => setEditForm({ ...editForm, as_document: val })}
-                existingFiles={editExistingFiles}
-                onRemoveExisting={setEditRemovedExisting}
-              />
-              <div className="form-group">
-                <ChannelGroupSelector
-                  selected={editSelectedChannels}
-                  onChange={setEditSelectedChannels}
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              {editUploadProgress !== null && (
-                <div style={{ width: '100%', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                    <span>جاري رفع الملف...</span>
-                    <span>{editUploadProgress}%</span>
-                  </div>
-                  <div style={{ width: '100%', height: 8, background: 'var(--gray-200)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${editUploadProgress}%`,
-                        height: '100%',
-                        background: editUploadProgress === 100 ? 'var(--success)' : 'var(--primary)',
-                        borderRadius: 4,
-                        transition: 'width 0.3s ease',
-                      }}
+                        إضافة محتوى خاص لكل ملف
+                      </label>
+                    </div>
+                    {editPerFileContent && editExistingFiles.length > 0 && (
+                      <>
+                        <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
+                        <div className="form-group">
+                          <label>محتوى لكل ملف</label>
+                          {editExistingFiles.map((f, idx) => {
+                            if (editRemovedExisting.includes(idx)) return null;
+                            return (
+                              <div key={idx} className="file-content-item">
+                                <label>{f.name || f.url?.split('/').pop() || `ملف ${idx + 1}`} <span style={{ color: 'var(--gray-400)' }}>(حالي)</span></label>
+                                <textarea
+                                  className="form-input"
+                                  placeholder={`محتوى ${f.name || `ملف ${idx + 1}`}...`}
+                                  value={editFileCaptions[idx] || ''}
+                                  onChange={(e) => setEditFileCaptions({ ...editFileCaptions, [idx]: e.target.value })}
+                                  style={{ minHeight: 80 }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                    {editPerFileContent && editUploadFiles.length > 0 && (
+                      <>
+                        <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
+                        <div className="form-group">
+                          <label>محتوى للملفات الجديدة</label>
+                          {editUploadFiles.map((f, idx) => (
+                            <div key={`new-${idx}`} className="file-content-item">
+                              <label>{f.name}</label>
+                              <textarea
+                                className="form-input"
+                                placeholder={`محتوى ${f.name}...`}
+                                value={editFileCaptions[`new_${idx}`] || ''}
+                                onChange={(e) => setEditFileCaptions({ ...editFileCaptions, [`new_${idx}`]: e.target.value })}
+                                style={{ minHeight: 80 }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+
+                {editWizardStep === 2 && (
+                  <>
+                    <FileUpload
+                      files={editUploadFiles}
+                      setFiles={(newFiles) => { setEditUploadFiles(newFiles); setEditUploadFile(newFiles[0] || null); }}
+                      asDocument={editForm.as_document}
+                      setAsDocument={(val) => setEditForm({ ...editForm, as_document: val })}
+                      existingFiles={editExistingFiles}
+                      onRemoveExisting={setEditRemovedExisting}
                     />
-                  </div>
-                </div>
-              )}
-              <button className="btn btn-primary" onClick={handleEditSave} disabled={saving}>
-                {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
-              </button>
-              <button className="btn btn-secondary" onClick={() => { setShowEditModal(false); setEditPerFileContent(false); setEditFileCaptions({}); }}>إلغاء</button>
+                  </>
+                )}
+
+                {editWizardStep === 3 && (
+                  <>
+                    <div className="form-group">
+                      <button
+                        className="btn btn-secondary"
+                        onClick={handleEditGenerateAI}
+                        disabled={editGenerating || !editForm.content}
+                        style={{ width: '100%' }}
+                      >
+                        {editGenerating ? (
+                          <span>جاري التوليد...</span>
+                        ) : (
+                          <span>توليد بالذكاء الاصطناعي</span>
+                        )}
+                      </button>
+                    </div>
+                    {editShowAiPanel && (
+                      <div style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, border: '1px solid var(--gray-200)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <label style={{ fontWeight: 600, margin: 0 }}>الكلمات المفتاحية المقترحة</label>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={handleEditGenerateAI}
+                            disabled={editGenerating}
+                            style={{ fontSize: 12, padding: '4px 12px' }}
+                          >
+                            {editGenerating ? 'جاري التوليد...' : 'إعادة التوليد'}
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                          {editAiKeywords.map((kw, i) => (
+                            <span
+                              key={i}
+                              onClick={() => toggleEditKeyword(kw)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: 20,
+                                fontSize: 13,
+                                cursor: 'pointer',
+                                background: editSelectedKeywords.includes(kw) ? 'var(--primary)' : 'var(--gray-200)',
+                                color: editSelectedKeywords.includes(kw) ? 'white' : 'var(--gray-700)',
+                                transition: 'all 0.2s',
+                                border: 'none',
+                              }}
+                            >
+                              {kw}
+                            </span>
+                          ))}
+                          {editAiKeywords.length === 0 && (
+                            <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد كلمات مفتاحية</span>
+                          )}
+                        </div>
+                        <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الأسئلة المقترحة</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                          {editAiQuestions.map((q, i) => (
+                            <span
+                              key={i}
+                              onClick={() => toggleEditQuestion(q)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: 20,
+                                fontSize: 13,
+                                cursor: 'pointer',
+                                background: editSelectedQuestions.includes(q) ? 'var(--primary)' : 'var(--gray-200)',
+                                color: editSelectedQuestions.includes(q) ? 'white' : 'var(--gray-700)',
+                                transition: 'all 0.2s',
+                                border: 'none',
+                              }}
+                            >
+                              {q}
+                            </span>
+                          ))}
+                          {editAiQuestions.length === 0 && (
+                            <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد أسئلة مقترحة</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div className="form-group" style={{ marginTop: 12 }}>
+                      <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13 }}>
+                        ربط بقاموس ردود (اختياري)
+                      </label>
+                      <select
+                        className="form-input"
+                        value={editLinkedResponseId}
+                        onChange={(e) => setEditLinkedResponseId(e.target.value)}
+                        style={{ fontSize: 13 }}
+                      >
+                        <option value="">— بدون ربط —</option>
+                        {editAvailableResponses.map((r) => (
+                          <option key={r.id} value={r.id}>{r.keyword}</option>
+                        ))}
+                      </select>
+                      {editLinkedResponseId && (
+                        <div style={{ fontSize: 12, color: 'var(--primary)', marginTop: 4 }}>
+                          سيتم ربط المنشور بالقاموس المحدد
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {editWizardStep === 4 && (
+                  <>
+                    <div className="form-group">
+                      <ChannelGroupSelector
+                        selected={editSelectedChannels}
+                        onChange={setEditSelectedChannels}
+                      />
+                    </div>
+                    <div className="wizard-summary">
+                      <div className="wizard-summary-row">
+                        <span>عدد الملفات</span>
+                        <span>{editExistingFiles.filter((_, i) => !editRemovedExisting.includes(i)).length + editUploadFiles.length}</span>
+                      </div>
+                      <div className="wizard-summary-row">
+                        <span>المحتوى</span>
+                        <span>{editForm.content ? (editForm.content.length > 60 ? editForm.content.substring(0, 60) + '...' : editForm.content) : '—'}</span>
+                      </div>
+                      <div className="wizard-summary-row">
+                        <span>الكلمات المفتاحية</span>
+                        <span>{editSelectedKeywords.length}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="wizard-nav">
+                {editWizardStep > 1 && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setEditWizardStep(editWizardStep - 1)}
+                  >
+                    السابق
+                  </button>
+                )}
+                {editWizardStep < 4 ? (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setEditWizardStep(editWizardStep + 1)}
+                    disabled={editWizardStep === 1 && !editForm.content?.trim()}
+                  >
+                    التالي
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleEditSave}
+                    disabled={saving || editSelectedChannels.length === 0}
+                  >
+                    {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1259,7 +1504,10 @@ export default function News() {
               <div className="save-phase" key={savePhase}>{savePhase}</div>
               {uploadProgress !== null && savePhase !== 'تم بنجاح' && (
                 <div className="save-detail">
-                  {uploadFiles.length} {uploadFiles.length === 1 ? 'ملف' : 'ملفات'}
+                  {(() => {
+                    const count = showEditModal ? editUploadFiles.length : uploadFiles.length;
+                    return count > 0 ? `${count} ${count === 1 ? 'ملف' : 'ملفات'}` : null;
+                  })()}
                   {uploadProgress < 100 ? ` — ${Math.round(uploadProgress)}%` : ''}
                 </div>
               )}
