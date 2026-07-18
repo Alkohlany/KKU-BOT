@@ -924,9 +924,11 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             try:
                 ar = AutoResponse(
                     keyword=keyword,
-                    response="تم الرد عبر المنشور",
+                    response=response_text,
                     created_by=user.id,
                     news_id=news_id,
+                    source_chat_id=chat.id,
+                    source_message_id=replied.message_id,
                 )
                 async with async_session() as session:
                     session.add(ar)
