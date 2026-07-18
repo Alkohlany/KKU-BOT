@@ -1026,7 +1026,7 @@ export default function News() {
               <div className="wizard-steps">
                 {(editIsPublished
                   ? [{ num: 1, label: 'المحتوى' }, { num: 3, label: 'الكلمات' }]
-                  : [{ num: 1, label: 'المحتوى' }, { num: 2, label: 'الملفات' }, { num: 3, label: 'الكلمات' }, { num: 4, label: 'النشر' }]
+                  : [{ num: 1, label: 'الملفات' }, { num: 2, label: 'المحتوى' }, { num: 3, label: 'الكلمات' }, { num: 4, label: 'النشر' }]
                 ).map((step, i, arr) => (
                   <React.Fragment key={step.num}>
                     <div className={`wizard-step ${editWizardStep === step.num ? 'active' : ''} ${editWizardStep > step.num ? 'completed' : ''}`}>
@@ -1039,7 +1039,7 @@ export default function News() {
               </div>
 
               <div className="wizard-content">
-                {editWizardStep === 1 && (
+                {((editWizardStep === 1 && editIsPublished) || (editWizardStep === 2 && !editIsPublished)) && (
                   <>
                     <div className="form-group">
                       <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1120,7 +1120,7 @@ export default function News() {
                   </>
                 )}
 
-                {editWizardStep === 2 && !editIsPublished && (
+                {editWizardStep === 1 && !editIsPublished && (
                   <>
                     <FileUpload
                       files={editUploadFiles}
@@ -1309,7 +1309,7 @@ export default function News() {
                         setEditWizardStep(editWizardStep + 1);
                       }
                     }}
-                    disabled={editWizardStep === 1 && !editForm.content?.trim()}
+                    disabled={(editIsPublished ? editWizardStep === 1 : editWizardStep === 2) && !editForm.content?.trim()}
                   >
                     التالي
                   </button>
