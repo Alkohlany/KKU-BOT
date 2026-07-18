@@ -9,9 +9,11 @@ from bot.services.database import (
     add_auto_response, get_all_auto_responses, remove_auto_response,
     add_question, get_all_questions, delete_question,
     get_all_news, get_news_by_id, delete_news, add_news,
+    get_news_by_channel_message_id,
     ban_user, get_all_banned, is_banned,
     get_active_channel_groups, log_activity, async_session
 )
+from bot.services.ai import generate_news_analysis
 import logging
 from sqlalchemy import delete as sql_delete
 from bot.models.models import AutoResponse, BannedUser
@@ -131,11 +133,12 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     # Handle cancel for pending operations
-    if text.strip() == "إلغاء" and 'pending_keyword' in context.user_data:
+    if text.strip() == "إلغاء" and ('pending_keyword' in context.user_data or 'pending_analysis' in context.user_data):
         try:
             await update.message.delete()
         except: pass
         context.user_data.pop('pending_keyword', None)
+        context.user_data.pop('pending_analysis', None)
         await send_admin_message(context, user.id, "✅ تم الإلغاء")
         return
 
@@ -810,81 +813,194 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await send_admin_message(context, user.id, "❌ يجب أن تحتوي الرسالة المُشار إليها على نص أو مرفق")
             return
 
-        if not keywords_part:
-            await send_admin_message(context, user.id,
-                "❌ يجب كتابة الكلمات المفتاحية\n\n"
-                "💡 الصيغة:\n"
-                "اضافه رد تسجيل,القبول")
+        # Manual keywords path
+        if keywords_part:
+            keywords = [k.strip() for k in keywords_part.replace("،", ",").split(",") if k.strip()]
+            
+            if not keywords:
+                await send_admin_message(context, user.id, "❌ يجب كتابة كلمة مفتاحية واحدة على الأقل")
+                return
+
+            file_url = None
+            file_type = None
+            file_tg_id = None
+            
+            try:
+                if replied.photo:
+                    file_obj = replied.photo[-1]
+                    file_type = "photo"
+                    file_tg_id = file_obj.file_id
+                    tg_file = await file_obj.get_file()
+                    file_bytes = await tg_file.download_as_bytearray()
+                    file_url = upload_image(bytes(file_bytes), folder="kku-bot/responses")
+                elif replied.video:
+                    file_obj = replied.video
+                    file_type = "video"
+                    file_tg_id = file_obj.file_id
+                    tg_file = await file_obj.get_file()
+                    file_bytes = await tg_file.download_as_bytearray()
+                    file_url = upload_file(bytes(file_bytes), folder="kku-bot/responses")
+                elif replied.document:
+                    file_obj = replied.document
+                    file_type = "document"
+                    file_tg_id = file_obj.file_id
+                    tg_file = await file_obj.get_file()
+                    file_bytes = await tg_file.download_as_bytearray()
+                    file_url = upload_raw(bytes(file_bytes), filename=file_obj.file_name or "file", folder="kku-bot/responses")
+                elif replied.voice or replied.audio:
+                    file_obj = replied.voice or replied.audio
+                    file_type = "document"
+                    file_tg_id = file_obj.file_id
+                    tg_file = await file_obj.get_file()
+                    file_bytes = await tg_file.download_as_bytearray()
+                    file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/responses")
+            except Exception as e:
+                logger.warning(f"Could not upload file from replied message: {e}")
+
+            created_count = 0
+            for keyword in keywords:
+                try:
+                    ar = AutoResponse(
+                        keyword=keyword,
+                        response=response_text,
+                        created_by=user.id,
+                        file_url=file_url,
+                        file_type=file_type,
+                        file_tg_id=file_tg_id,
+                        source_chat_id=chat.id,
+                        source_message_id=replied.message_id,
+                    )
+                    async with async_session() as session:
+                        session.add(ar)
+                        await session.commit()
+                    created_count += 1
+                except Exception as e:
+                    logger.error(f"Could not create auto response for keyword '{keyword}': {e}")
+
+            if created_count > 0:
+                file_info = f"\n📎 مرفق: {file_type}" if file_type else ""
+                await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}{file_info}")
+            else:
+                await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
             return
 
-        # Split keywords by comma
-        keywords = [k.strip() for k in keywords_part.replace("،", ",").split(",") if k.strip()]
+        # Empty keywords: AI analysis path
+        # Extract text from replied message
+        analysis_text = response_text
+        if not analysis_text:
+            await send_admin_message(context, user.id, "❌ لا يوجد نص في الرسالة المُشار إليها للتحليل")
+            return
+
+        # Check for pending analysis conflict
+        if 'pending_analysis' in context.user_data:
+            await send_admin_message(context, user.id, "❌ أكمل التحليل السابق أولاً أو اكتب 'إلغاء'")
+            return
+
+        try:
+            result = generate_news_analysis(title="", content=analysis_text)
+            keywords_list = result.get("keywords", [])
+            questions_list = result.get("questions", [])
+        except Exception as e:
+            logger.error(f"AI analysis failed: {e}")
+            await send_admin_message(context, user.id, "❌ فشل التحليل الذكي. يمكنك استخدام الصيغة:\nاضافه رد [كلمات مفتاحية]")
+            return
+
+        if not keywords_list and not questions_list:
+            await send_admin_message(context, user.id, "❌ لم يتم استخراج كلمات أو أسئلة. جرب:\nاضافه رد [كلمات مفتاحية]")
+            return
+
+        # Store analysis for later selection
+        context.user_data['pending_analysis'] = {
+            'keywords': keywords_list,
+            'questions': questions_list,
+            'replied_message_id': replied.message_id,
+            'replied_chat_id': chat.id,
+            'response_text': response_text,
+        }
+
+        # Build numbered list
+        num = 1
+        items = []
+        msg = "🤖 **تحليل المحتوى الذكي:**\n\n🔑 **الكلمات المفتاحية:**\n"
+        for kw in keywords_list:
+            msg += f"`{num}` {kw}\n"
+            items.append({"num": num, "type": "keyword", "value": kw})
+            num += 1
+
+        msg += "\n❓ **الأسئلة المقترحة:**\n"
+        for q in questions_list:
+            msg += f"`{num}` {q}\n"
+            items.append({"num": num, "type": "question", "value": q})
+            num += 1
+
+        context.user_data['pending_analysis']['items'] = items
+
+        # Check if replied message is from bot (news post)
+        replied_from_bot = replied.from_user and replied.from_user.id == context.bot.id
+        if replied_from_bot:
+            news = await get_news_by_channel_message_id(replied.message_id)
+            if news:
+                context.user_data['pending_analysis']['news_id'] = news.id
+
+        msg += "\n💡 **أرسل الأرقام المطلوبة:**\n"
+        msg += "مثال: `1,2,3` أو `1-3` أو `1 2 3`"
         
-        if not keywords:
-            await send_admin_message(context, user.id, "❌ يجب كتابة كلمة مفتاحية واحدة على الأقل")
+        await send_admin_message(context, user.id, msg)
+        return
+
+    # Handle AI analysis number selection
+    elif 'pending_analysis' in context.user_data:
+        try:
+            await update.message.delete()
+        except: pass
+
+        analysis = context.user_data.pop('pending_analysis')
+        items = analysis['items']
+
+        # Parse numbers: "1,2,3" or "1-3" or "1 2 3"
+        text_clean = text.replace("،", ",").replace("-", ",").replace(" ", ",")
+        try:
+            selected_nums = [int(n.strip()) for n in text_clean.split(",") if n.strip()]
+        except ValueError:
+            await send_admin_message(context, user.id, "❌ أدخل أرقام صحيحة مثل: 1,2,3")
             return
 
-        # Get file from replied message
+        selected = [item for item in items if item['num'] in selected_nums]
+        if not selected:
+            await send_admin_message(context, user.id, "❌ لم يتم اختيار أي عنصر. أرقام متاحة: " + ", ".join(str(i['num']) for i in items))
+            return
+
+        # Get file from replied message (if any)
         file_url = None
         file_type = None
         file_tg_id = None
-        
-        try:
-            if replied.photo:
-                file_obj = replied.photo[-1]
-                file_type = "photo"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                file_url = upload_image(bytes(file_bytes), folder="kku-bot/responses")
-            elif replied.video:
-                file_obj = replied.video
-                file_type = "video"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                file_url = upload_file(bytes(file_bytes), folder="kku-bot/responses")
-            elif replied.document:
-                file_obj = replied.document
-                file_type = "document"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                file_url = upload_raw(bytes(file_bytes), filename=file_obj.file_name or "file", folder="kku-bot/responses")
-            elif replied.voice or replied.audio:
-                file_obj = replied.voice or replied.audio
-                file_type = "document"
-                file_tg_id = file_obj.file_id
-                tg_file = await file_obj.get_file()
-                file_bytes = await tg_file.download_as_bytearray()
-                file_url = upload_raw(bytes(file_bytes), filename="audio", folder="kku-bot/responses")
-        except Exception as e:
-            logger.warning(f"Could not upload file from replied message: {e}")
+        # We don't have the original message object anymore, so skip file upload for AI path
+        # Files are linked via source_chat_id/source_message_id on the AutoResponse
 
-        # Create auto-responses
+        news_id = analysis.get('news_id')
         created_count = 0
-        for keyword in keywords:
+        for item in selected:
             try:
                 ar = AutoResponse(
-                    keyword=keyword,
-                    response=response_text,
+                    keyword=item['value'],
+                    response=analysis['response_text'],
                     created_by=user.id,
-                    file_url=file_url,
-                    file_type=file_type,
-                    file_tg_id=file_tg_id,
-                    source_chat_id=chat.id,
-                    source_message_id=replied.message_id,
+                    news_id=news_id,
+                    source_chat_id=analysis['replied_chat_id'],
+                    source_message_id=analysis['replied_message_id'],
                 )
                 async with async_session() as session:
                     session.add(ar)
                     await session.commit()
                 created_count += 1
             except Exception as e:
-                logger.error(f"Could not create auto response for keyword '{keyword}': {e}")
+                logger.error(f"Could not create auto response for '{item['value']}': {e}")
 
         if created_count > 0:
-            file_info = f"\n📎 مرفق: {file_type}" if file_type else ""
-            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}{file_info}")
+            kw_labels = [f"🔑 {i['value']}" if i['type'] == 'keyword' else f"❓ {i['value']}" for i in selected]
+            news_info = f"\n📰 المنشور: {news_id}" if news_id else ""
+            await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n\n" + "\n".join(kw_labels) + news_info)
+            await log_activity("add_response", f"AI selected: {[i['value'] for i in selected]}, News: {news_id}", user.id)
         else:
             await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
         return
