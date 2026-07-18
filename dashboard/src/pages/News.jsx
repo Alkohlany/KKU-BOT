@@ -52,6 +52,8 @@ export default function News() {
   const [fileCaptions, setFileCaptions] = useState({});
   const [selectedChannels, setSelectedChannels] = useState([]);
   const [addWizardStep, setAddWizardStep] = useState(1);
+  const [linkedResponseId, setLinkedResponseId] = useState('');
+  const [availableResponses, setAvailableResponses] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
   const [channelGroups, setChannelGroups] = useState([]);
 
@@ -83,6 +85,12 @@ export default function News() {
     };
     loadChannels();
   }, []);
+
+  useEffect(() => {
+    if (addWizardStep === 3) {
+      api.getResponses().then(data => setAvailableResponses(data || [])).catch(() => {});
+    }
+  }, [addWizardStep]);
 
   const loadNews = async () => {
     try {
@@ -195,11 +203,12 @@ export default function News() {
         formData.append('target_channels', JSON.stringify(selectedChannels));
         formData.append('selected_keywords', JSON.stringify(selectedKeywords));
         formData.append('selected_questions', JSON.stringify(selectedQuestions));
+        formData.append('linked_response_id', linkedResponseId || '');
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
         });
       } else {
-        newItem = await api.addNews({ ...form, title: '', target_channels: JSON.stringify(selectedChannels) });
+        newItem = await api.addNews({ ...form, title: '', target_channels: JSON.stringify(selectedChannels), linked_response_id: linkedResponseId || '' });
       }
       loadNews();
       setForm({ content: '', as_document: false });
@@ -213,6 +222,8 @@ export default function News() {
       setAiQuestions([]);
       setSelectedKeywords([]);
       setSelectedQuestions([]);
+      setLinkedResponseId('');
+      setAddWizardStep(1);
       showToast('تم إضافة المنشور بنجاح', 'success');
     } catch (err) {
       console.error('Failed to save news:', err);
@@ -720,20 +731,7 @@ export default function News() {
                           onChange={(e) => setForm({ ...form, content: e.target.value })}
                           style={{ minHeight: 150 }}
                         />
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 8, fontSize: 13, color: 'var(--gray-600)' }}>
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                const trimmed = form.content.replace(/\n\s*\n/g, '\n').replace(/[ \t]+/g, ' ').trim();
-                                setForm({ ...form, content: trimmed });
-                              }
-                            }}
-                            style={{ width: 16, height: 16 }}
-                          />
-                          قص المحتوى
-                        </label>
+
                       </div>
                     )}
                   </>
@@ -818,16 +816,25 @@ export default function News() {
                       </div>
                     )}
                     <div className="form-group" style={{ marginTop: 12 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          style={{ width: 16, height: 16 }}
-                        />
-                        ربط بقاموس ردود
+                      <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13 }}>
+                        ربط بقاموس ردود (اختياري)
                       </label>
-                      <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, paddingRight: 26 }}>
-                        سيتم ربط الكلمات المفتاحية بقاموس الردود الموجود
-                      </div>
+                      <select
+                        className="form-input"
+                        value={linkedResponseId}
+                        onChange={(e) => setLinkedResponseId(e.target.value)}
+                        style={{ fontSize: 13 }}
+                      >
+                        <option value="">— بدون ربط —</option>
+                        {availableResponses.map((r) => (
+                          <option key={r.id} value={r.id}>{r.keyword}</option>
+                        ))}
+                      </select>
+                      {linkedResponseId && (
+                        <div style={{ fontSize: 12, color: 'var(--primary)', marginTop: 4 }}>
+                          سيتم ربط المنشور بالقاموس المحدد
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
