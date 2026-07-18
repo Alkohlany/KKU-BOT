@@ -180,7 +180,20 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
     is_video = filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv'))
     is_image = filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))
 
-    # Try to upload with thumbnail via raw multipart POST (thumbnail requires upload)
+    # Strategy 1: Send by URL (fast, no thumbnail, works for any size)
+    if url.startswith('http'):
+        try:
+            if is_video:
+                msg = await bot.send_video(chat_id=chat_id, video=url, caption=caption, parse_mode='HTML', filename=filename)
+            elif is_image:
+                msg = await bot.send_photo(chat_id=chat_id, photo=url, caption=caption, parse_mode='HTML')
+            else:
+                msg = await bot.send_document(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
+            return msg
+        except Exception as e:
+            logger.warning(f"send by URL failed for {chat_id}: {e}")
+
+    # Strategy 2: Download bytes and send with thumbnail
     if thumb_url and thumb_url.startswith('http'):
         try:
             async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
@@ -235,7 +248,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
         except Exception as e:
             logger.warning(f"send with thumb failed for {chat_id}: {e}")
 
-    # Fallback: download bytes and upload directly
+    # Strategy 3: Download bytes and send without thumbnail
     file_bytes = None
     try:
         file_bytes = await asyncio.to_thread(download_raw, url)
