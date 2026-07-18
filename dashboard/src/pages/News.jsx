@@ -51,6 +51,7 @@ export default function News() {
   const [perFileContent, setPerFileContent] = useState(false);
   const [fileCaptions, setFileCaptions] = useState({});
   const [selectedChannels, setSelectedChannels] = useState([]);
+  const [addWizardStep, setAddWizardStep] = useState(1);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
   const [channelGroups, setChannelGroups] = useState([]);
 
@@ -180,17 +181,15 @@ export default function News() {
 
   const handleSave = async () => {
     if (!form.content) return;
-    if (uploadFiles.length === 0) return;
     setSaving(true);
     setUploadProgress(0);
     try {
       let newItem;
-      const allFiles = uploadFiles;
-      if (allFiles.length > 0) {
+      if (uploadFiles.length > 0) {
         const formData = new FormData();
         formData.append('title', '');
         formData.append('content', form.content);
-        allFiles.forEach(f => formData.append('files', f));
+        uploadFiles.forEach(f => formData.append('files', f));
         formData.append('as_document', form.as_document);
         formData.append('file_captions', JSON.stringify(fileCaptions));
         formData.append('target_channels', JSON.stringify(selectedChannels));
@@ -450,7 +449,7 @@ export default function News() {
                 </>
               )}
             </button>
-            <button className="btn btn-primary" onClick={() => { setForm({ content: '', as_document: false }); setUploadFiles([]); setSelectedChannels([]); setShowModal(true); }}>
+            <button className="btn btn-primary" onClick={() => { setForm({ content: '', as_document: false }); setUploadFiles([]); setSelectedChannels([]); setAddWizardStep(1); setShowModal(true); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -636,194 +635,275 @@ export default function News() {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); }}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); setAddWizardStep(1); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>إضافة منشور جديد</h3>
-              <button className="modal-close" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); }}>✕</button>
+              <button className="modal-close" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); setAddWizardStep(1); }}>✕</button>
             </div>
             <div className="modal-body">
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={perFileContent}
-                    onChange={(e) => setPerFileContent(e.target.checked)}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  إضافة محتوى خاص لكل ملف
-                </label>
+              <div className="wizard-steps">
+                {[
+                  { num: 1, label: 'الملفات' },
+                  { num: 2, label: 'المحتوى' },
+                  { num: 3, label: 'الكلمات' },
+                  { num: 4, label: 'النشر' },
+                ].map((step, i) => (
+                  <React.Fragment key={step.num}>
+                    <div className={`wizard-step ${addWizardStep === step.num ? 'active' : ''} ${addWizardStep > step.num ? 'completed' : ''}`}>
+                      <div className="wizard-step-circle">{addWizardStep > step.num ? '✓' : step.num}</div>
+                      <div className="wizard-step-label">{step.label}</div>
+                    </div>
+                    {i < 3 && <div className={`wizard-connector ${addWizardStep > step.num ? 'completed' : ''}`} />}
+                  </React.Fragment>
+                ))}
               </div>
-              <FileUpload
-                files={uploadFiles}
-                setFiles={(newFiles) => setUploadFiles(newFiles)}
-                asDocument={form.as_document}
-                setAsDocument={(val) => setForm({ ...form, as_document: val })}
-              />
-              <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
-                  <div className="form-group">
-                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      المحتوى
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={handleEnhance}
-                        disabled={enhancingContent || !form.content}
-                        style={{ fontSize: 12, padding: '4px 12px' }}
-                      >
-                        {enhancingContent ? 'جاري التحسين...' : uploadFiles.length > 0 ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
-                      </button>
-                    </label>
-                    <textarea
-                      className="form-input"
-                      placeholder="محتوى المنشور..."
-                      value={form.content}
-                      onChange={(e) => setForm({ ...form, content: e.target.value })}
-                      style={{ minHeight: 150 }}
+
+              <div className="wizard-content">
+                {addWizardStep === 1 && (
+                  <>
+                    <FileUpload
+                      files={uploadFiles}
+                      setFiles={(newFiles) => setUploadFiles(newFiles)}
+                      asDocument={form.as_document}
+                      setAsDocument={(val) => setForm({ ...form, as_document: val })}
                     />
-                  </div>
-                  {form.content && !showAiPanel && (
+                    <div className="form-group">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={perFileContent}
+                          onChange={(e) => setPerFileContent(e.target.checked)}
+                          style={{ width: 18, height: 18 }}
+                        />
+                        إضافة محتوى خاص لكل ملف
+                      </label>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--gray-500)', textAlign: 'center', marginTop: 8 }}>
+                      يمكنك تخطي هذه الخطوة لإنشاء منشور نصي فقط
+                    </div>
+                  </>
+                )}
+
+                {addWizardStep === 2 && (
+                  <>
+                    {perFileContent && uploadFiles.length > 0 ? (
+                      uploadFiles.map((f, idx) => (
+                        <div key={idx} className="file-content-item">
+                          <label>{f.name}</label>
+                          <textarea
+                            className="form-input"
+                            placeholder={`محتوى ${f.name}...`}
+                            value={fileCaptions[idx] || ''}
+                            onChange={(e) => setFileCaptions({ ...fileCaptions, [idx]: e.target.value })}
+                            style={{ minHeight: 80 }}
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      <div className="form-group">
+                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          المحتوى
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={handleEnhance}
+                            disabled={enhancingContent || !form.content}
+                            style={{ fontSize: 12, padding: '4px 12px' }}
+                          >
+                            {enhancingContent ? 'جاري التحسين...' : uploadFiles.length > 0 ? 'تحليل الصورة + تحسين المحتوى' : 'تحسين بالذكاء الاصطناعي'}
+                          </button>
+                        </label>
+                        <textarea
+                          className="form-input"
+                          placeholder="محتوى المنشور..."
+                          value={form.content}
+                          onChange={(e) => setForm({ ...form, content: e.target.value })}
+                          style={{ minHeight: 150 }}
+                        />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 8, fontSize: 13, color: 'var(--gray-600)' }}>
+                          <input
+                            type="checkbox"
+                            checked={false}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                const trimmed = form.content.replace(/\n\s*\n/g, '\n').replace(/[ \t]+/g, ' ').trim();
+                                setForm({ ...form, content: trimmed });
+                              }
+                            }}
+                            style={{ width: 16, height: 16 }}
+                          />
+                          قص المحتوى
+                        </label>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {addWizardStep === 3 && (
+                  <>
                     <div className="form-group">
                       <button
                         className="btn btn-secondary"
                         onClick={handleGenerateAI}
-                        disabled={generating}
+                        disabled={generating || !form.content}
                         style={{ width: '100%' }}
                       >
                         {generating ? (
                           <span>جاري التوليد...</span>
                         ) : (
-                          <span>توليد كلمات مفتاحية وأسئلة بالذكاء الاصطناعي</span>
+                          <span>توليد بالذكاء الاصطناعي</span>
                         )}
                       </button>
                     </div>
-                  )}
-                  {showAiPanel && (
-                    <div className="form-group" style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, border: '1px solid var(--gray-200)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <label style={{ fontWeight: 600, margin: 0 }}>الكلمات المفتاحية المقترحة</label>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={handleGenerateAI}
-                          disabled={generating}
-                          style={{ fontSize: 12, padding: '4px 12px' }}
-                        >
-                          {generating ? 'جاري التوليد...' : 'إعادة التوليد'}
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                        {aiKeywords.map((kw, i) => (
-                          <span
-                            key={i}
-                            onClick={() => toggleKeyword(kw)}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: 20,
-                              fontSize: 13,
-                              cursor: 'pointer',
-                              background: selectedKeywords.includes(kw) ? 'var(--primary)' : 'var(--gray-200)',
-                              color: selectedKeywords.includes(kw) ? 'white' : 'var(--gray-700)',
-                              transition: 'all 0.2s',
-                              border: 'none',
-                            }}
+                    {showAiPanel && (
+                      <div style={{ background: 'var(--gray-50)', padding: 12, borderRadius: 8, border: '1px solid var(--gray-200)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <label style={{ fontWeight: 600, margin: 0 }}>الكلمات المفتاحية المقترحة</label>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={handleGenerateAI}
+                            disabled={generating}
+                            style={{ fontSize: 12, padding: '4px 12px' }}
                           >
-                            {kw}
-                          </span>
-                        ))}
-                        {aiKeywords.length === 0 && (
-                          <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد كلمات مفتاحية</span>
-                        )}
+                            {generating ? 'جاري التوليد...' : 'إعادة التوليد'}
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                          {aiKeywords.map((kw, i) => (
+                            <span
+                              key={i}
+                              onClick={() => toggleKeyword(kw)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: 20,
+                                fontSize: 13,
+                                cursor: 'pointer',
+                                background: selectedKeywords.includes(kw) ? 'var(--primary)' : 'var(--gray-200)',
+                                color: selectedKeywords.includes(kw) ? 'white' : 'var(--gray-700)',
+                                transition: 'all 0.2s',
+                                border: 'none',
+                              }}
+                            >
+                              {kw}
+                            </span>
+                          ))}
+                          {aiKeywords.length === 0 && (
+                            <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد كلمات مفتاحية</span>
+                          )}
+                        </div>
+                        <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الأسئلة المقترحة</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                          {aiQuestions.map((q, i) => (
+                            <span
+                              key={i}
+                              onClick={() => toggleQuestion(q)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: 20,
+                                fontSize: 13,
+                                cursor: 'pointer',
+                                background: selectedQuestions.includes(q) ? 'var(--primary)' : 'var(--gray-200)',
+                                color: selectedQuestions.includes(q) ? 'white' : 'var(--gray-700)',
+                                transition: 'all 0.2s',
+                                border: 'none',
+                              }}
+                            >
+                              {q}
+                            </span>
+                          ))}
+                          {aiQuestions.length === 0 && (
+                            <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد أسئلة مقترحة</span>
+                          )}
+                        </div>
                       </div>
-                      <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الأسئلة المقترحة</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        {aiQuestions.map((q, i) => (
-                          <span
-                            key={i}
-                            onClick={() => toggleQuestion(q)}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: 20,
-                              fontSize: 13,
-                              cursor: 'pointer',
-                              background: selectedQuestions.includes(q) ? 'var(--primary)' : 'var(--gray-200)',
-                              color: selectedQuestions.includes(q) ? 'white' : 'var(--gray-700)',
-                              transition: 'all 0.2s',
-                              border: 'none',
-                            }}
-                          >
-                            {q}
-                          </span>
-                        ))}
-                        {aiQuestions.length === 0 && (
-                          <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد أسئلة مقترحة</span>
-                        )}
+                    )}
+                    <div className="form-group" style={{ marginTop: 12 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: 16, height: 16 }}
+                        />
+                        ربط بقاموس ردود
+                      </label>
+                      <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, paddingRight: 26 }}>
+                        سيتم ربط الكلمات المفتاحية بقاموس الردود الموجود
                       </div>
                     </div>
-                  )}
-              {perFileContent && uploadFiles.length > 0 && (
-                <>
-                  <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
-                  <div className="form-group">
-                    <label>محتوى لكل ملف</label>
-                    {uploadFiles.map((f, idx) => (
-                      <div key={idx} style={{ marginBottom: 10, padding: 10, border: '1px solid var(--gray-200)', borderRadius: 6 }}>
-                        <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 4 }}>{f.name}</div>
-                        <textarea
-                          className="form-input"
-                          placeholder={`محتوى ${f.name}...`}
-                          value={fileCaptions[idx] || ''}
-                          onChange={(e) => setFileCaptions({ ...fileCaptions, [idx]: e.target.value })}
-                          style={{ minHeight: 80 }}
-                        />
+                  </>
+                )}
+
+                {addWizardStep === 4 && (
+                  <>
+                    <div className="form-group">
+                      <ChannelGroupSelector
+                        selected={selectedChannels}
+                        onChange={setSelectedChannels}
+                      />
+                    </div>
+                    <div className="wizard-summary">
+                      <div className="wizard-summary-row">
+                        <span>عدد الملفات</span>
+                        <span>{uploadFiles.length}</span>
                       </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
-              <div className="form-group">
-                <ChannelGroupSelector
-                  selected={selectedChannels}
-                  onChange={setSelectedChannels}
-                />
+                      <div className="wizard-summary-row">
+                        <span>المحتوى</span>
+                        <span>{form.content ? (form.content.length > 60 ? form.content.substring(0, 60) + '...' : form.content) : '—'}</span>
+                      </div>
+                      <div className="wizard-summary-row">
+                        <span>الكلمات المفتاحية</span>
+                        <span>{selectedKeywords.length}</span>
+                      </div>
+                    </div>
+                    {uploadProgress !== null && (
+                      <div style={{ width: '100%', marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                          <span>جاري رفع الملف...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div style={{ width: '100%', height: 8, background: 'var(--gray-200)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              width: `${uploadProgress}%`,
+                              height: '100%',
+                              background: uploadProgress === 100 ? 'var(--success)' : 'var(--primary)',
+                              borderRadius: 4,
+                              transition: 'width 0.3s ease',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            </div>
-            <div className="modal-footer">
-              {uploadProgress !== null && (
-                <div style={{ width: '100%', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                    <span>جاري رفع الملف...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div style={{ width: '100%', height: 8, background: 'var(--gray-200)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${uploadProgress}%`,
-                        height: '100%',
-                        background: uploadProgress === 100 ? 'var(--success)' : 'var(--primary)',
-                        borderRadius: 4,
-                        transition: 'width 0.3s ease',
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-              {((!form.content) || uploadFiles.length === 0) && (
-                <div style={{ width: '100%', marginBottom: 8, fontSize: 12, color: 'var(--gray-500)', textAlign: 'center' }}>
-                  {!form.content && uploadFiles.length === 0
-                    ? 'يرجى إضافة ملف وكتابة المحتوى'
-                    : !form.content
-                    ? 'يرجى كتابة المحتوى'
-                    : 'يرجى إضافة ملف'}
-                </div>
-              )}
-              <button
-                className="btn btn-primary"
-                onClick={handleSave}
-                disabled={saving || uploadFiles.length === 0 || !form.content}
-              >
-                {saving ? 'جاري الحفظ...' : 'حفظ'}
-              </button>
-              <button className="btn btn-secondary" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); }}>إلغاء</button>
+
+              <div className="wizard-nav">
+                {addWizardStep > 1 && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setAddWizardStep(addWizardStep - 1)}
+                  >
+                    السابق
+                  </button>
+                )}
+                {addWizardStep < 4 ? (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setAddWizardStep(addWizardStep + 1)}
+                    disabled={addWizardStep === 2 && !form.content && (perFileContent ? uploadFiles.length === 0 : true)}
+                  >
+                    التالي
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSave}
+                    disabled={saving || selectedChannels.length === 0}
+                  >
+                    {saving ? 'جاري الحفظ...' : 'نشر المنشور'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
