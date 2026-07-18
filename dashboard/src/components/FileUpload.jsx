@@ -27,7 +27,15 @@ function FileItem(props) {
   return (
     <div className="fu-file-item">
       <div className="fu-file-icon">
-        {isCloud ? <span>☁️</span> : isImage ? <img src={URL.createObjectURL(file)} alt="" /> : <span>{fileIcon(file.name)}</span>}
+        {isCloud ? (
+          /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name) ? 
+            <img src={file._cloudUrl} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : 
+            <span>☁️</span>
+        ) : isImage ? (
+          <img src={URL.createObjectURL(file)} alt="" />
+        ) : (
+          <span>{fileIcon(file.name)}</span>
+        )}
       </div>
       <div className="fu-file-info">
         <span className="fu-file-name">{file.name}</span>

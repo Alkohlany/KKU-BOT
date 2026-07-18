@@ -356,7 +356,31 @@ async def edit_news(news_id: int, data: NewsCreate):
                           image_url=data.image_url, file_url=data.file_url,
                           as_document=data.as_document,
                           target_channels=data.target_channels)
-    
+
+    if data.selected_keywords:
+        try:
+            keywords = json.loads(data.selected_keywords)
+        except:
+            keywords = []
+        for kw in keywords:
+            if kw and kw.strip() and len(kw.strip()) >= 2 and not kw.startswith('#') and not kw.startswith('http'):
+                await add_auto_response(keyword=kw.strip(), response=f"رد تلقائي لكلمة: {kw}", created_by=None, news_id=n.id)
+
+    if data.selected_questions:
+        try:
+            questions = json.loads(data.selected_questions)
+        except:
+            questions = []
+        for q in questions:
+            if q and q.strip() and len(q.strip()) >= 2 and not q.startswith('#') and not q.startswith('http'):
+                await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=n.id)
+
+    if data.linked_response_id:
+        try:
+            await update_auto_response(int(data.linked_response_id), news_id=n.id)
+        except:
+            pass
+
     # Fetch updated news
     updated = await get_news_by_id(news_id)
     
@@ -401,6 +425,9 @@ async def edit_news_with_file(
     target_channels: Optional[str] = Form(None),
     removed_existing: Optional[str] = Form(None),
     file_captions: str = Form("{}"),
+    selected_keywords: str = Form("[]"),
+    selected_questions: str = Form("[]"),
+    linked_response_id: str = Form(""),
 ):
     import json
 
@@ -487,6 +514,41 @@ async def edit_news_with_file(
                       thumbnail_url=thumbnail_url,
                       as_document=as_document, target_channels=target_channels,
                       files_json=json.dumps(files_json_data) if files_json_data else None)
+
+    try:
+        keywords = json.loads(selected_keywords) if selected_keywords else []
+    except:
+        keywords = []
+    try:
+        questions = json.loads(selected_questions) if selected_questions else []
+    except:
+        questions = []
+
+    def is_valid_item(item: str) -> bool:
+        if not item or not item.strip():
+            return False
+        item = item.strip()
+        if len(item) < 2:
+            return False
+        if item.startswith('#') or item.startswith('http') or item.startswith('t.me'):
+            return False
+        if 't.me/' in item or 'http' in item.lower():
+            return False
+        return True
+
+    for kw in keywords:
+        if is_valid_item(kw):
+            await add_auto_response(keyword=kw.strip(), response=f"رد تلقائي لكلمة: {kw}", created_by=None, news_id=news_id)
+
+    for q in questions:
+        if is_valid_item(q):
+            await add_question(question=q.strip(), answer=f"إجابة لكلمة: {q}", news_id=news_id)
+
+    if linked_response_id:
+        try:
+            await update_auto_response(int(linked_response_id), news_id=news_id)
+        except:
+            pass
 
     updated = await get_news_by_id(news_id)
 

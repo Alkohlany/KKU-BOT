@@ -12,7 +12,6 @@ export default function News() {
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const [showRelinkModal, setShowRelinkModal] = useState(false);
   const [form, setForm] = useState({ content: '', as_document: false });
   const [editForm, setEditForm] = useState({ content: '', as_document: false });
   const [editItem, setEditItem] = useState(null);
@@ -39,13 +38,10 @@ export default function News() {
   const [savePhase, setSavePhase] = useState('');
   const [enhancingContent, setEnhancingContent] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [relinkItem, setRelinkItem] = useState(null);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingNewsId, setDeletingNewsId] = useState(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [publishingId, setPublishingId] = useState(null);
-  const [relinking, setRelinking] = useState(false);
   const [resettingChannel, setResettingChannel] = useState(false);
   const [permanentDeleting, setPermanentDeleting] = useState(false);
 
@@ -457,44 +453,6 @@ export default function News() {
     }
   };
 
-  const handleRelink = async () => {
-    if (!relinkItem) return;
-    setRelinking(true);
-    try {
-      const result = await api.post(`/news/${relinkItem.id}/relink`, {
-        keywords: selectedKeywords,
-        questions: selectedQuestions,
-      });
-      setNews(news.map(n => n.id === relinkItem.id ? { ...n, keywords: result.keywords, questions: result.questions } : n));
-      setShowRelinkModal(false);
-      setRelinkItem(null);
-      setSelectedKeywords([]);
-      setSelectedQuestions([]);
-      showToast('تم ربط المنشور بالقاموس بنجاح', 'success');
-    } catch (err) {
-      console.error('Failed to relink:', err);
-      showToast('فشل إعادة الربط', 'error');
-    } finally {
-      setRelinking(false);
-    }
-  };
-
-  const handleRelinkGenerate = async () => {
-    if (!relinkItem) return;
-    setGenerating(true);
-    try {
-      const result = await api.analyzeNews({ title: '', content: relinkItem.content });
-      setAiKeywords(result.keywords || []);
-      setAiQuestions(result.questions || []);
-      setSelectedKeywords(relinkItem.keywords || []);
-      setSelectedQuestions(relinkItem.questions || []);
-    } catch (err) {
-      showToast('فشل توليد المحتوى', 'error');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   const openEditModal = (item) => {
     setEditItem(item);
     setEditForm({ 
@@ -532,15 +490,6 @@ export default function News() {
     setShowEditModal(true);
   };
 
-
-  const openRelinkModal = async (item) => {
-    setRelinkItem(item);
-    setSelectedKeywords(item.keywords || []);
-    setSelectedQuestions(item.questions || []);
-    setAiKeywords(item.keywords || []);
-    setAiQuestions(item.questions || []);
-    setShowRelinkModal(true);
-  };
 
   if (loading) {
     return (
@@ -667,9 +616,6 @@ export default function News() {
                           ) : 'نشر'}
                         </button>
                       )}
-                      <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)} title="إعادة ربط">
-                        إعادة ربط
-                      </button>
                       <button className="btn btn-danger btn-sm" onClick={() => handleDeleteNews(item.id)} title="حذف">
                         حذف
                       </button>
@@ -749,9 +695,6 @@ export default function News() {
                     ) : 'نشر'}
                   </button>
                 )}
-                <button className="btn btn-secondary btn-sm" onClick={() => openRelinkModal(item)}>
-                  إعادة ربط
-                </button>
                 <button className="btn btn-danger btn-sm" onClick={() => handleDeleteNews(item.id)}>
                   حذف
                 </button>
@@ -1314,97 +1257,6 @@ export default function News() {
                   </button>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showRelinkModal && (
-        <div className="modal-overlay" onClick={() => { setShowRelinkModal(false); setRelinkItem(null); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>إعادة ربط المنشور بالقاموس</h3>
-              <button className="modal-close" onClick={() => { setShowRelinkModal(false); setRelinkItem(null); }}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p style={{ marginBottom: 16, color: 'var(--gray-600)', fontSize: 14 }}>
-                اختر الكلمات والأسئلة المراد ربطها بـ "{relinkItem?.title}"
-              </p>
-              <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label style={{ fontWeight: 600, margin: 0 }}>الكلمات المفتاحية</label>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleRelinkGenerate}
-                    disabled={generating}
-                    style={{ fontSize: 12, padding: '4px 12px' }}
-                  >
-                    {generating ? 'جاري التوليد...' : 'توليد بالذكاء الاصطناعي'}
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {aiKeywords.map((kw, i) => (
-                    <span
-                      key={i}
-                      onClick={() => toggleKeyword(kw)}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 20,
-                        fontSize: 13,
-                        cursor: 'pointer',
-                        background: selectedKeywords.includes(kw) ? 'var(--primary)' : 'var(--gray-200)',
-                        color: selectedKeywords.includes(kw) ? 'white' : 'var(--gray-700)',
-                        transition: 'all 0.2s',
-                        border: 'none',
-                      }}
-                    >
-                      {kw}
-                    </span>
-                  ))}
-                  {aiKeywords.length === 0 && (
-                    <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد كلمات مفتاحية</span>
-                  )}
-                </div>
-              </div>
-              <div className="form-group">
-                <label style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>الأسئلة المقترحة</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {aiQuestions.map((q, i) => (
-                    <span
-                      key={i}
-                      onClick={() => toggleQuestion(q)}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 20,
-                        fontSize: 13,
-                        cursor: 'pointer',
-                        background: selectedQuestions.includes(q) ? 'var(--primary)' : 'var(--gray-200)',
-                        color: selectedQuestions.includes(q) ? 'white' : 'var(--gray-700)',
-                        transition: 'all 0.2s',
-                        border: 'none',
-                      }}
-                    >
-                      {q}
-                    </span>
-                  ))}
-                  {aiQuestions.length === 0 && (
-                    <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>لا توجد أسئلة مقترحة</span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={handleRelink} disabled={relinking} style={{ opacity: relinking ? 0.7 : 1, transition: 'all 0.2s' }}>
-                {relinking ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" strokeDasharray="31.4 31.4" strokeLinecap="round" />
-                    </svg>
-                    جاري حفظ الربط...
-                  </span>
-                ) : 'حفظ الربط'}
-              </button>
-              <button className="btn btn-secondary" onClick={() => { setShowRelinkModal(false); setRelinkItem(null); }}>إلغاء</button>
             </div>
           </div>
         </div>
