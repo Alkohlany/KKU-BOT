@@ -53,6 +53,7 @@ export default function News() {
   const [availableResponses, setAvailableResponses] = useState([]);
   const [editSelectedChannels, setEditSelectedChannels] = useState([]);
   const [editWizardStep, setEditWizardStep] = useState(1);
+  const [editIsPublished, setEditIsPublished] = useState(false);
   const [editAiKeywords, setEditAiKeywords] = useState([]);
   const [editAiQuestions, setEditAiQuestions] = useState([]);
   const [editSelectedKeywords, setEditSelectedKeywords] = useState([]);
@@ -321,49 +322,58 @@ export default function News() {
     setSaving(true);
     setSavePhase('جاري الحفظ');
     try {
-      let contentToSend = editForm.content;
-      if (editPerFileContent) {
-        const parts = editExistingFiles.map((f, i) => editRemovedExisting.includes(i) ? '' : (editFileCaptions[i] || '')).filter(Boolean);
-        const newParts = editUploadFiles.map((f, i) => editFileCaptions[`new_${i}`] || '').filter(Boolean);
-        const allParts = [...parts, ...newParts];
-        if (allParts.length > 0) {
-          contentToSend = allParts.join('\n\n---\n\n');
-        }
-      }
-      const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
-      const hasFiles = allEditFiles.length > 0 || editRemovedExisting.length > 0;
-      if (hasFiles || editPerFileContent) {
-        setUploadProgress(0);
-        setSavePhase('جاري رفع الملفات');
-        const formData = new FormData();
-        formData.append('title', '');
-        formData.append('content', contentToSend);
-        formData.append('as_document', editForm.as_document);
-        formData.append('target_channels', JSON.stringify(editSelectedChannels));
-        formData.append('removed_existing', JSON.stringify(editRemovedExisting));
-        formData.append('file_captions', JSON.stringify(editFileCaptions));
-        formData.append('selected_keywords', JSON.stringify(editSelectedKeywords));
-        formData.append('selected_questions', JSON.stringify(editSelectedQuestions));
-        formData.append('linked_response_id', editLinkedResponseId || '');
-        const cloudFiles = [];
-        allEditFiles.forEach((f, i) => {
-          if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
-        });
-        formData.append('cloud_files', JSON.stringify(cloudFiles));
-        allEditFiles.forEach(f => formData.append('files', f));
-        await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, (percent) => {
-          setUploadProgress(percent);
-          if (percent >= 100) setSavePhase('جاري الحفظ');
-        }, 'PUT');
-      } else {
+      if (editItem.published) {
         await api.put(`/news/${editItem.id}`, {
-          content: contentToSend,
-          as_document: editForm.as_document,
-          target_channels: JSON.stringify(editSelectedChannels),
+          content: editForm.content,
           selected_keywords: JSON.stringify(editSelectedKeywords),
           selected_questions: JSON.stringify(editSelectedQuestions),
           linked_response_id: editLinkedResponseId || '',
         });
+      } else {
+        let contentToSend = editForm.content;
+        if (editPerFileContent) {
+          const parts = editExistingFiles.map((f, i) => editRemovedExisting.includes(i) ? '' : (editFileCaptions[i] || '')).filter(Boolean);
+          const newParts = editUploadFiles.map((f, i) => editFileCaptions[`new_${i}`] || '').filter(Boolean);
+          const allParts = [...parts, ...newParts];
+          if (allParts.length > 0) {
+            contentToSend = allParts.join('\n\n---\n\n');
+          }
+        }
+        const allEditFiles = editUploadFiles.length > 0 ? editUploadFiles : (editUploadFile ? [editUploadFile] : []);
+        const hasFiles = allEditFiles.length > 0 || editRemovedExisting.length > 0;
+        if (hasFiles || editPerFileContent) {
+          setUploadProgress(0);
+          setSavePhase('جاري رفع الملفات');
+          const formData = new FormData();
+          formData.append('title', '');
+          formData.append('content', contentToSend);
+          formData.append('as_document', editForm.as_document);
+          formData.append('target_channels', JSON.stringify(editSelectedChannels));
+          formData.append('removed_existing', JSON.stringify(editRemovedExisting));
+          formData.append('file_captions', JSON.stringify(editFileCaptions));
+          formData.append('selected_keywords', JSON.stringify(editSelectedKeywords));
+          formData.append('selected_questions', JSON.stringify(editSelectedQuestions));
+          formData.append('linked_response_id', editLinkedResponseId || '');
+          const cloudFiles = [];
+          allEditFiles.forEach((f, i) => {
+            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
+          });
+          formData.append('cloud_files', JSON.stringify(cloudFiles));
+          allEditFiles.forEach(f => formData.append('files', f));
+          await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, (percent) => {
+            setUploadProgress(percent);
+            if (percent >= 100) setSavePhase('جاري الحفظ');
+          }, 'PUT');
+        } else {
+          await api.put(`/news/${editItem.id}`, {
+            content: contentToSend,
+            as_document: editForm.as_document,
+            target_channels: JSON.stringify(editSelectedChannels),
+            selected_keywords: JSON.stringify(editSelectedKeywords),
+            selected_questions: JSON.stringify(editSelectedQuestions),
+            linked_response_id: editLinkedResponseId || '',
+          });
+        }
       }
       setSavePhase('تم بنجاح');
       setUploadProgress(100);
@@ -371,6 +381,7 @@ export default function News() {
       loadNews();
       setShowEditModal(false);
       setEditItem(null);
+      setEditIsPublished(false);
       setEditForm({ content: '', as_document: false });
       setEditUploadFile(null);
       setEditUploadFiles([]);
@@ -465,6 +476,7 @@ export default function News() {
 
   const openEditModal = (item) => {
     setEditItem(item);
+    setEditIsPublished(!!item.published);
     setEditForm({ 
       content: item.content, 
       as_document: item.as_document || false,
@@ -475,28 +487,35 @@ export default function News() {
     } catch { setEditSelectedChannels([]); }
     setEditUploadFile(null);
     setEditUploadFiles([]);
-    setEditWizardStep(1);
+    setEditWizardStep(item.published ? 1 : 1);
     setEditAiKeywords([]);
     setEditAiQuestions([]);
-    setEditSelectedKeywords([]);
-    setEditSelectedQuestions([]);
+    setEditSelectedKeywords(item.selectedKeywords ? (typeof item.selectedKeywords === 'string' ? JSON.parse(item.selectedKeywords) : item.selectedKeywords) : []);
+    setEditSelectedQuestions(item.selectedQuestions ? (typeof item.selectedQuestions === 'string' ? JSON.parse(item.selectedQuestions) : item.selectedQuestions) : []);
     setEditShowAiPanel(false);
-    setEditLinkedResponseId('');
-    try {
-      const fj = item.filesJson ? (typeof item.filesJson === 'string' ? JSON.parse(item.filesJson) : item.filesJson) : [];
-      setEditExistingFiles(Array.isArray(fj) ? fj : []);
-      const captions = {};
-      let hasCaptions = false;
-      (Array.isArray(fj) ? fj : []).forEach((f, i) => {
-        if (f.caption) {
-          captions[i] = f.caption;
-          hasCaptions = true;
-        }
-      });
-      setEditFileCaptions(captions);
-      setEditPerFileContent(hasCaptions);
-    } catch { setEditExistingFiles([]); setEditFileCaptions({}); setEditPerFileContent(false); }
-    setEditRemovedExisting([]);
+    setEditLinkedResponseId(item.linked_response_id || '');
+    if (item.published) {
+      setEditExistingFiles([]);
+      setEditFileCaptions({});
+      setEditPerFileContent(false);
+      setEditRemovedExisting([]);
+    } else {
+      try {
+        const fj = item.filesJson ? (typeof item.filesJson === 'string' ? JSON.parse(item.filesJson) : item.filesJson) : [];
+        setEditExistingFiles(Array.isArray(fj) ? fj : []);
+        const captions = {};
+        let hasCaptions = false;
+        (Array.isArray(fj) ? fj : []).forEach((f, i) => {
+          if (f.caption) {
+            captions[i] = f.caption;
+            hasCaptions = true;
+          }
+        });
+        setEditFileCaptions(captions);
+        setEditPerFileContent(hasCaptions);
+      } catch { setEditExistingFiles([]); setEditFileCaptions({}); setEditPerFileContent(false); }
+      setEditRemovedExisting([]);
+    }
     setShowEditModal(true);
   };
 
@@ -609,11 +628,9 @@ export default function News() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                      {!item.published && (
-                        <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)} title="تعديل">
-                          تعديل
-                        </button>
-                      )}
+                      <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)} title="تعديل">
+                        تعديل
+                      </button>
                       {!item.published && (
                         <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} title="نشر" disabled={publishingId === item.id} style={{ opacity: publishingId === item.id ? 0.7 : 1, transition: 'all 0.2s' }}>
                           {publishingId === item.id ? (
@@ -688,11 +705,9 @@ export default function News() {
                 </div>
               </div>
               <div className="mobile-card-meta" style={{ flexWrap: 'wrap', gap: 6 }}>
-                {!item.published && (
-                  <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)}>
-                    تعديل
-                  </button>
-                )}
+                <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)}>
+                  تعديل
+                </button>
                 {!item.published && (
                   <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} disabled={publishingId === item.id} style={{ opacity: publishingId === item.id ? 0.7 : 1, transition: 'all 0.2s' }}>
                     {publishingId === item.id ? (
@@ -982,10 +997,16 @@ export default function News() {
                 ) : (
                   <button
                     className="btn btn-primary"
-                    onClick={handleSave}
-                    disabled={saving || selectedChannels.length === 0}
+                    onClick={() => {
+                      if (editIsPublished && editWizardStep === 1) {
+                        setEditWizardStep(3);
+                      } else {
+                        setEditWizardStep(editWizardStep + 1);
+                      }
+                    }}
+                    disabled={editWizardStep === 1 && !editForm.content?.trim()}
                   >
-                    {saving ? 'جاري الحفظ...' : 'نشر المنشور'}
+                    التالي
                   </button>
                 )}
               </div>
@@ -1003,18 +1024,16 @@ export default function News() {
             </div>
             <div className="modal-body">
               <div className="wizard-steps">
-                {[
-                  { num: 1, label: 'المحتوى' },
-                  { num: 2, label: 'الملفات' },
-                  { num: 3, label: 'الكلمات' },
-                  { num: 4, label: 'النشر' },
-                ].map((step, i) => (
+                {(editIsPublished
+                  ? [{ num: 1, label: 'المحتوى' }, { num: 3, label: 'الكلمات' }]
+                  : [{ num: 1, label: 'المحتوى' }, { num: 2, label: 'الملفات' }, { num: 3, label: 'الكلمات' }, { num: 4, label: 'النشر' }]
+                ).map((step, i, arr) => (
                   <React.Fragment key={step.num}>
                     <div className={`wizard-step ${editWizardStep === step.num ? 'active' : ''} ${editWizardStep > step.num ? 'completed' : ''}`}>
                       <div className="wizard-step-circle">{editWizardStep > step.num ? '✓' : step.num}</div>
                       <div className="wizard-step-label">{step.label}</div>
                     </div>
-                    {i < 3 && <div className={`wizard-connector ${editWizardStep > step.num ? 'completed' : ''}`} />}
+                    {i < arr.length - 1 && <div className={`wizard-connector ${editWizardStep > step.num ? 'completed' : ''}`} />}
                   </React.Fragment>
                 ))}
               </div>
@@ -1042,18 +1061,20 @@ export default function News() {
                         style={{ minHeight: 150 }}
                       />
                     </div>
-                    <div className="form-group">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={editPerFileContent}
-                          onChange={(e) => setEditPerFileContent(e.target.checked)}
-                          style={{ width: 18, height: 18 }}
-                        />
-                        إضافة محتوى خاص لكل ملف
-                      </label>
-                    </div>
-                    {editPerFileContent && editExistingFiles.length > 0 && (
+                    {!editIsPublished && (
+                      <div className="form-group">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={editPerFileContent}
+                            onChange={(e) => setEditPerFileContent(e.target.checked)}
+                            style={{ width: 18, height: 18 }}
+                          />
+                          إضافة محتوى خاص لكل ملف
+                        </label>
+                      </div>
+                    )}
+                    {!editIsPublished && editPerFileContent && editExistingFiles.length > 0 && (
                       <>
                         <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
                         <div className="form-group">
@@ -1076,7 +1097,7 @@ export default function News() {
                         </div>
                       </>
                     )}
-                    {editPerFileContent && editUploadFiles.length > 0 && (
+                    {!editIsPublished && editPerFileContent && editUploadFiles.length > 0 && (
                       <>
                         <div style={{ borderTop: '1px solid var(--gray-200)', margin: '12px 0' }} />
                         <div className="form-group">
@@ -1099,7 +1120,7 @@ export default function News() {
                   </>
                 )}
 
-                {editWizardStep === 2 && (
+                {editWizardStep === 2 && !editIsPublished && (
                   <>
                     <FileUpload
                       files={editUploadFiles}
@@ -1214,7 +1235,7 @@ export default function News() {
                   </>
                 )}
 
-                {editWizardStep === 4 && (
+                {editWizardStep === 4 && !editIsPublished && (
                   <>
                     <div className="form-group">
                       <ChannelGroupSelector
@@ -1249,7 +1270,7 @@ export default function News() {
                     السابق
                   </button>
                 )}
-                {editWizardStep < 4 ? (
+                {editWizardStep < (editIsPublished ? 3 : 4) ? (
                   <button
                     className="btn btn-primary"
                     onClick={() => setEditWizardStep(editWizardStep + 1)}
@@ -1261,7 +1282,7 @@ export default function News() {
                   <button
                     className="btn btn-primary"
                     onClick={handleEditSave}
-                    disabled={saving || editSelectedChannels.length === 0}
+                    disabled={saving || (!editIsPublished && editSelectedChannels.length === 0)}
                   >
                     {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
                   </button>
