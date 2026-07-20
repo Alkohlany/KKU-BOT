@@ -27,7 +27,7 @@ def _strip_suffixes(word):
     """شيل suffixات عربية شائعة + أداة التعريف"""
     if len(word) <= 4:
         return word
-    for suffix in ('هم', 'هن', 'ها', 'كم', 'كن', 'نا', 'يه', 'تي', 'ون', 'ين', 'ات', 'ي'):
+    for suffix in ('هم', 'هن', 'ها', 'كم', 'كن', 'نا', 'يه', 'تي', 'ون', 'ين', 'ات', 'يه', 'ه'):
         if word.endswith(suffix) and len(word) - len(suffix) >= 3:
             word = word[:-len(suffix)]
             break
@@ -36,9 +36,26 @@ def _strip_suffixes(word):
     return word
 
 
+def _fix_spaces(text):
+    """أضف مسافات بين الحروف العربية والأرقام: القبول2025 → القبول 2025"""
+    import re
+    text = re.sub(r'([\u0600-\u06FF])(\d)', r'\1 \2', text)
+    text = re.sub(r'(\d)([\u0600-\u06FF])', r'\1 \2', text)
+    return text
+
+
+def _fuzzy_match(w1, w2, threshold=0.7):
+    """مطابقة ضبابية: يtolerate أخطاء إملائية"""
+    if len(w1) < 3 or len(w2) < 3:
+        return False
+    from difflib import SequenceMatcher
+    return SequenceMatcher(None, w1, w2).ratio() >= threshold
+
+
 def find_best_match(text, responses):
-    """أفضل تطابق"""
+    """أفضل تطابق — يدعم مسافات مفقودة + أخطاء إملائية"""
     normalized = normalize_arabic(text.lower().strip())
+    normalized = _fix_spaces(normalized)
     txt_words = set(normalized.split())
     txt_stripped = {_strip_suffixes(w) for w in txt_words}
 
@@ -61,10 +78,21 @@ def find_best_match(text, responses):
             if kw in normalized:
                 candidates.append((response, len(kw_words), normalized.find(kw)))
                 continue
+            # exact word match
             exact = len(kw_words & txt_words)
+            # suffix-stripped match
             kw_stripped = {_strip_suffixes(w) for w in kw_words}
             stripped = len(kw_stripped & txt_stripped)
             overlap = max(exact, stripped)
+            # fuzzy match for typos (if not enough exact matches)
+            if overlap < 2:
+                fuzzy_count = 0
+                for kw_w in kw_words:
+                    for txt_w in txt_words:
+                        if _fuzzy_match(kw_w, txt_w):
+                            fuzzy_count += 1
+                            break
+                overlap = max(overlap, fuzzy_count)
             if overlap >= 2:
                 pos = max((normalized.find(w) for w in kw_words if w in normalized), default=0)
                 candidates.append((response, overlap, pos))
