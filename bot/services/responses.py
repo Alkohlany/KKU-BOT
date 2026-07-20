@@ -23,46 +23,57 @@ DEFAULT_RESPONSES = {
 }
 
 
+def _strip_suffixes(word):
+    """شيل suffixات عربية شائعة + أداة التعريف"""
+    if len(word) <= 4:
+        return word
+    for suffix in ('هم', 'هن', 'ها', 'كم', 'كن', 'نا', 'يه', 'تي', 'ون', 'ين', 'ات', 'ي'):
+        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+            word = word[:-len(suffix)]
+            break
+    if word.startswith('ال') and len(word) > 4:
+        word = word[2:]
+    return word
+
+
 def find_best_match(text, responses):
-    """أفضل تطابق — مثل الخطط: إذا الكلمة موجودة في الرسالة تطابق"""
+    """أفضل تطابق"""
     normalized = normalize_arabic(text.lower().strip())
     txt_words = set(normalized.split())
+    txt_stripped = {_strip_suffixes(w) for w in txt_words}
 
-    # exact match
+    # 1. exact match
     for response in responses:
         keyword_normalized = normalize_arabic(response.keyword.lower().strip())
         if keyword_normalized == normalized:
             return response
 
-    # ponytail: split multi-line keywords, check if keyword words exist in text
-    best = None
-    best_score = 0
+    # 2. collect all candidates from multi-line keywords
+    candidates = []
     for response in responses:
         for line in response.keyword.split('\n'):
             kw = normalize_arabic(line.lower().strip())
             if not kw:
                 continue
             kw_words = set(w for w in kw.split() if not w.isdigit())
-            if not kw_words:
+            if len(kw_words) < 2:
                 continue
-            overlap = len(kw_words & txt_words)
-            if overlap < 2:
+            if kw in normalized:
+                candidates.append((response, len(kw_words), normalized.find(kw)))
                 continue
-            # score = overlap * keyword length → prefer longer/more specific keywords
-            score = overlap * len(kw_words)
-            if score > best_score or (score == best_score and overlap > 0):
-                # tiebreak: prefer keyword that appears later in text (content after greeting)
+            exact = len(kw_words & txt_words)
+            kw_stripped = {_strip_suffixes(w) for w in kw_words}
+            stripped = len(kw_stripped & txt_stripped)
+            overlap = max(exact, stripped)
+            if overlap >= 2:
                 pos = max((normalized.find(w) for w in kw_words if w in normalized), default=0)
-                if best and score == best_score:
-                    best_pos = max((normalized.find(w) for w in set(normalize_arabic(best.keyword.lower().strip()).split()) if w in normalized), default=0)
-                    if pos <= best_pos:
-                        continue
-                best = response
-                best_score = score
-    if best:
-        return best
+                candidates.append((response, overlap, pos))
+    if candidates:
+        # prefer: 1) more matching words, 2) appears later in text
+        candidates.sort(key=lambda x: (x[1], x[2]))
+        return candidates[-1][0]
 
-    # fallback: text substring of keyword
+    # 3. reverse substring
     for response in responses:
         keyword_normalized = normalize_arabic(response.keyword.lower().strip())
         if len(normalized) >= 3 and normalized in keyword_normalized:
