@@ -148,7 +148,7 @@ async def global_subscription_check(update: Update, context: ContextTypes.DEFAUL
         return
 
     # ponytail: تجاهل رسائل القناة المُعاد توجيهها للقروب
-    if update.message.forward_from_chat or update.message.forward_origin:
+    if update.message.forward_from_chat or update.message.forward_from:
         return
 
     user = update.effective_user

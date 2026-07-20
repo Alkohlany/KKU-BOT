@@ -66,7 +66,7 @@ async def get_plans_text() -> str:
 
 async def plans_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ponytail: تجاهل رسائل القناة المُعاد توجيهها
-    if update.message.forward_from_chat or update.message.forward_origin:
+    if update.message.forward_from_chat or update.message.forward_from:
         return
     text = update.message.text.strip()
     for trigger in ["الخطط", "الخطة", "الخطه", "خطط", "خطة", "خطه"]:

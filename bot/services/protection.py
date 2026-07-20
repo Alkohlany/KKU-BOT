@@ -186,7 +186,7 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # ponytail: تجاهل رسائل القناة المُعاد توجيهها
-    if update.message.forward_from_chat or update.message.forward_origin:
+    if update.message.forward_from_chat or update.message.forward_from:
         return
 
     user = update.effective_user
@@ -262,7 +262,7 @@ async def check_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # ponytail: تجاهل رسائل القناة المُعاد توجيهها
-    if update.message.forward_from_chat or update.message.forward_origin:
+    if update.message.forward_from_chat or update.message.forward_from:
         return
 
     if update.effective_chat.type not in ("group", "supergroup"):

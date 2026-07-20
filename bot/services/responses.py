@@ -168,7 +168,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     # ponytail: تجاهل رسائل القناة المُعاد توجيهها
-    if update.message.forward_from_chat or update.message.forward_origin:
+    if update.message.forward_from_chat or update.message.forward_from:
         return
 
     if update.effective_user and update.effective_user.id == context.bot.id:
