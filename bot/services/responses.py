@@ -27,7 +27,7 @@ def _strip_suffixes(word):
     """شيل suffixات عربية شائعة + أداة التعريف"""
     if len(word) <= 4:
         return word
-    for suffix in ('هم', 'هن', 'ها', 'كم', 'كن', 'نا', 'يه', 'تي', 'ون', 'ين', 'ات', 'يه', 'ه'):
+    for suffix in ('هم', 'هن', 'ها', 'كم', 'كن', 'نا', 'يه', 'تي', 'ون', 'ين', 'يه', 'ه'):
         if word.endswith(suffix) and len(word) - len(suffix) >= 3:
             word = word[:-len(suffix)]
             break
@@ -59,6 +59,7 @@ def find_best_match(text, responses):
     normalized = normalize_arabic(text.lower().strip())
     normalized = _fix_spaces(normalized)
     txt_words = set(normalized.split())
+    txt_words_clean = {w for w in txt_words if not w.isdigit()}
     txt_stripped = {_strip_suffixes(w) for w in txt_words}
 
     # 1. exact match
@@ -81,7 +82,7 @@ def find_best_match(text, responses):
                 candidates.append((response, len(kw_words), normalized.find(kw)))
                 continue
             # exact word match
-            exact = len(kw_words & txt_words)
+            exact = len(kw_words & txt_words_clean)
             # suffix-stripped match
             kw_stripped = {_strip_suffixes(w) for w in kw_words}
             stripped = len(kw_stripped & txt_stripped)
@@ -91,7 +92,7 @@ def find_best_match(text, responses):
                 matched_txt = set()
                 fuzzy_count = 0
                 for kw_w in kw_words:
-                    for txt_w in txt_words:
+                    for txt_w in txt_words_clean:
                         if txt_w not in matched_txt and _fuzzy_match(kw_w, txt_w):
                             matched_txt.add(txt_w)
                             fuzzy_count += 1
@@ -100,9 +101,11 @@ def find_best_match(text, responses):
             if overlap >= 2:
                 pos = max((normalized.find(w) for w in kw_words if w in normalized), default=0)
                 candidates.append((response, overlap, pos))
+            elif txt_words_clean and txt_words_clean <= kw_words:
+                pos = max((normalized.find(w) for w in kw_words if w in normalized), default=0)
+                candidates.append((response, len(kw_words & txt_words), pos))
     if candidates:
-        # prefer: 1) more matching words, 2) appears later in text
-        candidates.sort(key=lambda x: (x[1], x[2]))
+        candidates.sort(key=lambda x: (x[1], -x[0].keyword.count('\n'), x[2]))
         return candidates[-1][0]
 
     # 3. reverse substring
@@ -123,7 +126,7 @@ def find_best_match(text, responses):
         if kw_words := set(kw_list):
             overlap = len(kw_words & txt_words) / len(kw_words)
             reverse = len(kw_words & txt_words) / len(txt_words) if txt_words else 0
-            if overlap >= 0.7 or reverse >= 0.5:
+            if overlap >= 0.7 or reverse >= 0.7:
                 return response
 
     best_match = None
