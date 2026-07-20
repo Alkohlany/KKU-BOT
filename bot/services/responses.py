@@ -32,7 +32,8 @@ def find_best_match(text, responses):
         if keyword_normalized == normalized:
             return response
 
-    for response in responses:
+    sorted_responses = sorted(responses, key=lambda r: len(r.keyword), reverse=True)
+    for response in sorted_responses:
         keyword_normalized = normalize_arabic(response.keyword.lower().strip())
         if keyword_normalized in normalized or (len(normalized) >= 3 and normalized in keyword_normalized):
             return response

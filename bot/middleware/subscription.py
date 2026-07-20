@@ -191,6 +191,6 @@ async def global_subscription_check(update: Update, context: ContextTypes.DEFAUL
 
 
 global_subscription_handler = MessageHandler(
-    filters.ALL & ~filters.COMMAND & ~filters.StatusUpdate.NEW_CHAT_MEMBERS & ~filters.StatusUpdate.LEFT_CHAT_MEMBER,
+    filters.ALL & ~filters.ChatType.CHANNEL & ~filters.COMMAND & ~filters.StatusUpdate.NEW_CHAT_MEMBERS & ~filters.StatusUpdate.LEFT_CHAT_MEMBER,
     global_subscription_check
 )

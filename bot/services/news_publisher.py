@@ -180,20 +180,7 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
     is_video = filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv'))
     is_image = filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))
 
-    # Strategy 1: Send by URL (fast, no thumbnail, works for any size)
-    if url.startswith('http'):
-        try:
-            if is_video:
-                msg = await bot.send_video(chat_id=chat_id, video=url, caption=caption, parse_mode='HTML', filename=filename)
-            elif is_image:
-                msg = await bot.send_photo(chat_id=chat_id, photo=url, caption=caption, parse_mode='HTML')
-            else:
-                msg = await bot.send_document(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
-            return msg
-        except Exception as e:
-            logger.warning(f"send by URL failed for {chat_id}: {e}")
-
-    # Strategy 2: Download bytes and send with thumbnail
+    # Strategy 1: Download bytes and send with thumbnail (preferred for cover)
     if thumb_url and thumb_url.startswith('http'):
         try:
             async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
@@ -248,6 +235,19 @@ async def _send_file_and_get_id(chat_id: str, url: str, caption: str, original_f
         except Exception as e:
             logger.warning(f"send with thumb failed for {chat_id}: {e}")
 
+    # Strategy 2: Send by URL (fast, no thumbnail, works for any size)
+    if url.startswith('http'):
+        try:
+            if is_video:
+                msg = await bot.send_video(chat_id=chat_id, video=url, caption=caption, parse_mode='HTML', filename=filename)
+            elif is_image:
+                msg = await bot.send_photo(chat_id=chat_id, photo=url, caption=caption, parse_mode='HTML')
+            else:
+                msg = await bot.send_document(chat_id=chat_id, document=url, filename=filename, caption=caption, parse_mode='HTML')
+            return msg
+        except Exception as e:
+            logger.warning(f"send by URL failed for {chat_id}: {e}")
+
     # Strategy 3: Download bytes and send without thumbnail
     file_bytes = None
     try:
@@ -300,6 +300,8 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
                     file_type_item = file_obj.get("type", "document")
                     file_name_item = file_obj.get("name") or f"file_{i}"
                     item_caption = file_obj.get("caption") or (caption if i == len(parsed_files) - 1 else None)
+                    if item_caption:
+                        item_caption = wrap_links_in_blockquote(item_caption)
 
                     fresp = await client.get(file_url_item, timeout=30)
                     if fresp.status_code != 200:
@@ -376,6 +378,8 @@ async def _send_media_group(chat_id: str, caption: str, parsed_files: list, as_d
         file_url_item = file_obj.get("url")
         file_type_item = file_obj.get("type", "document")
         item_caption = file_obj.get("caption") or (caption if i == len(parsed_files) - 1 else None)
+        if item_caption:
+            item_caption = wrap_links_in_blockquote(item_caption)
         media = file_url_item
         if file_type_item == "photo" and not as_document:
             media_group.append(InputMediaPhoto(media=media, caption=item_caption, parse_mode='HTML'))
