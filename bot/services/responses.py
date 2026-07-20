@@ -227,7 +227,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 if best_match.news_id:
                     news_post = await get_news_by_id(best_match.news_id)
                     if news_post:
-                        content = wrap_links_in_blockquote(news_post.content or "")
+                        content = news_post.content or ""
                         if news_post.image_url:
                             await update.message.reply_photo(photo=news_post.image_url, caption=content, parse_mode='HTML')
                         elif news_post.file_url:
@@ -239,7 +239,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 if not best_match.response and not best_match.file_tg_id and not best_match.file_url:
                     logger.info("AUTO_RESPONSE: skipped - empty response and no file")
                     return
-                caption = wrap_links_in_blockquote(best_match.response) if best_match.response else None
+                caption = best_match.response if best_match.response else None
                 if best_match.file_tg_id:
                     if best_match.file_type == 'photo':
                         await update.message.reply_photo(photo=best_match.file_tg_id, caption=caption, parse_mode='HTML')
@@ -255,7 +255,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                     else:
                         await update.message.reply_document(document=best_match.file_url, caption=caption, parse_mode='HTML')
                 else:
-                    await update.message.reply_text(wrap_links_in_blockquote(best_match.response), parse_mode='HTML', disable_web_page_preview=True)
+                    await update.message.reply_text(best_match.response, parse_mode='HTML', disable_web_page_preview=True)
                 logger.info("AUTO_RESPONSE: sent successfully")
                 await log_activity(
                     action="auto_response",
