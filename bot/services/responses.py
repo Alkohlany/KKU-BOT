@@ -88,10 +88,12 @@ def find_best_match(text, responses):
             overlap = max(exact, stripped)
             # fuzzy match for typos (if not enough exact matches)
             if overlap < 2:
+                matched_txt = set()
                 fuzzy_count = 0
                 for kw_w in kw_words:
                     for txt_w in txt_words:
-                        if _fuzzy_match(kw_w, txt_w):
+                        if txt_w not in matched_txt and _fuzzy_match(kw_w, txt_w):
+                            matched_txt.add(txt_w)
                             fuzzy_count += 1
                             break
                 overlap = max(overlap, fuzzy_count)
