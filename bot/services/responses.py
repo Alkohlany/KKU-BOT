@@ -56,7 +56,7 @@ def find_best_match(text, responses):
             # text content words (excluding greeting) vs line — reverse check
             greeting_words = {"السلام", "عليكم", "اهلا", "مرحبا"}
             content_words = txt_words - greeting_words
-            if content_words and len(content_words & kw_words) / len(content_words) >= 0.7:
+            if content_words and len(content_words & kw_words) / len(content_words) >= 0.5:
                 pos = max((normalized.find(w) for w in content_words if w in normalized), default=0)
                 if pos >= 0 and (best_pos < 0 or pos > best_pos):
                     best_pos = pos
