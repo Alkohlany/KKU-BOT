@@ -612,8 +612,6 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     target_user_id = target_user.id
 
     if text.startswith("اضافه منشور") or text.startswith("أضف منشور") or text.startswith("اضافة منشور"):
-        if target_user_id == context.bot.id:
-            return
         try:
             await update.message.delete()
         except: pass
