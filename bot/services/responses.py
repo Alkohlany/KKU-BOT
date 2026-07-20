@@ -37,10 +37,12 @@ def _strip_suffixes(word):
 
 
 def _fix_spaces(text):
-    """أضف مسافات بين الحروف العربية والأرقام: القبول2025 → القبول 2025"""
+    """فصل الحروف العربية عن الإنجليزية والأرقام"""
     import re
     text = re.sub(r'([\u0600-\u06FF])(\d)', r'\1 \2', text)
     text = re.sub(r'(\d)([\u0600-\u06FF])', r'\1 \2', text)
+    text = re.sub(r'([\u0600-\u06FF])([a-zA-Z])', r'\1 \2', text)
+    text = re.sub(r'([a-zA-Z])([\u0600-\u06FF])', r'\1 \2', text)
     return text
 
 
