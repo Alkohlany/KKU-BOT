@@ -38,8 +38,6 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS specialization VARCHAR(200)"))
-        await conn.execute(text("ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS link VARCHAR(500)"))
         logger.info("Database tables created successfully")
 
 
