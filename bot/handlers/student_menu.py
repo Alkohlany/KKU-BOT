@@ -216,7 +216,9 @@ def build_candidate_keyboard(
     return InlineKeyboardMarkup(rows)
 
 
-def build_after_answer_keyboard() -> InlineKeyboardMarkup:
+def build_after_answer_keyboard(chat_type: str = "private") -> InlineKeyboardMarkup | None:
+    if chat_type != "private":
+        return None
     return InlineKeyboardMarkup([[InlineKeyboardButton("🏠 فتح القائمة الرئيسية", callback_data="menu:home")]])
 
 
@@ -297,12 +299,12 @@ async def _show_topic_results(query, category_key: str, topic: MenuTopic, chat_t
         await _edit_or_reply(
             query,
             f"✅ <b>تم اختيار:</b> {escape(label)}\n\nسيظهر المحتوى في الرسالة التالية.",
-            build_after_answer_keyboard(),
+            build_after_answer_keyboard(chat_type),
         )
         sent = await send_auto_response(
             query.message,
             response,
-            reply_markup=build_after_answer_keyboard(),
+            reply_markup=build_after_answer_keyboard(chat_type),
         )
         if sent:
             try:
@@ -406,12 +408,12 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await _edit_or_reply(
             query,
             f"✅ <b>تم اختيار:</b> {escape(label)}\n\nسيظهر المحتوى في الرسالة التالية.",
-            build_after_answer_keyboard(),
+            build_after_answer_keyboard(update.effective_chat.type),
         )
         sent = await send_auto_response(
             query.message,
             response,
-            reply_markup=build_after_answer_keyboard(),
+            reply_markup=build_after_answer_keyboard(update.effective_chat.type),
         )
         context.user_data.pop("pending_response_query", None)
         try:
