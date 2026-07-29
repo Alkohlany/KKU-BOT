@@ -24,13 +24,13 @@ export default function ReplyDictionary() {
 
   useEffect(() => {
     loadAll(page);
-  }, [page]);
+  }, [page, search]);
 
   const loadAll = async (pageNum = 1) => {
     try {
       const [resData, qData, nData] = await Promise.all([
-        api.get(`/responses?page=${pageNum}&limit=${limit}`),
-        api.get(`/questions?page=${pageNum}&limit=${limit}`),
+        api.get(`/responses?page=${pageNum}&limit=${limit}&search=${encodeURIComponent(search)}`),
+        api.get(`/questions?page=${pageNum}&limit=${limit}&search=${encodeURIComponent(search)}`),
         api.getNews(),
       ]);
       setResponses(resData.items || resData || []);
@@ -50,13 +50,7 @@ export default function ReplyDictionary() {
     ...questions.map((q) => ({ ...q, _type: 'question' })),
   ];
 
-  const filtered = unified.filter((item) => {
-    if (!search) return true;
-    if (item._type === 'keyword') {
-      return item.keyword?.includes(search);
-    }
-    return item.question?.includes(search) || item.keywords?.includes(search);
-  });
+  const filtered = unified;
 
   const handleOpenAdd = () => {
     setEditItem(null);

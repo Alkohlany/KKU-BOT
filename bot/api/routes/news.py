@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -99,7 +99,7 @@ class RelinkPayload(BaseModel):
 
 
 @router.get("")
-async def get_news(page: int = 1, limit: int = 50):
+async def get_news(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=100), search: str = Query(None)):
     from sqlalchemy import select as sa_select, func as sa_func
     from sqlalchemy.orm import selectinload
 
@@ -111,6 +111,12 @@ async def get_news(page: int = 1, limit: int = 50):
         )
 
         count_stmt = sa_select(sa_func.count()).select_from(News)
+
+        if search:
+            search_filter = News.content.ilike(f"%{search}%")
+            stmt = stmt.where(search_filter)
+            count_stmt = count_stmt.where(search_filter)
+
         total = (await session.execute(count_stmt)).scalar()
 
         stmt = stmt.offset((page - 1) * limit).limit(limit)

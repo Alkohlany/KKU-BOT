@@ -49,13 +49,20 @@ async def get_users(
 async def get_banned_users(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
+    search: str = Query(None),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    total = (await db.execute(select(func.count(BannedUser.id)))).scalar() or 0
-    result = await db.execute(
-        select(BannedUser).offset((page - 1) * limit).limit(limit)
-    )
+    query = select(BannedUser)
+    count_query = select(func.count(BannedUser.id))
+
+    if search:
+        search_filter = BannedUser.reason.ilike(f"%{search}%")
+        query = query.where(search_filter)
+        count_query = count_query.where(search_filter)
+
+    total = (await db.execute(count_query)).scalar() or 0
+    result = await db.execute(query.offset((page - 1) * limit).limit(limit))
     items = result.scalars().all()
     return {
         "items": [

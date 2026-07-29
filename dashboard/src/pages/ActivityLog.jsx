@@ -14,15 +14,15 @@ export default function ActivityLog() {
 
   useEffect(() => {
     loadActivities();
-  }, [page]);
+  }, [page, typeFilter, dateFilter]);
 
   const loadActivities = async () => {
     try {
-      const data = await api.get(`/stats/activity?page=${page}&limit=5`);
+      const data = await api.get(`/stats/activity?page=${page}&limit=5&search=${encodeURIComponent(typeFilter !== 'all' ? typeFilter : '')}&date=${dateFilter}`);
       const items = data.items || data;
       setActivities(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 50)));
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 5)));
     } catch (err) {
       console.error('Failed to load activities:', err);
     } finally {
@@ -30,11 +30,7 @@ export default function ActivityLog() {
     }
   };
 
-  const filtered = activities.filter((a) => {
-    if (typeFilter !== 'all' && a.type !== typeFilter) return false;
-    if (dateFilter && !a.time?.startsWith(dateFilter)) return false;
-    return true;
-  });
+  const filtered = activities;
 
   if (loading) {
     return (

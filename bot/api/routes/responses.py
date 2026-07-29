@@ -28,13 +28,20 @@ class CustomResponseUpdate(BaseModel):
 async def get_custom_responses(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
+    search: str = Query(None),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    total = (await db.execute(select(func.count(AutoResponse.id)))).scalar() or 0
-    result = await db.execute(
-        select(AutoResponse).offset((page - 1) * limit).limit(limit)
-    )
+    query = select(AutoResponse)
+    count_query = select(func.count(AutoResponse.id))
+
+    if search:
+        search_filter = AutoResponse.keyword.ilike(f"%{search}%") | AutoResponse.response.ilike(f"%{search}%")
+        query = query.where(search_filter)
+        count_query = count_query.where(search_filter)
+
+    total = (await db.execute(count_query)).scalar() or 0
+    result = await db.execute(query.offset((page - 1) * limit).limit(limit))
     items = result.scalars().all()
     return {
         "items": [

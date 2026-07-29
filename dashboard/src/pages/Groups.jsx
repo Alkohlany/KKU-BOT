@@ -19,17 +19,19 @@ export default function Groups() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
+  useEffect(() => { setPage(1); }, [search]);
+
   useEffect(() => {
     loadData();
-  }, [page]);
+  }, [page, search]);
 
   const loadData = async () => {
     try {
-      const data = await api.get(`/channels?page=${page}&limit=5`);
+      const data = await api.get(`/channels?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
       const items = data.items || data;
       setChannelGroups(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 50)));
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 5)));
     } catch (err) {
       console.error('Failed to load channels/groups:', err);
     } finally {
@@ -38,9 +40,7 @@ export default function Groups() {
   };
 
   const filtered = channelGroups.filter((g) => {
-    const matchesTab = activeTab === 'channels' ? g.type === 'channel' : g.type === 'group';
-    const matchesSearch = g.title?.includes(search) || g.chatId?.toString().includes(search);
-    return matchesTab && matchesSearch;
+    return activeTab === 'channels' ? g.type === 'channel' : g.type === 'group';
   });
 
   const channels = channelGroups.filter((g) => g.type === 'channel');

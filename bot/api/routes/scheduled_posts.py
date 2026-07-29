@@ -95,12 +95,20 @@ class ScheduledPostCreate(BaseModel):
 async def get_scheduled_posts(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
+    search: str = Query(None),
 ):
     async with async_session() as db:
-        total = (await db.execute(select(func.count(ScheduledPost.id)))).scalar() or 0
+        query = select(ScheduledPost)
+        count_query = select(func.count(ScheduledPost.id))
+
+        if search:
+            search_filter = ScheduledPost.content.ilike(f"%{search}%")
+            query = query.where(search_filter)
+            count_query = count_query.where(search_filter)
+
+        total = (await db.execute(count_query)).scalar() or 0
         result = await db.execute(
-            select(ScheduledPost)
-            .order_by(ScheduledPost.schedule_time.desc())
+            query.order_by(ScheduledPost.schedule_time.desc())
             .offset((page - 1) * limit)
             .limit(limit)
         )

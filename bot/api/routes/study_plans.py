@@ -416,6 +416,7 @@ async def get_study_plans(
     faculty: Optional[str] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
+    search: str = Query(None),
 ):
     async with async_session() as db:
         base_filter = [StudyPlan.is_active == True]
@@ -423,6 +424,10 @@ async def get_study_plans(
             base_filter.append(StudyPlan.group_id == group_id)
         if faculty:
             base_filter.append(StudyPlan.faculty == faculty)
+        if search:
+            base_filter.append(
+                StudyPlan.title.ilike(f"%{search}%") | StudyPlan.specialization.ilike(f"%{search}%")
+            )
 
         total = (await db.execute(
             select(func.count(StudyPlan.id)).where(*base_filter)

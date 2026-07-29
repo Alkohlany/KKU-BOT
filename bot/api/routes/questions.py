@@ -18,12 +18,19 @@ class QuestionCreate(BaseModel):
 async def get_questions(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
+    search: str = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     from bot.models.models import Question
-    total = (await db.execute(select(func.count(Question.id)).where(Question.is_active == True))).scalar() or 0
+    base_filter = [Question.is_active == True]
+
+    if search:
+        search_filter = Question.question.ilike(f"%{search}%") | Question.answer.ilike(f"%{search}%") | Question.keywords.ilike(f"%{search}%")
+        base_filter.append(search_filter)
+
+    total = (await db.execute(select(func.count(Question.id)).where(*base_filter))).scalar() or 0
     result = await db.execute(
-        select(Question).where(Question.is_active == True).offset((page - 1) * limit).limit(limit)
+        select(Question).where(*base_filter).offset((page - 1) * limit).limit(limit)
     )
     items = result.scalars().all()
     return {

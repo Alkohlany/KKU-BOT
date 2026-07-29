@@ -67,13 +67,15 @@ export default function News() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
+  useEffect(() => { setPage(1); }, [search]);
+
   useEffect(() => {
     loadNews();
     const interval = setInterval(() => {
       loadNews();
     }, 120000);
     return () => clearInterval(interval);
-  }, [page]);
+  }, [page, search]);
 
   useEffect(() => {
     if (!showModal) return;
@@ -110,11 +112,11 @@ export default function News() {
 
   const loadNews = async () => {
     try {
-      const data = await api.get(`/news?page=${page}&limit=5`);
+      const data = await api.get(`/news?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
       const items = data.items || data;
       setNews(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 50)));
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 5)));
     } catch (err) {
       console.error('Failed to load news:', err);
     } finally {
@@ -127,9 +129,7 @@ export default function News() {
     return ch ? ch.title : chatId;
   };
 
-  const filtered = news.filter(
-    (n) => n.content?.includes(search)
-  );
+  const filtered = news;
 
   const handleEnhance = async () => {
     if (!form.content) {

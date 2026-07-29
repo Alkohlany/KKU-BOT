@@ -35,21 +35,23 @@ export default function ScheduledPosts() {
 
   const [enhancing, setEnhancing] = useState(false);
 
+  useEffect(() => { setPage(1); }, [search]);
+
   useEffect(() => {
     loadPosts();
     const interval = setInterval(() => {
       loadPosts();
     }, 120000);
     return () => clearInterval(interval);
-  }, [page]);
+  }, [page, search]);
 
   const loadPosts = async () => {
     try {
-      const data = await api.get(`/scheduled-posts?page=${page}&limit=5`);
+      const data = await api.get(`/scheduled-posts?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
       const items = data.items || data;
       setPosts(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 50)));
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 5)));
     } catch (err) {
       console.error('Failed to load scheduled posts:', err);
     } finally {
@@ -57,9 +59,7 @@ export default function ScheduledPosts() {
     }
   };
 
-  const filtered = posts.filter(
-    (p) => p.content?.includes(search) || p.title?.includes(search)
-  );
+  const filtered = posts;
 
   const handleEnhance = async () => {
     if (!form.content) return;

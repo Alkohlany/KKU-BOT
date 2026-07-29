@@ -36,20 +36,22 @@ export default function StudyPlans() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => { setPage(1); }, [search]);
+
   useEffect(() => {
     loadData();
-  }, [page]);
+  }, [page, search]);
 
   const loadData = async () => {
     try {
       const [plansData, groupsData] = await Promise.all([
-        api.get(`/study-plans?page=${page}&limit=5`),
+        api.get(`/study-plans?page=${page}&limit=5&search=${encodeURIComponent(search)}`),
         api.getStudyPlanGroups()
       ]);
       const planItems = plansData.items || plansData;
       setPlans(Array.isArray(planItems) ? planItems : []);
       setTotal(plansData.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((plansData.total || 0) / 50)));
+      setTotalPages(Math.max(1, Math.ceil((plansData.total || 0) / 5)));
       setGroups(groupsData);
     } catch (err) {
       console.error('Failed to load data:', err);

@@ -17,17 +17,19 @@ export default function Responses() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
+  useEffect(() => { setPage(1); }, [search]);
+
   useEffect(() => {
     loadAll();
-  }, [page]);
+  }, [page, search]);
 
   const loadAll = async () => {
     try {
-      const data = await api.get(`/responses?page=${page}&limit=5`);
+      const data = await api.get(`/responses?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
       const items = data.items || data;
       setResponses(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 50)));
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 5)));
     } catch (err) {
       console.error('Failed to load:', err);
     } finally {
@@ -35,9 +37,7 @@ export default function Responses() {
     }
   };
 
-  const filtered = responses.filter((r) => {
-    return r.keyword?.includes(search) || r.response?.includes(search);
-  });
+  const filtered = responses;
 
   const handleSave = async () => {
     if (!form.keyword || !form.response) return;

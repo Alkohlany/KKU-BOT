@@ -103,8 +103,14 @@ class ChannelGroupUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 @router.get("")
-async def get_channel_groups(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=200)):
-    groups = await get_all_channel_groups()
+async def get_channel_groups(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=200), search: str = Query(None)):
+    from sqlalchemy import select
+    async with async_session() as session:
+        stmt = select(ChannelGroup)
+        if search:
+            stmt = stmt.where(ChannelGroup.title.ilike(f"%{search}%"))
+        result = await session.execute(stmt)
+        groups = result.scalars().all()
     post_counts = await build_post_counts()
     result = []
     for g in groups:

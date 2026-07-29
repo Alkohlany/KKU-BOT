@@ -81,13 +81,21 @@ async def get_weekly_stats(
 async def get_activity(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
+    search: str = Query(None),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    total = (await db.execute(select(func.count(ActivityLog.id)))).scalar() or 0
+    query = select(ActivityLog)
+    count_query = select(func.count(ActivityLog.id))
+
+    if search:
+        search_filter = ActivityLog.details.ilike(f"%{search}%") | ActivityLog.action.ilike(f"%{search}%")
+        query = query.where(search_filter)
+        count_query = count_query.where(search_filter)
+
+    total = (await db.execute(count_query)).scalar() or 0
     result = await db.execute(
-        select(ActivityLog)
-        .order_by(ActivityLog.created_at.desc())
+        query.order_by(ActivityLog.created_at.desc())
         .offset((page - 1) * limit)
         .limit(limit)
     )
