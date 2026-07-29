@@ -165,16 +165,17 @@ def build_main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def build_category_menu(category_key: str) -> InlineKeyboardMarkup:
+def build_category_menu(category_key: str, chat_type: str = "private") -> InlineKeyboardMarkup:
     category = MENU_CATEGORIES[category_key]
     rows = [
         [InlineKeyboardButton(topic.label, callback_data=f"menu:topic:{category_key}:{index}")]
         for index, topic in enumerate(category.topics)
     ]
-    rows.append([
-        InlineKeyboardButton("↩️ رجوع", callback_data="menu:home"),
-        InlineKeyboardButton("🏠 الرئيسية", callback_data="menu:home"),
-    ])
+    if chat_type == "private":
+        rows.append([
+            InlineKeyboardButton("↩️ رجوع", callback_data="menu:home"),
+            InlineKeyboardButton("🏠 الرئيسية", callback_data="menu:home"),
+        ])
     return InlineKeyboardMarkup(rows)
 
 
@@ -286,7 +287,7 @@ async def _show_topic_results(query, category_key: str, topic: MenuTopic, chat_t
         await _edit_or_reply(
             query,
             "لم أجد منشورًا مناسبًا لهذا الموضوع حاليًا. يمكنك الرجوع وكتابة سؤالك بصيغة أوضح.",
-            build_category_menu(category_key),
+            build_category_menu(category_key, chat_type=chat_type),
         )
         return
 
@@ -354,7 +355,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             await query.answer("القسم غير موجود", show_alert=True)
             return
         text = f"<b>{category.title}</b>\n\n{category.description}\n\nاختر الموضوع الذي تريد معرفته:"
-        await _edit_or_reply(query, text, build_category_menu(category_key))
+        await _edit_or_reply(query, text, build_category_menu(category_key, chat_type=update.effective_chat.type))
         return
 
     if len(parts) >= 4 and parts[1] == "topic":
@@ -373,14 +374,17 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             from bot.handlers.study_plans import get_plans_text
 
             plans_text = wrap_links_in_blockquote(await get_plans_text())
-            await _edit_or_reply(
-                query,
-                plans_text,
-                InlineKeyboardMarkup([[
-                    InlineKeyboardButton("↩️ رجوع", callback_data=f"menu:cat:{category_key}"),
-                    InlineKeyboardButton("🏠 الرئيسية", callback_data="menu:home"),
-                ]]),
-            )
+            if chat_type == "private":
+                await _edit_or_reply(
+                    query,
+                    plans_text,
+                    InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ رجوع", callback_data=f"menu:cat:{category_key}"),
+                        InlineKeyboardButton("🏠 الرئيسية", callback_data="menu:home"),
+                    ]]),
+                )
+            else:
+                await _edit_or_reply(query, plans_text)
             return
 
         await _show_topic_results(query, category_key, topic, chat_type=update.effective_chat.type)
