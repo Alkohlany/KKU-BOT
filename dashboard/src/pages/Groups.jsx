@@ -15,15 +15,21 @@ export default function Groups() {
   const [editItem, setEditItem] = useState(null);
   const [editForm, setEditForm] = useState({ title: '' });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [page]);
 
   const loadData = async () => {
     try {
-      const data = await api.getChannels();
-      setChannelGroups(data);
+      const data = await api.get(`/channels?page=${page}&limit=50`);
+      const items = data.items || data;
+      setChannelGroups(Array.isArray(items) ? items : []);
+      setTotal(data.total || 0);
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 50)));
     } catch (err) {
       console.error('Failed to load channels/groups:', err);
     } finally {
@@ -341,6 +347,20 @@ export default function Groups() {
           )}
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+          <div className="text-sm text-gray-700">
+            الصفحة {page} من {totalPages} ({total} إجمالي)
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="btn btn-secondary btn-sm">السابق</button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className="btn btn-secondary btn-sm">التالي</button>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {showEditModal && (

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from bot.services.database import get_db
 from bot.api.auth import get_current_user
 from bot.models.models import AutoResponse
@@ -26,21 +26,31 @@ class CustomResponseUpdate(BaseModel):
 
 @router.get("")
 async def get_custom_responses(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
-    result = await db.execute(select(AutoResponse))
+    total = (await db.execute(select(func.count(AutoResponse.id)))).scalar() or 0
+    result = await db.execute(
+        select(AutoResponse).offset((page - 1) * limit).limit(limit)
+    )
     items = result.scalars().all()
-    return [
-        {
-            "id": r.id,
-            "keyword": r.keyword,
-            "response": r.response,
-            "enabled": r.is_active,
-            "news_id": r.news_id,
-        }
-        for r in items
-    ]
+    return {
+        "items": [
+            {
+                "id": r.id,
+                "keyword": r.keyword,
+                "response": r.response,
+                "enabled": r.is_active,
+                "news_id": r.news_id,
+            }
+            for r in items
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
 @router.post("")

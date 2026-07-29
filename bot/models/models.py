@@ -91,6 +91,9 @@ class News(Base):
     target_channels = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
+    auto_responses = relationship("AutoResponse", viewonly=True)
+    questions = relationship("Question", viewonly=True)
+
 
 class Question(Base):
     __tablename__ = "questions"
@@ -185,3 +188,6 @@ class SpamPattern(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(Text, nullable=False, unique=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
+
+
+

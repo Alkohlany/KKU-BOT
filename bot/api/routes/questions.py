@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional
-from bot.services.database import add_question, get_all_questions, search_question, delete_question, increment_question_usage, update_question as db_update_question
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from bot.services.database import add_question, get_all_questions, search_question, delete_question, increment_question_usage, update_question as db_update_question, get_db
 
 router = APIRouter()
 
@@ -13,18 +15,32 @@ class QuestionCreate(BaseModel):
 
 
 @router.get("")
-async def get_questions():
-    items = await get_all_questions()
-    return [
-        {
-            "id": q.id,
-            "question": q.question,
-            "answer": q.answer,
-            "keywords": q.keywords,
-            "news_id": q.news_id,
-        }
-        for q in items
-    ]
+async def get_questions(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    from bot.models.models import Question
+    total = (await db.execute(select(func.count(Question.id)).where(Question.is_active == True))).scalar() or 0
+    result = await db.execute(
+        select(Question).where(Question.is_active == True).offset((page - 1) * limit).limit(limit)
+    )
+    items = result.scalars().all()
+    return {
+        "items": [
+            {
+                "id": q.id,
+                "question": q.question,
+                "answer": q.answer,
+                "keywords": q.keywords,
+                "news_id": q.news_id,
+            }
+            for q in items
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
 @router.post("")

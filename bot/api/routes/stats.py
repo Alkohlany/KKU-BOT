@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from bot.services.database import get_db
@@ -79,23 +79,34 @@ async def get_weekly_stats(
 
 @router.get("/activity")
 async def get_activity(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ):
+    total = (await db.execute(select(func.count(ActivityLog.id)))).scalar() or 0
     result = await db.execute(
-        select(ActivityLog).order_by(ActivityLog.created_at.desc()).limit(50)
+        select(ActivityLog)
+        .order_by(ActivityLog.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
     )
     items = result.scalars().all()
-    return [
-        {
-            "id": a.id,
-            "type": a.action or "system",
-            "text": a.details or "",
-            "time": a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else "",
-            "user": str(a.performed_by) if a.performed_by else "system",
-        }
-        for a in items
-    ]
+    return {
+        "items": [
+            {
+                "id": a.id,
+                "type": a.action or "system",
+                "text": a.details or "",
+                "time": a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else "",
+                "user": str(a.performed_by) if a.performed_by else "system",
+            }
+            for a in items
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
 @router.get("/settings")

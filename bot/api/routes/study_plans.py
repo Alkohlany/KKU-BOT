@@ -5,11 +5,11 @@ import tempfile
 import httpx
 import fitz
 from hijri_converter import Hijri
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from bot.models.models import StudyPlan, StudyPlanGroup, ChannelGroup
 from bot.services.database import (
     async_session, add_study_plan, get_all_study_plans, get_study_plans_by_faculty,
@@ -411,12 +411,50 @@ async def delete_study_plan_group_endpoint(group_id: int, mode: str = "permanent
 
 # ==================== Study Plans ====================
 @router.get("")
-async def get_study_plans(group_id: Optional[int] = None, faculty: Optional[str] = None):
-    if group_id:
-        return await get_study_plans_by_group(group_id)
-    if faculty:
-        return await get_study_plans_by_faculty(faculty)
-    return await get_all_study_plans()
+async def get_study_plans(
+    group_id: Optional[int] = None,
+    faculty: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+):
+    async with async_session() as db:
+        base_filter = [StudyPlan.is_active == True]
+        if group_id:
+            base_filter.append(StudyPlan.group_id == group_id)
+        if faculty:
+            base_filter.append(StudyPlan.faculty == faculty)
+
+        total = (await db.execute(
+            select(func.count(StudyPlan.id)).where(*base_filter)
+        )).scalar() or 0
+
+        result = await db.execute(
+            select(StudyPlan).where(*base_filter)
+            .offset((page - 1) * limit).limit(limit)
+        )
+        items = result.scalars().all()
+    return {
+        "items": [
+            {
+                "id": p.id,
+                "title": p.title,
+                "description": p.description,
+                "faculty": p.faculty,
+                "level": p.level,
+                "plan_url": p.plan_url,
+                "file_url": p.file_url,
+                "group_id": p.group_id,
+                "specialization": p.specialization,
+                "link": p.link,
+                "channel_message_id": p.channel_message_id,
+                "is_active": p.is_active,
+            }
+            for p in items
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
 @router.post("")

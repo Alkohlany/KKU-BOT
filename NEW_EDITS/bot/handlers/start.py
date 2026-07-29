@@ -59,6 +59,7 @@ async def feature_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = await get_news_text()
         await query.edit_message_text(text, parse_mode="Markdown", disable_web_page_preview=True)
     elif feature in {"questions", "responses"}:
+        # دعم الأزرار القديمة الموجودة في رسائل سابقة دون استدعاء وظائف أزيلت.
         await query.edit_message_text(
             MAIN_MENU_TEXT,
             parse_mode="HTML",

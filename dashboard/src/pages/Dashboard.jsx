@@ -27,7 +27,7 @@ export default function Dashboard() {
     loadData();
     const interval = setInterval(() => {
       loadData();
-    }, 30000);
+    }, 120000);
     return () => clearInterval(interval);
   }, []);
 
@@ -44,15 +44,17 @@ export default function Dashboard() {
       const groups = statsData.groups || 0;
       const responses = statsData.responses || 0;
       const banned = statsData.banned || 0;
-      const totalNews = channelsData.reduce((sum, c) => sum + (c.postCount || 0), 0);
+      const channelsArr = channelsData.items || channelsData;
+      const totalNews = channelsArr.reduce((sum, c) => sum + (c.postCount || 0), 0);
 
       setStats({ users, groups, responses, banned, totalNews });
 
       const days = weeklyRes?.data || [];
       setWeeklyData(days);
 
+      const activityItems = activityData.items || activityData;
       const typeCounts = { 'ردود تلقائية': 0, 'ردود يدوية': 0, 'رسائل نظام': 0, 'إجراءات أدمن': 0 };
-      (activityData || []).forEach((a) => {
+      (Array.isArray(activityItems) ? activityItems : []).forEach((a) => {
         const t = (a.type || '').toLowerCase();
         if (t.includes('auto_response') || t.includes('response')) typeCounts['ردود تلقائية']++;
         else if (t.includes('ban') || t.includes('rate_limit') || t.includes('spam') || t.includes('system')) typeCounts['رسائل نظام']++;
@@ -65,9 +67,9 @@ export default function Dashboard() {
           .map(([name, value]) => ({ name, value }))
       );
 
-      setActivities(activityData || []);
-      const channelsList = channelsData.filter(c => c.type === 'channel');
-      const groupsListData = channelsData.filter(c => c.type === 'group');
+      setActivities(Array.isArray(activityItems) ? activityItems : []);
+      const channelsList = channelsArr.filter(c => c.type === 'channel');
+      const groupsListData = channelsArr.filter(c => c.type === 'group');
       setChannels(channelsList);
       setGroupsList(groupsListData);
     } catch (err) {

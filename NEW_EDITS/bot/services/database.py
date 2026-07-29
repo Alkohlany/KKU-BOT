@@ -43,25 +43,6 @@ async def init_db():
         logger.info("Database tables created successfully")
 
 
-async def run_migrations():
-    """Create indexes if they don't exist."""
-    indexes = [
-        "CREATE INDEX IF NOT EXISTS idx_auto_responses_news_id ON auto_responses (news_id)",
-        "CREATE INDEX IF NOT EXISTS idx_auto_responses_source_chat_id ON auto_responses (source_chat_id)",
-        "CREATE INDEX IF NOT EXISTS idx_auto_responses_source_message_id ON auto_responses (source_message_id)",
-        "CREATE INDEX IF NOT EXISTS idx_questions_news_id ON questions (news_id)",
-        "CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log (created_at)",
-        "CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log (action)",
-        "CREATE INDEX IF NOT EXISTS idx_scheduled_posts_is_published ON scheduled_posts (is_published)",
-        "CREATE INDEX IF NOT EXISTS idx_scheduled_posts_schedule_time ON scheduled_posts (schedule_time)",
-        "CREATE INDEX IF NOT EXISTS idx_study_plans_group_id ON study_plans (group_id)",
-    ]
-    async with engine.begin() as conn:
-        for sql in indexes:
-            await conn.execute(text(sql))
-    logger.info("Database indexes created successfully")
-
-
 async def get_user(telegram_id: int) -> User | None:
     async with async_session() as session:
         result = await session.execute(
@@ -114,6 +95,14 @@ async def get_auto_responses() -> list[AutoResponse]:
             .order_by(AutoResponse.created_at.desc(), AutoResponse.id.desc())
         )
         return list(result.scalars().all())
+
+
+async def get_auto_response_by_id(response_id: int) -> AutoResponse | None:
+    async with async_session() as session:
+        result = await session.execute(
+            select(AutoResponse).where(AutoResponse.id == response_id)
+        )
+        return result.scalar_one_or_none()
 
 
 async def get_all_auto_responses() -> list[AutoResponse]:
@@ -534,22 +523,17 @@ async def update_study_plan(plan_id, title=None, description=None, faculty=None,
 
 async def search_study_plans(query):
     async with async_session() as session:
+        stmt = select(StudyPlan).where(
+            StudyPlan.is_active == True
+        )
+        result = await session.execute(stmt)
+        plans = result.scalars().all()
+
         query_norm = normalize_arabic(query.lower())
         words = [w for w in query_norm.split() if len(w) > 1]
 
-        # ponytail: basic SQL LIKE pre-filter, full normalize_arabic in Python
-        like_pattern = f"%{query_norm}%"
-        stmt = select(StudyPlan).where(
-            StudyPlan.is_active == True,
-            (StudyPlan.title.ilike(like_pattern)) |
-            (StudyPlan.faculty.ilike(like_pattern)) |
-            (StudyPlan.description.ilike(like_pattern))
-        )
-        result = await session.execute(stmt)
-        candidates = result.scalars().all()
-
         found = []
-        for plan in candidates:
+        for plan in plans:
             searchable = normalize_arabic(" ".join(filter(None, [
                 plan.title or "",
                 plan.faculty or "",

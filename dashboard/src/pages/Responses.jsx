@@ -13,15 +13,21 @@ export default function Responses() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     loadAll();
-  }, []);
+  }, [page]);
 
   const loadAll = async () => {
     try {
-      const data = await api.getResponses();
-      setResponses(data);
+      const data = await api.get(`/responses?page=${page}&limit=50`);
+      const items = data.items || data;
+      setResponses(Array.isArray(items) ? items : []);
+      setTotal(data.total || 0);
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 50)));
     } catch (err) {
       console.error('Failed to load:', err);
     } finally {
@@ -243,6 +249,21 @@ export default function Responses() {
             )}
           </div>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+            <div className="text-sm text-gray-700">
+              الصفحة {page} من {totalPages} ({total} إجمالي)
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="btn btn-secondary btn-sm">السابق</button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="btn btn-secondary btn-sm">التالي</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>

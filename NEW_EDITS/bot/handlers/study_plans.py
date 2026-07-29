@@ -21,6 +21,7 @@ def is_study_plan_request(text: str) -> bool:
     return bool(_PLAN_REQUEST_RE.fullmatch(normalize_arabic((text or "").lower()).strip()))
 
 
+
 async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_type = update.effective_chat.type
     if chat_type in ['group', 'supergroup']:

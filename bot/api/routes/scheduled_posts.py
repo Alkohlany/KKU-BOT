@@ -1,10 +1,14 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Query
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from bot.services.database import (add_scheduled_post, get_all_scheduled_posts, 
-                                   get_pending_posts, mark_post_published, delete_scheduled_post)
+                                   get_pending_posts, mark_post_published, delete_scheduled_post,
+                                   async_session)
+from bot.models.models import ScheduledPost
 from bot.services.cloud_storage import upload_image, upload_raw
 import os
 import uuid
@@ -88,29 +92,45 @@ class ScheduledPostCreate(BaseModel):
 
 
 @router.get("")
-async def get_scheduled_posts():
-    items = await get_all_scheduled_posts()
-    return [
-        {
-            "id": p.id,
-            "content": p.content,
-            "imageUrl": p.image_url,
-            "fileUrl": p.file_url,
-            "fileName": p.file_name,
-            "fileType": p.file_type,
-            "fileId": p.file_id,
-            "thumbnailUrl": p.thumbnail_url,
-            "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
-            "recurring": p.is_recurring,
-            "recurringInterval": p.recurring_interval,
-            "isPublished": p.is_published,
-            "asDocument": p.as_document,
-            "targetChannels": p.target_channels,
-            "filesJson": p.files_json,
-            "createdAt": p.created_at.isoformat() if p.created_at else None,
-        }
-        for p in items
-    ]
+async def get_scheduled_posts(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+):
+    async with async_session() as db:
+        total = (await db.execute(select(func.count(ScheduledPost.id)))).scalar() or 0
+        result = await db.execute(
+            select(ScheduledPost)
+            .order_by(ScheduledPost.schedule_time.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+        items = result.scalars().all()
+    return {
+        "items": [
+            {
+                "id": p.id,
+                "content": p.content,
+                "imageUrl": p.image_url,
+                "fileUrl": p.file_url,
+                "fileName": p.file_name,
+                "fileType": p.file_type,
+                "fileId": p.file_id,
+                "thumbnailUrl": p.thumbnail_url,
+                "scheduledTime": p.schedule_time.isoformat() if p.schedule_time else None,
+                "recurring": p.is_recurring,
+                "recurringInterval": p.recurring_interval,
+                "isPublished": p.is_published,
+                "asDocument": p.as_document,
+                "targetChannels": p.target_channels,
+                "filesJson": p.files_json,
+                "createdAt": p.created_at.isoformat() if p.created_at else None,
+            }
+            for p in items
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
 @router.post("")

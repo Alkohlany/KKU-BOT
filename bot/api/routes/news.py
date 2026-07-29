@@ -99,19 +99,28 @@ class RelinkPayload(BaseModel):
 
 
 @router.get("")
-async def get_news():
-    from bot.models.models import AutoResponse, Question
-    items = await get_all_news()
+async def get_news(page: int = 1, limit: int = 50):
+    from sqlalchemy import select as sa_select, func as sa_func
+    from sqlalchemy.orm import selectinload
+
     async with async_session() as session:
-        from sqlalchemy import select as sa_select
+        stmt = (
+            sa_select(News)
+            .options(selectinload(News.auto_responses), selectinload(News.questions))
+            .order_by(News.created_at.desc())
+        )
+
+        count_stmt = sa_select(sa_func.count()).select_from(News)
+        total = (await session.execute(count_stmt)).scalar()
+
+        stmt = stmt.offset((page - 1) * limit).limit(limit)
+        items = (await session.execute(stmt)).scalars().unique().all()
+
         result = []
         for n in items:
-            kw_result = await session.execute(sa_select(AutoResponse.keyword).where(AutoResponse.news_id == n.id))
-            keywords = [row[0] for row in kw_result.all()]
-            q_result = await session.execute(sa_select(Question.question).where(Question.news_id == n.id))
-            questions = [row[0] for row in q_result.all()]
-            lr_result = await session.execute(sa_select(AutoResponse.id).where(AutoResponse.news_id == n.id))
-            linked_row = lr_result.first()
+            keywords = [ar.keyword for ar in n.auto_responses]
+            linked = next((ar.id for ar in n.auto_responses), None)
+            questions = [q.question for q in n.questions]
             result.append({
                 "id": n.id,
                 "content": n.content,
@@ -130,9 +139,9 @@ async def get_news():
                 "createdAt": n.created_at.isoformat() if n.created_at else None,
                 "selectedKeywords": keywords,
                 "selectedQuestions": questions,
-                "linked_response_id": linked_row[0] if linked_row else None,
+                "linked_response_id": linked,
             })
-        return result
+        return {"items": result, "total": total, "page": page, "limit": limit}
 
 
 @router.post("/analyze")

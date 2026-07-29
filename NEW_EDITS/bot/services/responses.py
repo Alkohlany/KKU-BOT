@@ -84,6 +84,7 @@ def _pending_query(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
         context.user_data.pop("pending_response_query", None)
         return text
 
+    # لا ندمج رسالة جديدة طويلة أو غير مرتبطة. الرد على البوت هو الإشارة الأقوى.
     short_follow_up = len(normalize_text(text).split()) <= 6
     if _is_reply_to_bot(update, context) or (update.effective_chat.type == "private" and short_follow_up):
         return f"{pending.get('query', '')} {text}".strip()
@@ -144,6 +145,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     if not original_text or len(original_text) < 2 or len(original_text) > 500:
         return
 
+    # معالج الخطط يعمل في مجموعة أسبق؛ نمنع الاستجابة المزدوجة للطلبات الصريحة فقط.
     from bot.handlers.study_plans import is_study_plan_request
 
     if is_study_plan_request(original_text):
@@ -235,6 +237,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     if await _send_safe_question_if_exact(update, effective_text):
         return
 
+    # البحث الحر لا يعمل إلا إذا فُعّل صراحة من الإعدادات. الوضع الحالي false.
     ai_fallback_enabled = await get_setting("ai_fallback_enabled")
     if ai_fallback_enabled and ai_fallback_enabled.lower() == "true":
         try:
@@ -250,6 +253,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception as exc:
             logger.warning("AI fallback error: %s", exc)
 
+    # داخل المجموعات لا يتدخل البوت عند غياب نتيجة جيدة، إلا إذا كان الطالب يرد عليه.
     should_offer_menu = update.effective_chat.type == "private" or _is_reply_to_bot(update, context)
     if should_offer_menu:
         prefix = f"{greeting}\n\n" if greeting else ""

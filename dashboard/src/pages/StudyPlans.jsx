@@ -10,6 +10,9 @@ export default function StudyPlans() {
   const [groups, setGroups] = useState([]);
   const [view, setView] = useState('groups');
   const [activeGroup, setActiveGroup] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [form, setForm] = useState({ title: '', file: null, group_id: '', specialization: '', link: '' });
@@ -35,15 +38,18 @@ export default function StudyPlans() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [page]);
 
   const loadData = async () => {
     try {
       const [plansData, groupsData] = await Promise.all([
-        api.getStudyPlans(),
+        api.get(`/study-plans?page=${page}&limit=50`),
         api.getStudyPlanGroups()
       ]);
-      setPlans(plansData);
+      const planItems = plansData.items || plansData;
+      setPlans(Array.isArray(planItems) ? planItems : []);
+      setTotal(plansData.total || 0);
+      setTotalPages(Math.max(1, Math.ceil((plansData.total || 0) / 50)));
       setGroups(groupsData);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -532,6 +538,20 @@ const handlePlanPermanentDelete = async (id) => {
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+          <div className="text-sm text-gray-700">
+            الصفحة {page} من {totalPages} ({total} إجمالي)
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="btn btn-secondary btn-sm">السابق</button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className="btn btn-secondary btn-sm">التالي</button>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Group Modal */}
       {showGroupModal && (

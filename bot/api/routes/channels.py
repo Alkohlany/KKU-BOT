@@ -1,13 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 from telegram import Bot
 import os
 import json
+from collections import defaultdict
 from ...models.models import News, ScheduledPost, StudyPlan, ChannelGroup
 from ...services.database import (
-    get_all_channel_groups, get_active_channel_groups, 
-    add_channel_group, toggle_channel_group, 
+    get_all_channel_groups, get_active_channel_groups,
+    add_channel_group, toggle_channel_group,
     update_channel_group, delete_channel_group,
     get_channel_group_by_chat_id, async_session,
     set_official_channel
@@ -15,91 +16,78 @@ from ...services.database import (
 
 router = APIRouter()
 
-async def count_posts_for_chat(chat_id):
-    """Count how many posts are published to a specific chat_id from the dashboard"""
+
+async def build_post_counts():
+    """Load all post tables once, return {chat_id_str: count}."""
+    counts = defaultdict(int)
     async with async_session() as session:
         from sqlalchemy import select
-        count = 0
-        chat_id_str = str(chat_id)
-        
-        # 1. Count from News (published posts with group_message_ids)
-        news_result = await session.execute(
-            select(News.group_message_ids, News.channel_message_id, News.is_published, News.target_channels)
-        )
-        for row in news_result:
-            group_msg_ids, channel_msg_id, is_published, target_channels = row
-            if not is_published:
-                continue
-            # Check group_message_ids
-            if group_msg_ids:
-                try:
-                    group_ids = json.loads(group_msg_ids) if isinstance(group_msg_ids, str) else group_msg_ids
-                    if chat_id_str in group_ids:
-                        count += 1
-                        continue
-                except:
-                    pass
-            # Check target_channels
-            if target_channels:
-                try:
-                    targets = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
-                    if chat_id in targets or chat_id_str in [str(t) for t in targets]:
-                        count += 1
-                        continue
-                except:
-                    pass
-        
-        # 2. Count from Scheduled Posts (published)
-        scheduled_result = await session.execute(
-            select(ScheduledPost.group_message_ids, ScheduledPost.is_published, ScheduledPost.target_channels)
-        )
-        for row in scheduled_result:
-            group_msg_ids, is_published, target_channels = row
-            if not is_published:
-                continue
-            if group_msg_ids:
-                try:
-                    group_ids = json.loads(group_msg_ids) if isinstance(group_msg_ids, str) else group_msg_ids
-                    if chat_id_str in group_ids:
-                        count += 1
-                        continue
-                except:
-                    pass
-            if target_channels:
-                try:
-                    targets = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
-                    if chat_id in targets or chat_id_str in [str(t) for t in targets]:
-                        count += 1
-                        continue
-                except:
-                    pass
-        
-        # 3. Count from Study Plans (published to channel)
-        channel_result = await session.execute(
+
+        # News: count if chat_id is a key in group_message_ids dict or in target_channels list
+        for group_msg_ids, target_channels in await session.execute(
+            select(News.group_message_ids, News.target_channels).where(News.is_published == True)
+        ):
+            for cid in _extract_chat_ids_from_pair(group_msg_ids, target_channels):
+                counts[cid] += 1
+
+        # Scheduled posts: same logic
+        for group_msg_ids, target_channels in await session.execute(
+            select(ScheduledPost.group_message_ids, ScheduledPost.target_channels).where(ScheduledPost.is_published == True)
+        ):
+            for cid in _extract_chat_ids_from_pair(group_msg_ids, target_channels):
+                counts[cid] += 1
+
+        # Study plans: count from target_channels list + channel_message_id for official channel
+        channel_chat_id = (await session.execute(
             select(ChannelGroup.chat_id).where(ChannelGroup.type == 'channel', ChannelGroup.is_active == True).limit(1)
-        )
-        channel_chat_id = channel_result.scalar_one_or_none()
-        channel_chat_id_str = str(channel_chat_id) if channel_chat_id else None
-        
-        plans_result = await session.execute(
-            select(StudyPlan.channel_message_id, StudyPlan.is_active, StudyPlan.target_channels)
-        )
-        for row in plans_result:
-            channel_msg_id, is_active, target_channels = row
-            if not is_active:
-                continue
-            if target_channels:
-                try:
-                    targets = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
-                    if chat_id in targets or chat_id_str in [str(t) for t in targets]:
-                        count += 1
-                        continue
-                except:
-                    pass
-            if channel_msg_id and channel_chat_id_str and channel_chat_id_str == chat_id_str:
-                count += 1
-        
-        return count
+        )).scalar_one_or_none()
+        official_cid_str = str(channel_chat_id) if channel_chat_id else None
+
+        for channel_msg_id, target_channels in await session.execute(
+            select(StudyPlan.channel_message_id, StudyPlan.target_channels).where(StudyPlan.is_active == True)
+        ):
+            # Count if chat_id is in target_channels
+            counted_cids = _extract_chat_ids_from_list(target_channels)
+            for cid in counted_cids:
+                counts[cid] += 1
+            # If not in target_channels but has channel_message_id, count for official channel
+            if official_cid_str and official_cid_str not in counted_cids and channel_msg_id:
+                counts[official_cid_str] += 1
+
+    return dict(counts)
+
+
+def _extract_chat_ids_from_pair(group_msg_ids, target_channels):
+    """Extract chat_ids from a pair of group_message_ids (dict) + target_channels (list)."""
+    chat_ids = set()
+    if group_msg_ids:
+        try:
+            parsed = json.loads(group_msg_ids) if isinstance(group_msg_ids, str) else group_msg_ids
+            if isinstance(parsed, dict):
+                chat_ids.update(parsed.keys())
+        except Exception:
+            pass
+    if target_channels:
+        try:
+            parsed = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
+            if isinstance(parsed, list):
+                chat_ids.update(str(t) for t in parsed)
+        except Exception:
+            pass
+    return chat_ids
+
+
+def _extract_chat_ids_from_list(target_channels):
+    """Extract chat_ids from target_channels list string."""
+    if not target_channels:
+        return set()
+    try:
+        parsed = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
+        if isinstance(parsed, list):
+            return set(str(t) for t in parsed)
+    except Exception:
+        pass
+    return set()
 
 class ChannelGroupCreate(BaseModel):
     chat_id: int
@@ -115,11 +103,11 @@ class ChannelGroupUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 @router.get("")
-async def get_channel_groups():
+async def get_channel_groups(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=200)):
     groups = await get_all_channel_groups()
+    post_counts = await build_post_counts()
     result = []
     for g in groups:
-        post_count = await count_posts_for_chat(g.chat_id)
         result.append({
             "id": g.id,
             "chatId": g.chat_id,
@@ -129,17 +117,19 @@ async def get_channel_groups():
             "inviteLink": g.invite_link,
             "isActive": g.is_active,
             "isOfficial": g.is_official,
-            "postCount": post_count,
+            "postCount": post_counts.get(str(g.chat_id), 0),
             "createdAt": g.created_at.isoformat() if g.created_at else None
         })
-    return result
+    total = len(result)
+    start = (page - 1) * limit
+    return {"items": result[start:start + limit], "total": total, "page": page, "limit": limit}
 
 @router.get("/active")
 async def get_active_channel_groups_endpoint():
     groups = await get_active_channel_groups()
+    post_counts = await build_post_counts()
     result = []
     for g in groups:
-        post_count = await count_posts_for_chat(g.chat_id)
         result.append({
             "id": g.id,
             "chatId": g.chat_id,
@@ -148,7 +138,7 @@ async def get_active_channel_groups_endpoint():
             "memberCount": g.member_count,
             "inviteLink": g.invite_link,
             "isActive": g.is_active,
-            "postCount": post_count,
+            "postCount": post_counts.get(str(g.chat_id), 0),
         })
     return result
 
