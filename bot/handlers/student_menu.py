@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import json
 import logging
 import re
-from html import escape
+
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
@@ -398,12 +398,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             await query.answer("هذا الرد لم يعد متاحًا", show_alert=True)
             return
 
-        label = response_label(response)
-        await _edit_or_reply(
-            query,
-            f"✅ <b>تم اختيار:</b> {escape(label)}\n\nسيظهر المحتوى في الرسالة التالية.",
-            build_after_answer_keyboard(update.effective_chat.type),
-        )
         sent = await send_auto_response(
             query.message,
             response,
