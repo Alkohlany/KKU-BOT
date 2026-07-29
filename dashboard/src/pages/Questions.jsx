@@ -213,11 +213,11 @@ export default function Questions() {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
-            <div className="text-sm text-gray-700">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--gray-200)' }}>
+            <div style={{ fontSize: 13, color: 'var(--gray-600)' }}>
               الصفحة {page} من {totalPages} ({total} إجمالي)
             </div>
-            <div className="flex gap-2">
+            <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                 className="btn btn-secondary btn-sm">السابق</button>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
