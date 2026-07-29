@@ -25,7 +25,7 @@ export default function Groups() {
 
   const loadData = async () => {
     try {
-      const data = await api.get(`/channels?page=${page}&limit=50`);
+      const data = await api.get(`/channels?page=${page}&limit=5`);
       const items = data.items || data;
       setChannelGroups(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);

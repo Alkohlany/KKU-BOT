@@ -22,7 +22,7 @@ export default function BannedUsers() {
 
   const loadBannedUsers = async () => {
     try {
-      const data = await api.get(`/users/banned?page=${page}&limit=50`);
+      const data = await api.get(`/users/banned?page=${page}&limit=5`);
       const items = data.items || data;
       setBanned(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);

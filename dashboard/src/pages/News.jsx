@@ -110,7 +110,7 @@ export default function News() {
 
   const loadNews = async () => {
     try {
-      const data = await api.get(`/news?page=${page}&limit=50`);
+      const data = await api.get(`/news?page=${page}&limit=5`);
       const items = data.items || data;
       setNews(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);

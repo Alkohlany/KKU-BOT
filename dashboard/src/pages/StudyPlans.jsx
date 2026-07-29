@@ -43,7 +43,7 @@ export default function StudyPlans() {
   const loadData = async () => {
     try {
       const [plansData, groupsData] = await Promise.all([
-        api.get(`/study-plans?page=${page}&limit=50`),
+        api.get(`/study-plans?page=${page}&limit=5`),
         api.getStudyPlanGroups()
       ]);
       const planItems = plansData.items || plansData;

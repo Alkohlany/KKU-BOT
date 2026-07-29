@@ -45,7 +45,7 @@ export default function ScheduledPosts() {
 
   const loadPosts = async () => {
     try {
-      const data = await api.get(`/scheduled-posts?page=${page}&limit=50`);
+      const data = await api.get(`/scheduled-posts?page=${page}&limit=5`);
       const items = data.items || data;
       setPosts(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);

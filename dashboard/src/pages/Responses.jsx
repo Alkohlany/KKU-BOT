@@ -23,7 +23,7 @@ export default function Responses() {
 
   const loadAll = async () => {
     try {
-      const data = await api.get(`/responses?page=${page}&limit=50`);
+      const data = await api.get(`/responses?page=${page}&limit=5`);
       const items = data.items || data;
       setResponses(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);

@@ -18,7 +18,7 @@ export default function ActivityLog() {
 
   const loadActivities = async () => {
     try {
-      const data = await api.get(`/stats/activity?page=${page}&limit=50`);
+      const data = await api.get(`/stats/activity?page=${page}&limit=5`);
       const items = data.items || data;
       setActivities(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);

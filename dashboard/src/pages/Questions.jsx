@@ -23,7 +23,7 @@ export default function Questions() {
 
   const loadQuestions = async () => {
     try {
-      const data = await api.get(`/questions?page=${page}&limit=50`);
+      const data = await api.get(`/questions?page=${page}&limit=5`);
       const items = data.items || data;
       setQuestions(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
