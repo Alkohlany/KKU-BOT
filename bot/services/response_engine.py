@@ -257,6 +257,12 @@ def _score_pattern(query: str, pattern: str) -> tuple[float, int, int, bool]:
         score = 0.90 if len(pattern_tokens) <= len(query_tokens) + 2 else 0.84
         return score, len(query_tokens), 0, False
 
+    # ponytail: canonical-token substring check for split phrases
+    pattern_str = " ".join(pattern_tokens)
+    query_str = " ".join(query_tokens)
+    if len(pattern_tokens) >= 2 and pattern_str in query_str:
+        return 0.88, len(pattern_tokens), 0, False
+
     score, exact, fuzzy = _score_tokens(query_tokens, pattern_tokens)
     return score, exact, fuzzy, False
 
