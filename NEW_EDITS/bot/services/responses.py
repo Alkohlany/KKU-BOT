@@ -212,7 +212,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(
             prefix
             + ambiguity_text
-            + "اختر المقصود من الأزرار التالية، ولن يرسل البوت أي منشور قبل اختيارك:",
+            + "اختر المقصود من الأزرار التالية:",
             reply_markup=build_candidate_keyboard(list(decision.candidates)),
         )
         await _log_decision(
