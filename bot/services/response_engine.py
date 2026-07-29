@@ -62,6 +62,9 @@ TOKEN_EQUIVALENTS = {
     "سجل": "تسجيل",
     "انسحب": "انسحاب",
     "اعتذر": "اعتذار",
+    "هندسه": "هندسي",
+    "هندسة": "هندسي",
+    "هندسيه": "هندسي",
 }
 
 GENERIC_LABEL_PREFIXES = (
@@ -130,7 +133,7 @@ def _canonical_token(token: str) -> str:
     if token.startswith("ال") and len(token) > 4:
         token = token[2:]
 
-    for suffix in ("هما", "كما", "هم", "هن", "كم", "كن", "ها", "نا", "يه", "ية"):
+    for suffix in ("هما", "كما", "هم", "هن", "كم", "كن", "ها", "له", "لك", "نا", "يه", "ية"):
         suffix = normalize_text(suffix)
         if token.endswith(suffix) and len(token) - len(suffix) >= 3:
             token = token[: -len(suffix)]
@@ -181,7 +184,7 @@ def _safe_typo_match(left: str, right: str) -> bool:
         return False
     if left[0] != right[0] or abs(len(left) - len(right)) > 2:
         return False
-    return SequenceMatcher(None, left, right).ratio() >= 0.90
+    return SequenceMatcher(None, left, right).ratio() >= 0.85
 
 
 def _ordered_match(query_tokens: tuple[str, ...], pattern_tokens: tuple[str, ...]) -> bool:
