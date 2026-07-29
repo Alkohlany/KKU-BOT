@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import logging
+import re
 from html import escape
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -177,10 +178,16 @@ def build_category_menu(category_key: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
+def _extract_url(text: str) -> str | None:
+    match = re.search(r'https?://[^\s<>"]+', text)
+    return match.group(0) if match else None
+
+
 def build_candidate_keyboard(
     candidates: list[ResponseCandidate] | tuple[ResponseCandidate, ...],
     *,
     back_callback: str = "menu:home",
+    chat_type: str = "private",
 ) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     used_labels: set[str] = set()
@@ -191,14 +198,20 @@ def build_candidate_keyboard(
             pattern_label = response_label(candidate.response, candidate.matched_pattern, max_length=38)
             label = f"{pattern_label} · خيار آخر"
         used_labels.add(label)
-        rows.append([
-            InlineKeyboardButton(label, callback_data=f"menu:resp:{candidate.response.id}")
-        ])
+        content = candidate.response.response or ""
+        url = _extract_url(content)
+        if url:
+            rows.append([InlineKeyboardButton(label, url=url)])
+        else:
+            rows.append([
+                InlineKeyboardButton(label, callback_data=f"menu:resp:{candidate.response.id}")
+            ])
 
-    rows.append([
-        InlineKeyboardButton("↩️ رجوع", callback_data=back_callback),
-        InlineKeyboardButton("🏠 الرئيسية", callback_data="menu:home"),
-    ])
+    if chat_type == "private":
+        rows.append([
+            InlineKeyboardButton("↩️ رجوع", callback_data=back_callback),
+            InlineKeyboardButton("🏠 الرئيسية", callback_data="menu:home"),
+        ])
     return InlineKeyboardMarkup(rows)
 
 
@@ -237,7 +250,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
 
 
-async def _show_topic_results(query, category_key: str, topic: MenuTopic) -> None:
+async def _show_topic_results(query, category_key: str, topic: MenuTopic, chat_type: str = "private") -> None:
     responses = await get_auto_responses()
 
     candidates: list[ResponseCandidate] = []
@@ -313,7 +326,7 @@ async def _show_topic_results(query, category_key: str, topic: MenuTopic) -> Non
     await _edit_or_reply(
         query,
         text,
-        build_candidate_keyboard(candidates, back_callback=f"menu:cat:{category_key}"),
+        build_candidate_keyboard(candidates, back_callback=f"menu:cat:{category_key}", chat_type=chat_type),
     )
 
 
@@ -370,7 +383,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
             return
 
-        await _show_topic_results(query, category_key, topic)
+        await _show_topic_results(query, category_key, topic, chat_type=update.effective_chat.type)
         return
 
     if len(parts) >= 3 and parts[1] == "resp":
