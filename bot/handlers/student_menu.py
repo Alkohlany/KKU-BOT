@@ -295,12 +295,6 @@ async def _show_topic_results(query, category_key: str, topic: MenuTopic, chat_t
 
     if len(candidates) == 1:
         response = candidates[0].response
-        label = response_label(response, candidates[0].matched_pattern)
-        await _edit_or_reply(
-            query,
-            f"✅ <b>تم اختيار:</b> {escape(label)}\n\nسيظهر المحتوى في الرسالة التالية.",
-            build_after_answer_keyboard(chat_type),
-        )
         sent = await send_auto_response(
             query.message,
             response,
