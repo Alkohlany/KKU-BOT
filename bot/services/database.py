@@ -116,6 +116,12 @@ async def get_auto_responses() -> list[AutoResponse]:
         return list(result.scalars().all())
 
 
+async def get_auto_response_by_id(response_id: int) -> AutoResponse | None:
+    async with async_session() as session:
+        result = await session.execute(select(AutoResponse).where(AutoResponse.id == response_id))
+        return result.scalar_one_or_none()
+
+
 async def get_all_auto_responses() -> list[AutoResponse]:
     async with async_session() as session:
         result = await session.execute(select(AutoResponse))
