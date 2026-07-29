@@ -430,7 +430,6 @@ export default function ScheduledPosts() {
             </div>
           </div>
         )}
-      </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
