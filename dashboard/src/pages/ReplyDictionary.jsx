@@ -17,19 +17,24 @@ export default function ReplyDictionary() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 50;
+  const totalPages = Math.ceil(total / limit);
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    loadAll(page);
+  }, [page]);
 
-  const loadAll = async () => {
+  const loadAll = async (pageNum = 1) => {
     try {
       const [resData, qData, nData] = await Promise.all([
-        api.getResponses(),
-        api.getQuestions(),
+        api.get(`/responses?page=${pageNum}&limit=${limit}`),
+        api.get(`/questions?page=${pageNum}&limit=${limit}`),
         api.getNews(),
       ]);
       setResponses(resData.items || resData || []);
+      setTotal(resData.total || 0);
       setQuestions(qData.items || qData || []);
       setNews(nData.items || nData || []);
     } catch (err) {
@@ -79,31 +84,28 @@ export default function ReplyDictionary() {
       if (editItem) {
         if (editType === 'keyword') {
           const payload = { keyword: form.keyword, news_id: form.news_id || null };
-          const updated = await api.updateResponse(editItem.id, payload);
-          setResponses(responses.map((r) => r.id === editItem.id ? updated : r));
+          await api.updateResponse(editItem.id, payload);
         } else {
           const payload = { question: form.question, answer: 'تم الرد عبر المنشور', keywords: form.keywords, news_id: form.news_id || null };
-          const updated = await api.updateQuestion(editItem.id, payload);
-          setQuestions(questions.map((q) => q.id === editItem.id ? updated : q));
+          await api.updateQuestion(editItem.id, payload);
         }
         showToast('تم التعديل بنجاح', 'success');
       } else {
         if (formType === 'keyword') {
           if (!form.keyword) { setSaving(false); return; }
           const payload = { keyword: form.keyword, response: '', news_id: form.news_id || null };
-          const newItem = await api.addResponse(payload);
-          setResponses([...responses, newItem]);
+          await api.addResponse(payload);
         } else {
           if (!form.question) { setSaving(false); return; }
           const payload = { question: form.question, answer: 'تم الرد عبر المنشور', keywords: form.keywords, news_id: form.news_id || null };
-          const newItem = await api.addQuestion(payload);
-          setQuestions([...questions, newItem]);
+          await api.addQuestion(payload);
         }
         showToast('تمت الإضافة بنجاح', 'success');
       }
       setForm({ keyword: '', question: '', keywords: '', news_id: '' });
       setEditItem(null);
       setShowModal(false);
+      await loadAll(page);
     } catch (err) {
       console.error('Failed to save:', err);
       showToast('فشل الحفظ', 'error');
@@ -119,12 +121,11 @@ export default function ReplyDictionary() {
     try {
       if (item._type === 'keyword') {
         await api.deleteResponse(item.id);
-        setResponses(responses.filter((r) => r.id !== item.id));
       } else {
         await api.deleteQuestion(item.id);
-        setQuestions(questions.filter((q) => q.id !== item.id));
       }
       showToast('تم الحذف بنجاح', 'success');
+      await loadAll(page);
     } catch (err) {
       console.error('Failed to delete:', err);
       showToast('فشل الحذف', 'error');
@@ -158,7 +159,7 @@ export default function ReplyDictionary() {
               type="text"
               placeholder="بحث في القاموس..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
           <button className="btn btn-primary" onClick={handleOpenAdd}>
@@ -303,6 +304,20 @@ export default function ReplyDictionary() {
           )}
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 px-4 py-3 bg-white border-t border-gray-200">
+          <div className="text-sm text-gray-700">
+            Page {page} of {totalPages} ({total} total)
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-3 py-1 text-sm border rounded disabled:opacity-50">Previous</button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className="px-3 py-1 text-sm border rounded disabled:opacity-50">Next</button>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {showModal && (
