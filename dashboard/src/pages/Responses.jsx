@@ -263,7 +263,6 @@ export default function Responses() {
             </div>
           </div>
         )}
-      </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>

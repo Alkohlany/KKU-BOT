@@ -195,7 +195,6 @@ export default function BannedUsers() {
             </div>
           </div>
         )}
-      </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>

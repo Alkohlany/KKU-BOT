@@ -225,7 +225,6 @@ export default function Questions() {
             </div>
           </div>
         )}
-      </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
