@@ -29,9 +29,9 @@ export default function ReplyDictionary() {
         api.getQuestions(),
         api.getNews(),
       ]);
-      setResponses(resData || []);
-      setQuestions(qData || []);
-      setNews(nData || []);
+      setResponses(resData.items || resData || []);
+      setQuestions(qData.items || qData || []);
+      setNews(nData.items || nData || []);
     } catch (err) {
       console.error('Failed to load data:', err);
       showToast('فشل تحميل البيانات', 'error');
