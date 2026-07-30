@@ -165,7 +165,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
     try:
         ai_internal_enabled = await get_setting("ai_internal_search_enabled")
         if ai_internal_enabled != "false":  # enabled by default
-            internal_result = await search_internal_posts(text)
+            internal_result = await search_internal_posts(effective_text)
             if internal_result:
                 reply = f"📌 {internal_result['title']}"
                 if internal_result.get("link"):

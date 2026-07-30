@@ -473,7 +473,7 @@ async def search_internal_posts(query: str, limit: int = 10) -> dict | None:
         None if no relevant post found
     """
     from bot.services.database import async_session
-    from bot.models.models import News
+    from bot.models.models import News, ChannelGroup
     from sqlalchemy import select, desc
     import json as _json
 
@@ -552,8 +552,25 @@ TITLE: [عنوان مختصر 5-10 كلمات يلخص موضوع المنشور
                 try:
                     channels = _json.loads(post_obj.target_channels)
                     if channels:
-                        channel_chat_id = channels[0]
-                        link = f"https://t.me/c/{abs(int(channel_chat_id))}/{post_obj.channel_message_id}"
+                        channel_value = channels[0]
+                        # Check if it's a username (string not starting with -)
+                        if isinstance(channel_value, str) and not channel_value.lstrip('-').isdigit():
+                            username = channel_value.lstrip('@')
+                            link = f"https://t.me/{username}/{post_obj.channel_message_id}"
+                        else:
+                            # Chat ID — look up ChannelGroup for username
+                            try:
+                                async with async_session() as sess:
+                                    cg = (await sess.execute(
+                                        select(ChannelGroup).where(ChannelGroup.chat_id == int(channel_value))
+                                    )).scalar_one_or_none()
+                                    if cg and cg.invite_link and 't.me/' in cg.invite_link:
+                                        username = cg.invite_link.rstrip('/').split('/')[-1]
+                                        link = f"https://t.me/{username}/{post_obj.channel_message_id}"
+                            except Exception:
+                                pass
+                            if not link:
+                                link = f"https://t.me/c/{abs(int(channel_value))}/{post_obj.channel_message_id}"
                 except (_json.JSONDecodeError, TypeError, IndexError, ValueError):
                     pass
             if not link and post_obj.group_message_ids:
