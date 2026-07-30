@@ -535,7 +535,11 @@ async def search_internal_posts(query: str, limit: int = 200) -> dict | None:
 4. إذا وجدت عدة منشورات، اختر الأقرب
 5. فقط إذا لم تجد أي علاقة على الإطلاق، اكتب: NULL
 
-أرجع فقط العنوان المختصر للمنشور (سطر واحد) أو NULL إذا لا يوجد مناسب."""
+أرجع الإجابة بالشكل التالي بالضبط:
+ID: [رقم المنشور]
+TITLE: [عنوان مختصر للمنشور]
+
+إذا لا يوجد منشور مناسب، اكتب فقط: NULL"""
 
     try:
         response = await asyncio.to_thread(_call_model, prompt)
