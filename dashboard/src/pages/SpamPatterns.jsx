@@ -24,7 +24,7 @@ export default function SpamPatterns() {
 
   const loadPatterns = async () => {
     try {
-      const data = await api.get(`/spam-patterns?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
+      const data = await api.get(`/spam?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
       const items = data.items || data;
       setPatterns(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
