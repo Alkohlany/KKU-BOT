@@ -146,7 +146,7 @@ export default function SpamPatterns() {
             {filtered.map((item) => (
               <div key={item.id} className="mobile-card">
                 <div className="mobile-card-header">
-                  <strong>{item.content}</strong>
+                  <strong>نمط سبام</strong>
                   <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(item.id)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10" />
@@ -158,7 +158,7 @@ export default function SpamPatterns() {
                 </div>
                 <div className="mobile-card-body">
                   <div className="mobile-card-meta">
-                    <span>النمط: {item.content}</span>
+                    <span style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.content}</span>
                     <span>التاريخ: {item.created_at}</span>
                   </div>
                 </div>
