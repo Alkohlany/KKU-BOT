@@ -8,7 +8,7 @@ export default function SpamPatterns() {
   const { showToast } = useToast();
   const [patterns, setPatterns] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ content: '' });
+  const [form, setForm] = useState({ content: '', created_at: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -19,10 +19,10 @@ export default function SpamPatterns() {
   useEffect(() => { setPage(1); }, [search]);
 
   useEffect(() => {
-    loadPatterns();
+    loadSpamPatterns();
   }, [page, search]);
 
-  const loadPatterns = async () => {
+  const loadSpamPatterns = async () => {
     try {
       const data = await api.get(`/spam?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
       const items = data.items || data;
@@ -39,29 +39,29 @@ export default function SpamPatterns() {
   const filtered = patterns;
 
   const handleAdd = async () => {
-    if (!form.content) return;
+    if (!form.content || !form.created_at) return;
     setSaving(true);
     try {
       const newItem = await api.addSpamPattern(form);
       setPatterns([newItem, ...patterns]);
-      setForm({ content: '' });
+      setForm({ content: '', created_at: '' });
       setShowModal(false);
     } catch (err) {
-      console.error('Failed to add pattern:', err);
+      console.error('Failed to add spam pattern:', err);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    const ok = await confirm('هل أنت متأكد من حذف هذا النمط؟');
+    const ok = await confirm('هل أنت متأكد من الحذف؟');
     if (!ok) return;
     try {
       await api.deleteSpamPattern(id);
-      setPatterns(patterns.filter((p) => p.id !== id));
+      setPatterns(patterns.filter((b) => b.id !== id));
       showToast('تم الحذف بنجاح', 'success');
     } catch (err) {
-      console.error('Failed to delete pattern:', err);
+      console.error('Failed to delete spam pattern:', err);
       showToast('فشل الحذف', 'error');
     }
   };
@@ -158,6 +158,7 @@ export default function SpamPatterns() {
                 </div>
                 <div className="mobile-card-body">
                   <div className="mobile-card-meta">
+                    <span>النمط: {item.content}</span>
                     <span>التاريخ: {item.created_at}</span>
                   </div>
                 </div>
@@ -200,11 +201,20 @@ export default function SpamPatterns() {
             <div className="modal-body">
               <div className="form-group">
                 <label>النمط</label>
-                <textarea
+                <input
                   className="form-input"
-                  placeholder="اكتب نمط السبام..."
+                  placeholder="أدخل النمط..."
                   value={form.content}
                   onChange={(e) => setForm({ ...form, content: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>النمط</label>
+                <textarea
+                  className="form-input"
+                  placeholder="أدخل نمط السبام..."
+                  value={form.created_at}
+                  onChange={(e) => setForm({ ...form, created_at: e.target.value })}
                 />
               </div>
             </div>
@@ -212,7 +222,7 @@ export default function SpamPatterns() {
               <button className="btn btn-danger" onClick={handleAdd} disabled={saving}>
                 {saving ? 'جاري الإضافة...' : 'إضافة'}
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>إلغاء</button>
+              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>إضافة</button>
             </div>
           </div>
         </div>
