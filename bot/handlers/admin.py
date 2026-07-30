@@ -829,6 +829,11 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await send_admin_message(context, user.id, "❌ يجب كتابة كلمة مفتاحية واحدة على الأقل")
                 return
 
+            long_keywords = [k for k in keywords if len(k) > 255]
+            if long_keywords:
+                await send_admin_message(context, user.id, f"❌ كلمات مفتاحية طويلة جداً (الحد الأقصى 255 حرف):\n{', '.join(long_keywords[:3])}")
+                return
+
             file_url = None
             file_type = None
             file_tg_id = None
@@ -878,6 +883,7 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                         news_id = news.id
 
             created_count = 0
+            last_error = None
             for keyword in keywords:
                 try:
                     ar = AutoResponse(
@@ -897,12 +903,13 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     created_count += 1
                 except Exception as e:
                     logger.error(f"Could not create auto response for keyword '{keyword}': {e}")
+                    last_error = e
 
             if created_count > 0:
                 file_info = f"\n📎 مرفق: {file_type}" if file_type else ""
                 await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords)}{file_info}")
             else:
-                await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
+                await send_admin_message(context, user.id, f"❌ فشل في إنشاء الردود التلقائية: {str(last_error)}")
             return
 
         # Empty keywords: AI analysis path
@@ -971,8 +978,12 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     news_id = news.id
 
         created_count = 0
+        last_error = None
         try:
             combined_keywords = " ".join(keywords_list)
+            if len(combined_keywords) > 255:
+                await send_admin_message(context, user.id, f"❌ الكلمات المفتاحية طويلة جداً معاً ({len(combined_keywords)} حرف، الحد الأقصى 255)")
+                return
             ar = AutoResponse(
                 keyword=combined_keywords,
                 response=response_text,
@@ -990,13 +1001,14 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             created_count = 1
         except Exception as e:
             logger.error(f"Could not create auto response: {e}")
+            last_error = e
 
         if created_count > 0:
             news_info = f"\n📰 مرتبط بمنشور" if news_id else ""
             file_info = f"\n📎 مرفق: {file_type}" if file_type else ""
             await send_admin_message(context, user.id, f"✅ تم إضافة {created_count} رد تلقائي:\n{', '.join(keywords_list)}{news_info}{file_info}")
         else:
-            await send_admin_message(context, user.id, "❌ فشل في إنشاء الردود التلقائية")
+            await send_admin_message(context, user.id, f"❌ فشل في إنشاء الردود التلقائية: {str(last_error)}")
         return
 
     elif text.strip() in ["ازاله الرد", "ازالة الرد", "ازل رد"]:
