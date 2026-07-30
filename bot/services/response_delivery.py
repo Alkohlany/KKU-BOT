@@ -3,15 +3,33 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
-from telegram import Message
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from bot.services.database import get_news_by_id
 from bot.services.news_publisher import wrap_links_in_blockquote
 from bot.services.response_engine import needs_freshness_warning
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_url(text: str) -> str | None:
+    match = re.search(r'(https?://[^\s<>"]+|t\.me/[^\s<>"]+/\d+)', text or "")
+    return match.group(0) if match else None
+
+
+def _url_button_markup(content: str, base_markup=None) -> InlineKeyboardMarkup | None:
+    url = _extract_url(content)
+    if not url:
+        return base_markup
+    button = InlineKeyboardButton("🔗 افتح الرابط", url=url)
+    if base_markup and hasattr(base_markup, "inline_keyboard"):
+        rows = [list(row) for row in base_markup.inline_keyboard]
+        rows.append([button])
+        return InlineKeyboardMarkup(rows)
+    return InlineKeyboardMarkup([[button]])
 
 
 FRESHNESS_WARNING = (
@@ -45,26 +63,27 @@ async def send_auto_response(
             if news_post:
                 content = _with_prefix(news_post.content or "", prefix, response) or ""
                 content = wrap_links_in_blockquote(content)
+                markup = _url_button_markup(content, reply_markup)
                 if news_post.image_url:
                     await message.reply_photo(
                         photo=news_post.image_url,
                         caption=content,
                         parse_mode="HTML",
-                        reply_markup=reply_markup,
+                        reply_markup=markup,
                     )
                 elif news_post.file_url:
                     await message.reply_document(
                         document=news_post.file_url,
                         caption=content,
                         parse_mode="HTML",
-                        reply_markup=reply_markup,
+                        reply_markup=markup,
                     )
                 else:
                     await message.reply_text(
                         content,
                         parse_mode="HTML",
                         disable_web_page_preview=True,
-                        reply_markup=reply_markup,
+                        reply_markup=markup,
                     )
                 return True
 
@@ -73,6 +92,7 @@ async def send_auto_response(
 
         caption = _with_prefix(getattr(response, "response", None), prefix, response)
         caption = wrap_links_in_blockquote(caption) if caption else None
+        markup = _url_button_markup(caption or "", reply_markup)
 
         file_tg_id = getattr(response, "file_tg_id", None)
         file_url = getattr(response, "file_url", None)
@@ -80,27 +100,27 @@ async def send_auto_response(
 
         if file_tg_id:
             if file_type == "photo":
-                await message.reply_photo(photo=file_tg_id, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+                await message.reply_photo(photo=file_tg_id, caption=caption, parse_mode="HTML", reply_markup=markup)
             elif file_type == "video":
-                await message.reply_video(video=file_tg_id, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+                await message.reply_video(video=file_tg_id, caption=caption, parse_mode="HTML", reply_markup=markup)
             else:
-                await message.reply_document(document=file_tg_id, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+                await message.reply_document(document=file_tg_id, caption=caption, parse_mode="HTML", reply_markup=markup)
             return True
 
         if file_url:
             if file_type == "photo":
-                await message.reply_photo(photo=file_url, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+                await message.reply_photo(photo=file_url, caption=caption, parse_mode="HTML", reply_markup=markup)
             elif file_type == "video":
-                await message.reply_video(video=file_url, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+                await message.reply_video(video=file_url, caption=caption, parse_mode="HTML", reply_markup=markup)
             else:
-                await message.reply_document(document=file_url, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+                await message.reply_document(document=file_url, caption=caption, parse_mode="HTML", reply_markup=markup)
             return True
 
         await message.reply_text(
             caption or "",
             parse_mode="HTML",
             disable_web_page_preview=True,
-            reply_markup=reply_markup,
+            reply_markup=markup,
         )
         return True
     except Exception as exc:
