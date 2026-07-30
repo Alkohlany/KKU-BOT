@@ -24,13 +24,13 @@ export default function SpamPatterns() {
 
   const loadPatterns = async () => {
     try {
-      const params = { page, limit: 50 };
+      const params = { page, limit: 5 };
       if (search) params.search = search;
       const data = await api.getSpamPatterns(params);
       const items = data.items || data;
       setPatterns(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 50)));
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 5)));
     } catch (err) {
       console.error('Failed to load spam patterns:', err);
     } finally {
@@ -119,6 +119,7 @@ export default function SpamPatterns() {
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                       </svg>
                       <span className="btn-text-desktop">حذف</span>
+                      <span className="btn-text-mobile">حذف</span>
                     </button>
                   </td>
                 </tr>
