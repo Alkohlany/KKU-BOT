@@ -178,7 +178,7 @@ def build_category_menu(category_key: str, chat_type: str = "private") -> Inline
 
 
 def _extract_url(text: str) -> str | None:
-    match = re.search(r'https?://[^\s<>"]+', text)
+    match = re.search(r'(https?://[^\s<>"]+|t\.me/[^\s<>"]+)', text)
     return match.group(0) if match else None
 
 
