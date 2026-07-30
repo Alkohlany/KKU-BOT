@@ -50,6 +50,9 @@ def _extract_links_with_context(text: str) -> tuple[str, list[dict]]:
 
         cleaned_lines.append(line)
 
+    if len(buttons) == 1:
+        buttons[0]["label"] = "🔗 اضغط هنا"
+
     return '\n'.join(cleaned_lines).strip(), buttons
 
 
