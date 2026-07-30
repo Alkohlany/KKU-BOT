@@ -24,6 +24,7 @@ from bot.middleware.subscription import check_subscription_handler, global_subsc
 from bot.handlers.group_handler import group_chat_member_handler, group_new_members_handler, register_group_cmd
 from bot.handlers.channel_handler import channel_chat_member_handler, register_channel_cmd
 from bot.services.scheduler import check_scheduled_posts
+from bot.services.database import init_db, run_migrations, add_missing_columns
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -34,6 +35,9 @@ logger = logging.getLogger(__name__)
 
 
 async def post_init(application):
+    await init_db()
+    await add_missing_columns()
+    await run_migrations()
     try:
         application.bot_data['admin_ids'] = ADMIN_IDS.copy()
         try:

@@ -60,6 +60,22 @@ async def run_migrations():
     logger.info("Database indexes created successfully")
 
 
+async def add_missing_columns():
+    """Add columns that may be missing from older auto_responses tables."""
+    columns = [
+        "ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS file_tg_id VARCHAR(200)",
+        "ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_chat_id BIGINT",
+        "ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_message_id INTEGER",
+        "ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS news_id INTEGER",
+    ]
+    async with engine.begin() as conn:
+        for sql in columns:
+            try:
+                await conn.execute(text(sql))
+            except Exception:
+                pass  # column already exists or dialect doesn't support IF NOT EXISTS
+
+
 async def get_user(telegram_id: int) -> User | None:
     async with async_session() as session:
         result = await session.execute(
