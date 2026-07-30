@@ -37,7 +37,7 @@ def _url_button_markup(content: str, base_markup=None) -> InlineKeyboardMarkup |
     url = _extract_url(content)
     if not url or not _is_specific_link(url):
         return base_markup
-    button = InlineKeyboardButton("🔗 افتح الرابط", url=url)
+    button = InlineKeyboardButton("اضغط هنا", url=url)
     if base_markup and hasattr(base_markup, "inline_keyboard"):
         rows = [list(row) for row in base_markup.inline_keyboard]
         rows.append([button])
