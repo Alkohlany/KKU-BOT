@@ -469,12 +469,13 @@ async def search_internal_posts(query: str, limit: int = 10) -> dict | None:
     Search stored news posts using AI to find the best match for a student's query.
 
     Returns:
-        {"content": "...", "score": 0.95} if a relevant post is found
+        {"title": "...", "link": "https://t.me/..."} if a relevant post is found
         None if no relevant post found
     """
     from bot.services.database import async_session
     from bot.models.models import News
     from sqlalchemy import select, desc
+    import json as _json
 
     async with async_session() as session:
         result = await session.execute(
@@ -489,10 +490,12 @@ async def search_internal_posts(query: str, limit: int = 10) -> dict | None:
         return None
 
     posts_text = ""
+    post_ids = []
     for i, post in enumerate(posts):
         content = post.content or ""
         if content.strip():
             posts_text += f"--- منشور {i+1} (ID: {post.id}) ---\n{content}\n\n"
+            post_ids.append(post.id)
 
     if not posts_text.strip():
         return None
@@ -506,22 +509,67 @@ async def search_internal_posts(query: str, limit: int = 10) -> dict | None:
 
 مهمتك:
 1. اقرأ سؤال الطالب بعناية
-2. ابحث في المنشورات عن الأنسب لسؤاله
-3. إذا وجدت منشوراً يجيب على سؤال الطالب مباشرة، أرسل محتواه
-4. إذا لم تجد منشوراً مناسباً، أرجع null
+2. ابحث في المنشورات عن الأنسب لسؤاله — كن متسامحًا، إذا كان المنشور متعلقًا حتى 부분ًا فاحسبه مناسبًا
+3. فهم سياق السؤال ضمن جامعة الملك خالد (قبول، تقديم، معدل، نظام، خدمات، إلخ)
+4. إذا كان السؤال قصيرًا أو غامضًا (مثلاً: "التقديم"، "القبول"، "المعدل"، "التسجيل")، ابحث عن أي منشور متعلق بالموضوع العام للسؤال
 
 قواعد مهمة:
 - لا تخترع معلومات
-- لا ترسل منشوراً إذا لم يكن متعلقاً بالسؤال
-- إذا كان السؤال عاماً جداً أو غير متعلق بالجامعة، أرجع null
-- أرجع الإجابة فقط بدون مقدمة أو خاتمة
+- إذا كان السؤال عامًا جدًا أو غير متعلق بالجامعة، أرجع NULL
+- لا ترفض منشورًا لمجرد أن السؤال قصير — ابحث عن أي علاقة موضوعية
 
-أرجع الإجابة كنص فقط (بدون تنسيق JSON). إذا لا يوجد منشور مناسب، اكتب: NULL"""
+أرجع النتيجة بهذا الشكل بالضبط:
+ID: [رقم المنشور]
+TITLE: [عنوان مختصر 5-10 كلمات يلخص موضوع المنشور]
+
+إذا لا يوجد مناسب، اكتب: NULL"""
 
     try:
         response = await asyncio.to_thread(_call_model, prompt)
-        if response and response.strip() and response.strip() != "NULL":
-            return {"content": response.strip()}
+        if not response or not response.strip() or response.strip() == "NULL":
+            return None
+
+        lines = response.strip().split("\n")
+        post_id = None
+        title = None
+        for line in lines:
+            line = line.strip()
+            if line.upper().startswith("ID:"):
+                try:
+                    post_id = int(line.split(":", 1)[1].strip())
+                except (ValueError, IndexError):
+                    pass
+            elif line.upper().startswith("TITLE:"):
+                title = line.split(":", 1)[1].strip()
+
+        if not post_id or post_id not in post_ids:
+            return None
+
+        link = None
+        post_obj = next((p for p in posts if p.id == post_id), None)
+        if post_obj:
+            if post_obj.channel_message_id and post_obj.target_channels:
+                try:
+                    channels = _json.loads(post_obj.target_channels)
+                    if channels:
+                        channel_chat_id = channels[0]
+                        link = f"https://t.me/c/{abs(int(channel_chat_id))}/{post_obj.channel_message_id}"
+                except (_json.JSONDecodeError, TypeError, IndexError, ValueError):
+                    pass
+            if not link and post_obj.group_message_ids:
+                try:
+                    group_ids = _json.loads(post_obj.group_message_ids)
+                    if group_ids:
+                        first_chat_id = next(iter(group_ids))
+                        msg_id = group_ids[first_chat_id]
+                        if isinstance(msg_id, list):
+                            msg_id = msg_id[0] if msg_id else None
+                        if msg_id:
+                            link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
+                except (_json.JSONDecodeError, TypeError, StopIteration, KeyError, ValueError):
+                    pass
+
+        return {"title": title or "منشور متعلق بسؤالك", "link": link}
     except Exception as e:
         logger.error(f"Internal post search failed: {e}")
 

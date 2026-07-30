@@ -167,7 +167,10 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         if ai_internal_enabled != "false":  # enabled by default
             internal_result = await search_internal_posts(text)
             if internal_result:
-                await update.message.reply_text(internal_result["content"])
+                reply = f"📌 {internal_result['title']}"
+                if internal_result.get("link"):
+                    reply += f"\n\n🔗 اضغط هنا للذهاب للمنشور: {internal_result['link']}"
+                await update.message.reply_text(reply, disable_web_page_preview=True)
                 await log_activity(
                     user_id=update.effective_user.id,
                     action="ai_internal_search",
