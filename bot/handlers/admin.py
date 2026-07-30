@@ -99,19 +99,19 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if len(news_list) > 10:
             news_text += f"\n... و {len(news_list) - 10} منشور آخر"
         
-        news_text += "\n\n💡 أرسل رقم المنشور المطلوب"
+        news_text += "\n\n💡 أرسل رقم المنشور بعلامة # مثل: #5"
         
         await send_admin_message(context, user.id, news_text)
         return
 
-    # Handle news selection for adding response
-    if 'pending_keyword' in context.user_data and text.isdigit():
+    # Handle news selection for adding response (requires # prefix to avoid hijacking numbers in text)
+    if 'pending_keyword' in context.user_data and text.startswith("#") and text[1:].isdigit():
         try:
             await update.message.delete()
         except: pass
         
         keyword = context.user_data.pop('pending_keyword')
-        news_id = int(text)
+        news_id = int(text[1:])
         
         # Verify news exists
         news = await get_news_by_id(news_id)
@@ -330,7 +330,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if keyword:
             news_text += f"\n\n🔑 الكلمة المفتاحية: {keyword}"
 
-        news_text += "\n\n💡 أرسل رقم المنشور المطلوب"
+        news_text += "\n\n💡 أرسل رقم المنشور بعلامة # مثل: #5"
 
         await send_admin_message(context, user.id, news_text)
         return

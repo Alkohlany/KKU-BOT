@@ -154,7 +154,7 @@ def important_tokens(text: str) -> tuple[str, ...]:
     tokens: list[str] = []
     for raw in normalize_text(text).split():
         token = _canonical_token(raw)
-        if not token or token in normalized_stop_words or token.isdigit():
+        if not token or token in normalized_stop_words:
             continue
         if len(token) < 2:
             continue
