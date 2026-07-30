@@ -100,13 +100,13 @@ export default function News() {
 
   useEffect(() => {
     if (addWizardStep === 3) {
-      api.getResponses().then(data => setAvailableResponses(data || [])).catch(() => {});
+      api.getResponses().then(data => setAvailableResponses(data.items || data || [])).catch(() => {});
     }
   }, [addWizardStep]);
 
   useEffect(() => {
     if (showEditModal && editWizardStep === 3) {
-      api.getResponses().then(data => setEditAvailableResponses(data || [])).catch(() => {});
+      api.getResponses().then(data => setEditAvailableResponses(data.items || data || [])).catch(() => {});
     }
   }, [showEditModal, editWizardStep]);
 
