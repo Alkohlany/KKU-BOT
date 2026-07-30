@@ -9,7 +9,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy import select, func
+from sqlalchemy import select
 from bot.models.models import StudyPlan, StudyPlanGroup, ChannelGroup
 from bot.services.database import (
     async_session, add_study_plan, get_all_study_plans, get_study_plans_by_faculty,
@@ -414,8 +414,6 @@ async def delete_study_plan_group_endpoint(group_id: int, mode: str = "permanent
 async def get_study_plans(
     group_id: Optional[int] = None,
     faculty: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=200),
     search: str = Query(None),
 ):
     async with async_session() as db:
@@ -429,13 +427,8 @@ async def get_study_plans(
                 StudyPlan.title.ilike(f"%{search}%") | StudyPlan.specialization.ilike(f"%{search}%")
             )
 
-        total = (await db.execute(
-            select(func.count(StudyPlan.id)).where(*base_filter)
-        )).scalar() or 0
-
         result = await db.execute(
             select(StudyPlan).where(*base_filter)
-            .offset((page - 1) * limit).limit(limit)
         )
         items = result.scalars().all()
     return {
@@ -456,9 +449,7 @@ async def get_study_plans(
             }
             for p in items
         ],
-        "total": total,
-        "page": page,
-        "limit": limit,
+        "total": len(items),
     }
 
 
