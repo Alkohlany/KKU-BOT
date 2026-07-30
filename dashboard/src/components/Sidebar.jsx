@@ -16,6 +16,7 @@ const navItems = [
       { path: '/news', label: 'المنشورات', icon: 'news' },
       { path: '/scheduled-posts', label: 'النشر المجدول', icon: 'schedule' },
       { path: '/study-plans', label: 'الخطط الدراسية', icon: 'plan' },
+      { path: '/books', label: 'الكتب', icon: 'book' },
     ],
   },
   {
@@ -105,6 +106,12 @@ const icons = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  ),
+  book: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
     </svg>
   ),
   files: (

@@ -7,6 +7,7 @@ import Groups from './pages/Groups'
 import News from './pages/News'
 import ReplyDictionary from './pages/ReplyDictionary'
 import StudyPlans from './pages/StudyPlans'
+import Books from './pages/Books'
 import ScheduledPosts from './pages/ScheduledPosts'
 import BannedUsers from './pages/BannedUsers'
 import SpamPatterns from './pages/SpamPatterns'
@@ -25,6 +26,7 @@ const pageTitles = {
   '/news': { title: 'المنشورات', subtitle: 'إدارة منشورات البوت' },
   '/reply-dictionary': { title: 'قاموس الردود', subtitle: 'إدارة ردود البوت والأسئلة' },
   '/study-plans': { title: 'الخطط الدراسية', subtitle: 'إدارة الخطط الدراسية والمجموعات' },
+  '/books': { title: 'الكتب', subtitle: 'إدارة الكتب والمجموعات' },
   '/scheduled-posts': { title: 'النشر المجدول', subtitle: 'إدارة المنشورات المجدولة' },
   '/banned': { title: 'المحظورين', subtitle: 'إدارة المستخدمين المحظورين' },
   '/spam': { title: 'أنماط السبام', subtitle: 'إدارة أنماط الرسائل المسبمة' },
@@ -49,6 +51,7 @@ function Layout({ sidebarOpen, setSidebarOpen }) {
             <Route path="/news" element={<News />} />
             <Route path="/reply-dictionary" element={<ReplyDictionary />} />
             <Route path="/study-plans" element={<StudyPlans />} />
+            <Route path="/books" element={<Books />} />
             <Route path="/scheduled-posts" element={<ScheduledPosts />} />
             <Route path="/banned" element={<BannedUsers />} />
             <Route path="/spam" element={<SpamPatterns />} />

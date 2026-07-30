@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, Settings, SpamPattern, QueryCache
+from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, BookGroup, Book, Settings, SpamPattern, QueryCache
 from bot.config import DATABASE_URL
 from sqlalchemy import select, update, delete, func, text
 from datetime import datetime, timezone, timedelta
@@ -605,6 +605,123 @@ async def search_study_plans(query):
 async def delete_study_plan(plan_id):
     async with async_session() as session:
         await session.execute(delete(StudyPlan).where(StudyPlan.id == plan_id))
+        await session.commit()
+
+
+# ==================== Book Groups ====================
+async def get_all_book_groups():
+    async with async_session() as session:
+        result = await session.execute(
+            select(BookGroup).where(BookGroup.is_active == True)
+        )
+        return result.scalars().all()
+
+async def get_book_group_by_id(group_id: int):
+    async with async_session() as session:
+        result = await session.execute(
+            select(BookGroup).where(BookGroup.id == group_id)
+        )
+        return result.scalar_one_or_none()
+
+async def create_book_group(title: str, description: str = None, group_tag: str = None):
+    async with async_session() as session:
+        group = BookGroup(title=title, description=description, group_tag=group_tag)
+        session.add(group)
+        await session.commit()
+        await session.refresh(group)
+        return group
+
+async def update_book_group(group_id: int, title: str = None, description: str = None, group_tag: str = None, channel_message_id: int = None):
+    async with async_session() as session:
+        group = (await session.execute(select(BookGroup).where(BookGroup.id == group_id))).scalar_one_or_none()
+        if not group:
+            return None
+        update_fields(group, title=title, description=description, group_tag=group_tag, channel_message_id=channel_message_id)
+        await session.commit()
+        await session.refresh(group)
+        return group
+
+async def delete_book_group(group_id: int):
+    async with async_session() as session:
+        books_stmt = select(Book).where(Book.group_id == group_id)
+        books_result = await session.execute(books_stmt)
+        books = books_result.scalars().all()
+        for book in books:
+            await session.delete(book)
+
+        stmt = select(BookGroup).where(BookGroup.id == group_id)
+        result = await session.execute(stmt)
+        group = result.scalar_one_or_none()
+
+        if group:
+            await session.delete(group)
+            await session.commit()
+            return True
+        return False
+
+
+# ==================== Books ====================
+async def add_book(title, description=None, author=None, file_url=None, group_id=None, link=None):
+    async with async_session() as session:
+        book = Book(title=title, description=description, author=author,
+                    file_url=file_url, group_id=group_id, link=link)
+        session.add(book)
+        await session.commit()
+        return book
+
+async def get_all_books():
+    async with async_session() as session:
+        result = await session.execute(select(Book).where(Book.is_active == True))
+        return result.scalars().all()
+
+async def get_books_by_group(group_id: int):
+    async with async_session() as session:
+        result = await session.execute(
+            select(Book).where(Book.is_active == True, Book.group_id == group_id)
+        )
+        return result.scalars().all()
+
+async def get_book_by_id(book_id: int):
+    async with async_session() as session:
+        result = await session.execute(
+            select(Book).where(Book.id == book_id)
+        )
+        return result.scalar_one_or_none()
+
+async def search_books(query):
+    async with async_session() as session:
+        query_norm = normalize_arabic(query.lower())
+        words = [w for w in query_norm.split() if len(w) > 1]
+
+        like_pattern = f"%{query_norm}%"
+        stmt = select(Book).where(
+            Book.is_active == True,
+            (Book.title.ilike(like_pattern)) |
+            (Book.author.ilike(like_pattern)) |
+            (Book.description.ilike(like_pattern))
+        )
+        result = await session.execute(stmt)
+        candidates = result.scalars().all()
+
+        found = []
+        for book in candidates:
+            searchable = normalize_arabic(" ".join(filter(None, [
+                book.title or "",
+                book.author or "",
+                book.description or ""
+            ])).lower())
+
+            if query_norm in searchable:
+                found.append(book)
+            elif words and any(w in searchable for w in words):
+                found.append(book)
+
+        return found
+
+
+async def delete_book(book_id):
+    async with async_session() as session:
+        await session.execute(delete(Book).where(Book.id == book_id))
         await session.commit()
 
 

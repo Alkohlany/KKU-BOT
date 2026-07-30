@@ -172,6 +172,39 @@ class StudyPlan(Base):
     group = relationship("StudyPlanGroup", back_populates="plans")
 
 
+class BookGroup(Base):
+    __tablename__ = "book_groups"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    group_tag = Column(String(100), nullable=True)
+    channel_message_id = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    books = relationship("Book", back_populates="group", cascade="all, delete-orphan")
+
+
+class Book(Base):
+    __tablename__ = "books"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    group_id = Column(Integer, ForeignKey("book_groups.id"), nullable=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    author = Column(String(200), nullable=True)
+    link = Column(String(500), nullable=True)
+    file_url = Column(String(500))
+    is_active = Column(Boolean, default=True)
+    usage_count = Column(Integer, default=0)
+    channel_message_id = Column(Integer, nullable=True)
+    target_channels = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    group = relationship("BookGroup", back_populates="books")
+
+
 class Settings(Base):
     __tablename__ = 'settings'
 

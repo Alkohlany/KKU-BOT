@@ -230,6 +230,67 @@ const api = {
   },
   updateStudyPlanGroup: (id, data) => api.put(`/study-plans/groups/${id}`, data),
 
+  getBookGroups: () => api.get('/books/groups'),
+  getBookGroup: (id) => api.get(`/books/groups/${id}`),
+  addBookGroup: (data) => api.post('/books/groups', data),
+  updateBookGroup: (id, data) => api.put(`/books/groups/${id}`, data),
+  deleteBookGroup: (id, mode = 'permanent') => api.delete(`/books/groups/${id}?mode=${mode}`),
+  getBooks: (params) => {
+    const q = new URLSearchParams(params).toString();
+    return api.get('/books' + (q ? '?' + q : ''));
+  },
+  addBook: (data) => api.post('/books', data),
+  uploadBook: (formData) => {
+    const token = localStorage.getItem('token');
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_URL}/books/upload`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else if (xhr.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          reject(new Error('Unauthorized'));
+        } else {
+          reject(new Error(xhr.responseText));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
+  updateBook: (id, data) => {
+    const formData = new FormData();
+    if (data.title !== undefined) formData.append('title', data.title);
+    if (data.group_id !== undefined) formData.append('group_id', data.group_id || '');
+    if (data.file) formData.append('file', data.file);
+    if (data.author !== undefined) formData.append('author', data.author || '');
+    if (data.link !== undefined) formData.append('link', data.link || '');
+    const token = localStorage.getItem('token');
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', `${API_URL}/books/${id}`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else if (xhr.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          reject(new Error('Unauthorized'));
+        } else {
+          reject(new Error(xhr.responseText));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
+  deleteBook: (id, mode = 'permanent') => api.delete(`/books/${id}?mode=${mode}`),
+  publishBook: (bookId) => api.post(`/books/publish-book/${bookId}`),
+
   getSpamPatterns: (params) => {
     const q = new URLSearchParams(params).toString();
     return api.get('/spam' + (q ? '?' + q : ''));
