@@ -35,6 +35,9 @@ logger = logging.getLogger(__name__)
 
 
 async def post_init(application):
+    await init_db()
+    await add_missing_columns()
+    await run_migrations()
     try:
         application.bot_data['admin_ids'] = ADMIN_IDS.copy()
         try:
