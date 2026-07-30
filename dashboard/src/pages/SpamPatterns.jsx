@@ -8,7 +8,7 @@ export default function SpamPatterns() {
   const { showToast } = useToast();
   const [patterns, setPatterns] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [content, setContent] = useState('');
+  const [form, setForm] = useState({ content: '', created_at: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,9 +24,7 @@ export default function SpamPatterns() {
 
   const loadPatterns = async () => {
     try {
-      const params = { page, limit: 5 };
-      if (search) params.search = search;
-      const data = await api.getSpamPatterns(params);
+      const data = await api.get(`/spam-patterns?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
       const items = data.items || data;
       setPatterns(Array.isArray(items) ? items : []);
       setTotal(data.total || 0);
@@ -38,14 +36,16 @@ export default function SpamPatterns() {
     }
   };
 
+  const filtered = patterns;
+
   const handleAdd = async () => {
-    if (!content.trim()) return;
+    if (!form.content || !form.created_at) return;
     setSaving(true);
     try {
-      await api.addSpamPattern({ content: content.trim() });
-      setContent('');
+      const newItem = await api.addSpamPattern(form);
+      setPatterns([newItem, ...patterns]);
+      setForm({ content: '', created_at: '' });
       setShowModal(false);
-      loadPatterns();
     } catch (err) {
       console.error('Failed to add pattern:', err);
     } finally {
@@ -59,7 +59,6 @@ export default function SpamPatterns() {
     try {
       await api.deleteSpamPattern(id);
       setPatterns(patterns.filter((p) => p.id !== id));
-      setTotal(total - 1);
       showToast('تم الحذف بنجاح', 'success');
     } catch (err) {
       console.error('Failed to delete pattern:', err);
@@ -68,120 +67,128 @@ export default function SpamPatterns() {
   };
 
   if (loading) {
-    return <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>جاري تحميل البيانات...</div>;
+    return (
+      <div style={{ textAlign: 'center', padding: 20, color: '#888' }}>
+        جاري تحميل البيانات...
+      </div>
+    );
   }
 
   return (
     <>
       <div className="card">
-        <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
-          <div className="search-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="بحث في أنماط السبام..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <button className="btn btn-danger" onClick={() => setShowModal(true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            إضافة نمط
-          </button>
-        </div>
-
-        <div className="table-container desktop-only">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>النمط</th>
-                <th>التاريخ</th>
-                <th>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {patterns.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td><strong>{item.content}</strong></td>
-                  <td>{item.created_at}</td>
-                  <td>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(item.id)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                      <span className="btn-text-desktop">حذف</span>
-                      <span className="btn-text-mobile">حذف</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {patterns.length === 0 && (
-            <div className="empty-state">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
+          <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <div className="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <h4>لا يوجد أنماط سبام</h4>
-              <p>لم يتم إضافة أي أنماط بعد</p>
+              <input
+                type="text"
+                placeholder="بحث في أنماط السبام..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
-          )}
-        </div>
+            <button className="btn btn-danger" onClick={() => setShowModal(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+              </svg>
+              إضافة نمط
+            </button>
+          </div>
 
-        <div className="mobile-cards" style={{ padding: '16px 24px' }}>
-          {patterns.map((item) => (
-            <div key={item.id} className="mobile-card">
-              <div className="mobile-card-header">
-                <strong>{item.content}</strong>
-                <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(item.id)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                  حذف
-                </button>
+          {/* Desktop Table */}
+          <div className="table-container desktop-only">
+            <table>
+              <thead>
+                <tr>
+                  <th>النمط</th>
+                  <th>التاريخ</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((item) => (
+                  <tr key={item.id}>
+                    <td><strong>{item.content}</strong></td>
+                    <td>{item.created_at}</td>
+                    <td>
+                      <button className="btn btn-secondary btn-sm" title="حذف" onClick={() => handleDelete(item.id)}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="15" y1="9" x2="9" y2="15" />
+                          <line x1="9" y1="9" x2="15" y2="15" />
+                        </svg>
+                        <span className="btn-text-desktop">حذف</span>
+                        <span className="btn-text-mobile">حذف</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && (
+              <div className="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                </svg>
+                <h4>لا يوجد أنماط سبام</h4>
+                <p>لم يتم إضافة أي أنماط بعد</p>
               </div>
-              <div className="mobile-card-body">
-                <div className="mobile-card-meta">
-                  <span>التاريخ: {item.created_at}</span>
+            )}
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="mobile-cards" style={{ padding: '16px 24px' }}>
+            {filtered.map((item) => (
+              <div key={item.id} className="mobile-card">
+                <div className="mobile-card-header">
+                  <strong>{item.content}</strong>
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleDelete(item.id)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="15" y1="9" x2="9" y2="15" />
+                      <line x1="9" y1="9" x2="15" y2="15" />
+                    </svg>
+                    حذف
+                  </button>
+                </div>
+                <div className="mobile-card-body">
+                  <div className="mobile-card-meta">
+                    <span>التاريخ: {item.created_at}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-          {patterns.length === 0 && (
-            <div className="empty-state">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-              <h4>لا يوجد أنماط سبام</h4>
-              <p>لم يتم إضافة أي أنماط بعد</p>
-            </div>
-          )}
+            ))}
+            {filtered.length === 0 && (
+              <div className="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                </svg>
+                <h4>لا يوجد أنماط سبام</h4>
+                <p>لم يتم إضافة أي أنماط بعد</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--gray-200)' }}>
-          <div style={{ fontSize: 13, color: 'var(--gray-600)' }}>
-            الصفحة {page} من {totalPages} ({total} إجمالي)
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--gray-200)' }}>
+            <div style={{ fontSize: 13, color: 'var(--gray-600)' }}>
+              الصفحة {page} من {totalPages} ({total} إجمالي)
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="btn btn-secondary btn-sm">السابق</button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="btn btn-secondary btn-sm">التالي</button>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn btn-secondary btn-sm">السابق</button>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="btn btn-secondary btn-sm">التالي</button>
-          </div>
-        </div>
-      )}
+        )}
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
@@ -196,13 +203,13 @@ export default function SpamPatterns() {
                 <textarea
                   className="form-input"
                   placeholder="اكتب نمط السبام..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  value={form.content}
+                  onChange={(e) => setForm({ ...form, content: e.target.value })}
                 />
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-danger" onClick={handleAdd} disabled={saving || !content.trim()}>
+              <button className="btn btn-danger" onClick={handleAdd} disabled={saving}>
                 {saving ? 'جاري الإضافة...' : 'إضافة'}
               </button>
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>إلغاء</button>
