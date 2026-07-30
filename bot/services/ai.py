@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 
 
-def _call_model(prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg") -> str:
+def _call_model(prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", thinking: bool = True) -> str:
     import httpx
 
     if image_bytes:
@@ -43,10 +43,10 @@ def _call_model(prompt: str, image_bytes: bytes = None, mime_type: str = "image/
                     "model": OPENCODE_AI_MODEL,
                     "messages": [{"role": "user", "content": content}],
                     "max_tokens": max_tokens,
-                    "extra_body": {
+                    **({"extra_body": {
                         "thinking": {"type": "enabled"},
                         "reasoning_effort": "max",
-                    },
+                    }} if thinking else {}),
                 },
                 timeout=httpx.Timeout(timeout_s, read=timeout_s),
             )
@@ -467,7 +467,7 @@ def enhance_content(title: str, content: str) -> dict:
         raise RuntimeError(f"AI enhance failed: {e}")
 
 
-async def search_internal_posts(query: str, limit: int = 200) -> dict | None:
+async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
     """
     Search stored news posts using AI to find the best match for a student's query.
 
@@ -484,6 +484,7 @@ async def search_internal_posts(query: str, limit: int = 200) -> dict | None:
 
     from bot.services.database import async_session
     from bot.models.models import News
+    from bot.services.response_engine import important_tokens
     from sqlalchemy import select, desc
     import json as _json
 
@@ -499,16 +500,26 @@ async def search_internal_posts(query: str, limit: int = 200) -> dict | None:
     if not posts:
         return None
 
-    query_words = set(query.split())
-    relevant_posts = []
+    query_tokens = set(important_tokens(query))
+    if not query_tokens:
+        return None
+
+    scored = []
     for post in posts:
         content = post.content or ""
-        content_words = set(content.split())
-        if query_words & content_words:
-            relevant_posts.append(post)
+        post_tokens = set(important_tokens(content))
+        if not post_tokens:
+            continue
+        overlap = len(query_tokens & post_tokens)
+        if overlap > 0:
+            score = overlap / len(query_tokens)
+            scored.append((score, post))
 
-    if relevant_posts:
-        posts = relevant_posts[:20]
+    scored.sort(key=lambda x: x[0], reverse=True)
+    posts = [post for _, post in scored[:15]]
+
+    if not posts:
+        return None
 
     posts_text = ""
     post_ids = []
@@ -550,7 +561,7 @@ TITLE: [العنوان]
 
 أو: NULL"""
     try:
-        response = await asyncio.to_thread(_call_model, prompt)
+        response = await asyncio.to_thread(_call_model, prompt, thinking=False)
         if not response or not response.strip() or response.strip() == "NULL":
             return None
 
@@ -570,8 +581,14 @@ TITLE: [العنوان]
         if not post_id or post_id not in post_ids:
             return None
 
-        link = None
         post_obj = next((p for p in posts if p.id == post_id), None)
+        if post_obj:
+            post_tokens = set(important_tokens(post_obj.content or ""))
+            if not (query_tokens & post_tokens):
+                logger.warning(f"AI selected post {post_id} but no token overlap with query")
+                return None
+
+        link = None
         if post_obj:
             if post_obj.channel_message_id and post_obj.target_channels:
                 try:
