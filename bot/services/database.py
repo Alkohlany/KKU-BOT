@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, Settings, SpamPattern
+from bot.models.models import Base, User, ChannelGroup, AutoResponse, BannedUser, ActivityLog, News, Question, ScheduledPost, StudyPlan, StudyPlanGroup, Settings, SpamPattern, QueryCache
 from bot.config import DATABASE_URL
 from sqlalchemy import select, update, delete, func, text
 from datetime import datetime, timezone, timedelta
@@ -68,12 +68,30 @@ async def add_missing_columns():
         "ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS source_message_id INTEGER",
         "ALTER TABLE auto_responses ADD COLUMN IF NOT EXISTS news_id INTEGER",
     ]
+    create_tables = [
+        """CREATE TABLE IF NOT EXISTS query_cache (
+            id INTEGER PRIMARY KEY,
+            query TEXT NOT NULL,
+            normalized_query TEXT NOT NULL,
+            response_title TEXT NOT NULL,
+            response_link VARCHAR(500),
+            response_text TEXT,
+            hit_count INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+    ]
     async with engine.begin() as conn:
         for sql in columns:
             try:
                 await conn.execute(text(sql))
             except Exception:
-                pass  # column already exists or dialect doesn't support IF NOT EXISTS
+                pass
+        for sql in create_tables:
+            try:
+                await conn.execute(text(sql))
+            except Exception:
+                pass
 
 
 async def get_user(telegram_id: int) -> User | None:
@@ -699,3 +717,73 @@ async def check_spam_pattern(content: str) -> bool:
             {"content": content}
         )
         return result.first() is not None
+
+
+# ==================== Query Cache ====================
+async def get_cached_response(query: str) -> dict | None:
+    normalized = normalize_arabic(query).strip().lower()
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(QueryCache)
+            .where(QueryCache.normalized_query == normalized)
+            .limit(1)
+        )
+        cache = result.scalar_one_or_none()
+
+        if cache:
+            cache.hit_count += 1
+            cache.last_used = func.now()
+            await session.commit()
+            return {
+                "title": cache.response_title,
+                "link": cache.response_link,
+                "text": cache.response_text,
+            }
+
+        if len(normalized) >= 15:
+            result = await session.execute(
+                select(QueryCache)
+                .where(QueryCache.normalized_query.contains(normalized[:15]))
+                .limit(1)
+            )
+            cache = result.scalar_one_or_none()
+
+            if cache:
+                cache.hit_count += 1
+                cache.last_used = func.now()
+                await session.commit()
+                return {
+                    "title": cache.response_title,
+                    "link": cache.response_link,
+                    "text": cache.response_text,
+                }
+
+    return None
+
+
+async def cache_response(query: str, title: str, link: str = None, text: str = None):
+    normalized = normalize_arabic(query).strip().lower()
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(QueryCache)
+            .where(QueryCache.normalized_query == normalized)
+            .limit(1)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.hit_count += 1
+            existing.last_used = func.now()
+        else:
+            cache = QueryCache(
+                query=query,
+                normalized_query=normalized,
+                response_title=title,
+                response_link=link,
+                response_text=text,
+            )
+            session.add(cache)
+
+        await session.commit()

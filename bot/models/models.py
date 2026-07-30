@@ -190,4 +190,18 @@ class SpamPattern(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
+class QueryCache(Base):
+    __tablename__ = "query_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    query = Column(Text, nullable=False)
+    normalized_query = Column(Text, nullable=False)
+    response_title = Column(Text, nullable=False)
+    response_link = Column(String(500))
+    response_text = Column(Text)
+    hit_count = Column(Integer, default=1)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    last_used = Column(TIMESTAMP, server_default=func.now())
+
+
 

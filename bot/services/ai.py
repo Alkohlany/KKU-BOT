@@ -475,6 +475,13 @@ async def search_internal_posts(query: str, limit: int = 200) -> dict | None:
         {"title": "...", "link": "https://t.me/..."} if a relevant post is found
         None if no relevant post found
     """
+    from bot.services.database import get_cached_response, cache_response
+
+    cached = await get_cached_response(query)
+    if cached:
+        logger.info(f"Cache hit for query: {query[:50]}")
+        return cached
+
     from bot.services.database import async_session
     from bot.models.models import News
     from sqlalchemy import select, desc
@@ -602,7 +609,9 @@ TITLE: [عنوان مختصر للمنشور]
                 except (_json.JSONDecodeError, TypeError, StopIteration, KeyError, ValueError):
                     pass
 
-        return {"title": title or "منشور متعلق بسؤالك", "link": link}
+        result = {"title": title or "منشور متعلق بسؤالك", "link": link}
+        await cache_response(query, result["title"], result.get("link"))
+        return result
     except Exception as e:
         logger.error(f"Internal post search failed: {e}")
 
