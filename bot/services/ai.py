@@ -3,7 +3,10 @@ import logging
 import re
 import time as _time
 import base64
-from bot.config import OPENCODE_AI_MODEL, OPENCODE_API_URL, OPENCODE_API_KEY
+from bot.config import OPENCODE_AI_MODEL, OPENCODE_API_URL, OPENCODE_API_KEY, BOT_TOKEN
+from telegram import Bot as _TGBot
+
+_bot = _TGBot(token=BOT_TOKEN)
 
 logger = logging.getLogger(__name__)
 
@@ -563,19 +566,18 @@ async def search_internal_posts(query: str, limit: int = 200) -> dict | None:
                     channels = _json.loads(post_obj.target_channels)
                     if channels:
                         channel_id = channels[0]
-                        # Fetch username from Telegram API dynamically
                         try:
-                            from bot.main import application
-                            chat = await application.bot.get_chat(int(channel_id))
+                            chat = await _bot.get_chat(int(channel_id))
                             if chat.username:
                                 link = f"https://t.me/{chat.username}/{post_obj.channel_message_id}"
                             else:
                                 link = f"https://t.me/c/{abs(int(channel_id))}/{post_obj.channel_message_id}"
                         except Exception as e:
-                            logger.warning(f"Could not fetch chat info for {channel_id}: {e}")
+                            logger.warning(f"get_chat failed for {channel_id}: {e}")
                             link = f"https://t.me/c/{abs(int(channel_id))}/{post_obj.channel_message_id}"
                 except (_json.JSONDecodeError, TypeError, IndexError, ValueError):
                     pass
+            
             if not link and post_obj.group_message_ids:
                 try:
                     group_ids = _json.loads(post_obj.group_message_ids)
@@ -585,7 +587,14 @@ async def search_internal_posts(query: str, limit: int = 200) -> dict | None:
                         if isinstance(msg_id, list):
                             msg_id = msg_id[0] if msg_id else None
                         if msg_id:
-                            link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
+                            try:
+                                chat = await _bot.get_chat(int(first_chat_id))
+                                if chat.username:
+                                    link = f"https://t.me/{chat.username}/{msg_id}"
+                                else:
+                                    link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
+                            except Exception:
+                                link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
                 except (_json.JSONDecodeError, TypeError, StopIteration, KeyError, ValueError):
                     pass
 
