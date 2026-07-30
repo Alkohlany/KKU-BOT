@@ -266,8 +266,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception as exc:
             logger.warning("AI fallback error: %s", exc)
 
-    should_offer_menu = update.effective_chat.type == "private" or _is_reply_to_bot(update, context)
-    if should_offer_menu:
+    if update.effective_chat.type == "private":
         prefix = f"{greeting}\n\n" if greeting else ""
         await update.message.reply_text(
             prefix
