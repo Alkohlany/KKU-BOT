@@ -567,24 +567,36 @@ def _coerce_search_field(value: object) -> str:
     return str(value)
 
 
-def _post_search_document(post) -> dict:
-    """Build a schema-tolerant searchable document from a News model instance."""
-    title = _coerce_search_field(getattr(post, "title", ""))
-    content = _coerce_search_field(getattr(post, "content", ""))
+def _news_value(news_row, field: str, default=None):
+    """Read a value from a plain News-table row without triggering ORM loading."""
+    if isinstance(news_row, dict):
+        return news_row.get(field, default)
 
+    try:
+        return news_row[field]
+    except (KeyError, TypeError):
+        return default
+
+
+def _post_search_document(news_row) -> dict:
+    """Build a searchable document exclusively from columns stored in News."""
+    title = _coerce_search_field(_news_value(news_row, "title", ""))
+    content = _coerce_search_field(_news_value(news_row, "content", ""))
+
+    # These are used only when they are real columns on the News table.
+    # Relationship attributes such as News.questions are intentionally excluded.
     metadata_parts = []
-    for attr in (
-        "keywords", "questions", "search_keywords", "search_questions",
-        "analysis_keywords", "analysis_questions", "summary", "category",
+    for column_name in (
+        "keywords", "search_keywords", "analysis_keywords", "summary", "category",
     ):
-        value = _coerce_search_field(getattr(post, attr, ""))
+        value = _coerce_search_field(_news_value(news_row, column_name, ""))
         if value:
             metadata_parts.append(value)
 
     metadata = "\n".join(metadata_parts)
     full_text = "\n".join(part for part in (title, content, metadata) if part)
     return {
-        "post": post,
+        "post": news_row,
         "title": title,
         "content": content,
         "metadata": metadata,
@@ -783,11 +795,11 @@ def _candidate_snippet(content: str, search_terms: set[str], max_chars: int = 22
 
 
 def _derive_post_title(post, model_title: str = "") -> str:
-    stored_title = _coerce_search_field(getattr(post, "title", "")).strip()
+    stored_title = _coerce_search_field(_news_value(post, "title", "")).strip()
     if stored_title:
         return stored_title[:180]
 
-    content = _coerce_search_field(getattr(post, "content", "")).strip()
+    content = _coerce_search_field(_news_value(post, "content", "")).strip()
     for line in content.splitlines():
         line = line.strip().strip("-*•# ")
         if 8 <= len(line) <= 180 and not line.startswith(("http://", "https://")):
@@ -820,8 +832,8 @@ async def _build_internal_post_link(post) -> str | None:
         except (TypeError, ValueError):
             return None
 
-    channel_message_id = getattr(post, "channel_message_id", None)
-    target_channels = getattr(post, "target_channels", None)
+    channel_message_id = _news_value(post, "channel_message_id")
+    target_channels = _news_value(post, "target_channels")
     if channel_message_id and target_channels:
         try:
             channels = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
@@ -832,7 +844,7 @@ async def _build_internal_post_link(post) -> str | None:
         except (json.JSONDecodeError, TypeError, ValueError, IndexError):
             pass
 
-    group_message_ids = getattr(post, "group_message_ids", None)
+    group_message_ids = _news_value(post, "group_message_ids")
     if group_message_ids:
         try:
             groups = json.loads(group_message_ids) if isinstance(group_message_ids, str) else group_message_ids
@@ -851,7 +863,7 @@ async def _build_internal_post_link(post) -> str | None:
 
 async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
     """
-    Hybrid Arabic semantic search over stored university posts.
+    Hybrid Arabic semantic search exclusively over columns in the News table.
 
     Pipeline:
       1) normalize and understand the student's intent;
@@ -893,14 +905,41 @@ async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
     # Keep an upper bound to avoid loading an unbounded table into memory.
     scan_limit = min(max(int(limit or 0), 600), 1200)
 
+    # Select plain columns from the News table only. Returning mappings instead of
+    # ORM News instances prevents every relationship lazy-load after the session closes.
+    news_table = News.__table__
+    searchable_column_names = (
+        "id",
+        "content",
+        "title",
+        "keywords",
+        "search_keywords",
+        "analysis_keywords",
+        "summary",
+        "category",
+        "channel_message_id",
+        "target_channels",
+        "group_message_ids",
+    )
+    selected_columns = [
+        news_table.c[name]
+        for name in searchable_column_names
+        if name in news_table.c
+    ]
+
+    if "id" not in news_table.c or "content" not in news_table.c:
+        logger.error("News table must contain id and content columns")
+        return None
+
     async with async_session() as session:
         result = await session.execute(
-            select(News)
-            .where(News.is_published.is_(True))
-            .order_by(desc(News.created_at))
+            select(*selected_columns)
+            .select_from(news_table)
+            .where(news_table.c.is_published.is_(True))
+            .order_by(desc(news_table.c.created_at))
             .limit(scan_limit)
         )
-        db_posts = result.scalars().all()
+        db_posts = [dict(row) for row in result.mappings().all()]
 
     if not db_posts:
         return None
@@ -1021,7 +1060,7 @@ async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
     candidate_by_id = {}
     for rank, document in enumerate(candidates, start=1):
         post = document["post"]
-        post_id = int(post.id)
+        post_id = int(_news_value(post, "id"))
         candidate_ids.add(post_id)
         candidate_by_id[post_id] = document
 
