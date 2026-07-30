@@ -1001,10 +1001,14 @@ async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
 
     # Versioned normalized key prevents old weak-search cache entries from leaking into v3.
     cache_key = f"internal-search:v3:{normalized_query}"
+    logger.info(f"[CACHE] Looking up key: {cache_key}")
+    logger.info(f"[CACHE] Normalized query: {normalized_query[:50]}")
     cached = await get_cached_response(cache_key)
     if cached:
-        logger.info(f"Internal semantic cache hit: {normalized_query[:80]}")
+        logger.info(f"[CACHE] HIT! Returning cached result: {cached.get('title', '')[:50]}")
         return cached
+    else:
+        logger.info(f"[CACHE] MISS - will search AI")
 
     analysis = await _analyze_internal_search_query(original_query, important_tokens)
     if not analysis.get("searchable", True):

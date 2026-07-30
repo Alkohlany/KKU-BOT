@@ -722,6 +722,7 @@ async def check_spam_pattern(content: str) -> bool:
 # ==================== Query Cache ====================
 async def get_cached_response(query: str) -> dict | None:
     normalized = normalize_arabic(query).strip().lower()
+    logger.info(f"[CACHE DB] Searching for normalized_query: {normalized[:50]}")
 
     async with async_session() as session:
         result = await session.execute(
@@ -730,6 +731,7 @@ async def get_cached_response(query: str) -> dict | None:
             .limit(1)
         )
         cache = result.scalar_one_or_none()
+        logger.info(f"[CACHE DB] Found: {cache is not None}")
 
         if cache:
             cache.hit_count += 1
@@ -746,6 +748,7 @@ async def get_cached_response(query: str) -> dict | None:
 
 async def cache_response(query: str, title: str, link: str = None, text: str = None):
     normalized = normalize_arabic(query).strip().lower()
+    logger.info(f"[CACHE DB] Caching key: {normalized[:50]}")
 
     async with async_session() as session:
         result = await session.execute(
