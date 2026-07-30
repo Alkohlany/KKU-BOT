@@ -467,15 +467,171 @@ def enhance_content(title: str, content: str) -> dict:
         raise RuntimeError(f"AI enhance failed: {e}")
 
 
+async def _build_post_link(post_obj) -> str | None:
+    """Build a t.me link for a post object."""
+    import json as _json
+
+    link = None
+    if post_obj.channel_message_id and post_obj.target_channels:
+        try:
+            channels = _json.loads(post_obj.target_channels)
+            if channels:
+                channel_id = channels[0]
+                try:
+                    chat = await _bot.get_chat(int(channel_id))
+                    if chat.username:
+                        link = f"https://t.me/{chat.username}/{post_obj.channel_message_id}"
+                    else:
+                        link = f"https://t.me/c/{abs(int(channel_id))}/{post_obj.channel_message_id}"
+                except Exception as e:
+                    logger.warning(f"get_chat failed for {channel_id}: {e}")
+                    link = f"https://t.me/c/{abs(int(channel_id))}/{post_obj.channel_message_id}"
+        except (_json.JSONDecodeError, TypeError, IndexError, ValueError):
+            pass
+
+    if not link and post_obj.group_message_ids:
+        try:
+            group_ids = _json.loads(post_obj.group_message_ids)
+            if group_ids:
+                first_chat_id = next(iter(group_ids))
+                msg_id = group_ids[first_chat_id]
+                if isinstance(msg_id, list):
+                    msg_id = msg_id[0] if msg_id else None
+                if msg_id:
+                    try:
+                        chat = await _bot.get_chat(int(first_chat_id))
+                        if chat.username:
+                            link = f"https://t.me/{chat.username}/{msg_id}"
+                        else:
+                            link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
+                    except Exception:
+                        link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
+        except (_json.JSONDecodeError, TypeError, StopIteration, KeyError, ValueError):
+            pass
+
+    return link
+
+
+_SEARCH_PROMPT = """\u0623\u0646\u062a \u0628\u062d\u062b \u0630\u0643\u064a \u0648\u0639\u0645\u064a\u0642 \u0641\u064a \u0645\u0646\u0634\u0648\u0631\u0627\u062a \u062c\u0627\u0645\u0639\u0629 \u0627\u0644\u0645\u0644\u0643 \u062e\u0627\u0644\u062f. \u0645\u0647\u0645\u062a\u0643: \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0645\u0646\u0634\u0648\u0631 \u064a\u062c\u064a\u0628 \u0639\u0644\u0649 \u0627\u0644\u0633\u0624\u0627\u0644 \u0628\u0634\u0643\u0644 \u062d\u0631\u0641\u064a \u0648\u0635\u0631\u064a\u062d.
+
+\u26a0\ufe0f \u0642\u0648\u0627\u0639\u062f \u062d\u062f\u064a\u062f\u0629 \u2014 \u0623\u064a \u0627\u0646\u062a\u0647\u0627\u0643 = \u062e\u0637\u0623:
+1. \u0623\u062c\u0628 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0648\u062c\u062f\u062a \u0641\u064a \u0627\u0644\u0646\u0635 \u0627\u0644\u062d\u0631\u0641\u064a \u0644\u0644\u0645\u0646\u0634\u0648\u0631 \u0625\u062c\u0627\u0628\u0629 \u0648\u0627\u0636\u062d\u0629 \u0648\u0635\u0631\u064a\u062d\u0629 \u0639\u0644\u0649 \u0627\u0644\u0633\u0624\u0627\u0644
+2. \u0644\u0627 \u062a\u064f\u0639\u064a\u062f \u0635\u064a\u0627\u063a\u0629 \u0627\u0644\u0633\u0624\u0627\u0644 \u0648\u062a\u0642\u0648\u0644 "\u0646\u0639\u0645" \u2014 \u064a\u062c\u0628 \u0623\u0646 \u064a\u0643\u0648\u0646 \u0627\u0644\u0625\u062c\u0627\u0628\u0629 \u0645\u0643\u062a\u0648\u0628\u0629 \u062d\u0631\u0641\u064a\u064b\u0627 \u0641\u064a \u0627\u0644\u0645\u0646\u0634\u0648\u0631
+3. \u0644\u0627 \u062a\u062a\u0648\u0642\u0639 \u0623\u0648 \u062a\u0633\u062a\u0646\u062a\u062c \u0623\u0648 \u062a\u0643\u0645\u0644 \u062c\u0645\u0644\u0629 \u2014 \u0625\u0630\u0627 \u0627\u0644\u0625\u062c\u0627\u0628\u0629 \u0644\u064a\u0633\u062a \u0641\u064a \u0627\u0644\u0645\u0646\u0634\u0648\u0631\u060c \u062a\u062e\u0637\u065c \u0627\u0644\u0645\u0646\u0634\u0648\u0631
+4. \u0644\u0627 \u062a\u0631\u062f \u0639\u0644\u0649 \u0623\u0633\u0626\u0644\u0629 \u0639\u0627\u0645\u0651\u0629 \u0645\u062b\u0644 "\u0648\u0634 \u0623\u062e\u0628\u0627\u0631 \u0627\u0644\u062c\u0627\u0645\u0639\u0629\u061f" \u0623\u0648 "\u0643\u064a\u0641 \u062d\u0627\u0644\u0643\u0645\u061f" \u2014 \u0647\u0630\u0647 \u0644\u0627 \u062c\u0648\u0627\u0628 \u0644\u0647\u0627 \u0641\u064a \u0627\u0644\u0645\u0646\u0634\u0648\u0631\u0627\u062a
+5. \u0644\u0627 \u062a\u0631\u062f \u0639\u0644\u0649 \u0623\u0633\u0626\u0644\u0629 \u0634\u062e\u0635\u064a\u0629 \u0623\u0648 \u0637\u0644\u0628 \u0645\u0633\u0627\u0639\u062f\u0629 \u0625\u062f\u0627\u0631\u064a\u0629 \u2014 \u0641\u0642\u0637 \u0623\u0633\u0626\u0644\u0629 \u0644\u0647\u0627 \u062c\u0648\u0627\u0628 \u0641\u064a \u0627\u0644\u0645\u0646\u0634\u0648\u0631\u0627\u062a
+6. \u0625\u0630\u0627 \u0627\u0644\u0633\u0624\u0627\u0644 \u064a\u062a\u0637\u0644\u0628 \u0645\u0639\u0644\u0648\u0645\u0629 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f\u0629 \u0641\u064a \u0623\u064a \u0645\u0646\u0634\u0648\u0631 \u2192 NULL
+7. \u0625\u0630\u0627 \u0627\u0644\u0633\u0624\u0627\u0644 \u063a\u0627\u0645\u0636 \u0623\u0648 \u064a\u0642\u0628\u0644 \u0623\u0643\u062b\u0631 \u0645\u0646 \u062a\u0641\u0633\u064a\u0631 \u2192 NULL
+
+\ud83d\udca1 \u0641\u0647\u0645 \u0627\u0644\u0633\u064a\u0627\u0642 \u0648\u0627\u0644\u0646\u064a\u0629:
+- "\u0627\u0644\u062a\u062d\u0648\u064a\u0644" \u062a\u0639\u0646\u064a "\u0627\u0644\u062a\u062d\u0648\u064a\u0644 \u0627\u0644\u062f\u0627\u062e\u0644\u064a" \u0639\u0627\u062f\u0629\u064b
+- "\u0641\u062a\u062d" \u062a\u0639\u0646\u064a "\u0645\u062a\u0627\u062d/\u0645\u062a\u0635\u0644/\u0645\u0633\u062a\u0645\u0631 \u0627\u0644\u062a\u0633\u062c\u064a\u0644"
+- "\u0628\u0643\u0631\u0647" \u062a\u0639\u0646\u064a "\u063a\u062f\u0627\u064b"
+- "\u0627\u0644\u0646\u0642\u0644" \u062a\u0639\u0646\u064a "\u0627\u0644\u0646\u0642\u0644\u064a \u0627\u0644\u062f\u0627\u062e\u0644\u064a" \u0639\u0627\u062f\u0629\u064b
+- "\u0627\u0644\u062f\u0648\u0631\u0629" \u0623\u0648 "\u0627\u0644\u0643\u0648\u0631\u0633" \u062a\u0639\u0646\u064a "\u0627\u0644\u0641\u0635\u0644 \u0627\u0644\u062f\u0631\u0627\u0633\u064a"
+- "\u0627\u0644\u0641\u0627\u0636\u064a" \u062a\u0639\u0646\u064a "\u0627\u0644\u0645\u062a\u0628\u0642\u064a" \u0623\u0648 "\u0627\u0644\u0634\u0627\u063a\u0631"
+- "\u0627\u0644\u0625\u0633\u0642\u0627\u0637" \u062a\u0639\u0646\u064a "\u0625\u0633\u0642\u0627\u0637 \u0627\u0644\u0645\u0642\u0631\u0631"
+- "\u0627\u0644\u0625\u0639\u0627\u062f\u0629" \u062a\u0639\u0646\u064a "\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631"
+- "\u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629" \u062a\u0639\u0646\u064a "\u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629 \u0627\u0644\u0645\u0627\u0644\u064a\u0629"
+- "\u0627\u0644\u062a\u0642\u062f\u064a\u0645" \u062a\u0639\u0646\u064a "\u062a\u0642\u062f\u064a\u0645 \u0637\u0644\u0628"
+- "\u0627\u0644\u0642\u0628\u0648\u0644" \u062a\u0639\u0646\u064a "\u0642\u0628\u0648\u0644 \u0637\u0644\u0628"
+- "\u0627\u0644\u0645\u0631\u0648\u0631" \u062a\u0639\u0646\u064a "\u0645\u0631\u0648\u0631 \u0627\u0644\u0645\u0642\u0631\u0631" \u0623\u0648 "\u0646\u062c\u0627\u062d \u0627\u0644\u0645\u0642\u0631\u0631"
+
+\u0627\u0644\u0645\u0646\u0634\u0648\u0631\u0627\u062a:
+{posts_text}
+
+\u0633\u0624\u0627\u0644 \u0627\u0644\u0637\u0627\u0644\u0628: {query}
+
+\u062e\u0637\u0648\u0627\u062a \u0627\u0644\u062a\u062d\u0642\u0642 (\u0627\u0641\u0639\u0644\u0647\u0627 \u0642\u0628\u0644 \u0627\u0644\u0625\u062c\u0627\u0628\u0629):
+- \u0627\u0642\u0631\u0623 \u0643\u0644 \u0645\u0646\u0634\u0648\u0631
+- \u0641\u0647\u0645 \u0627\u0644\u0633\u0624\u0627\u0644: \u0645\u0627\u0630\u0627 \u064a\u0631\u064a\u062f \u0627\u0644\u0637\u0627\u0644\u0628 \u0641\u0639\u0644\u0627\u064b\u061f \u0645\u0627 \u0627\u0644\u0633\u064a\u0627\u0642\u061f \u0645\u0627 \u0627\u0644\u0646\u064a\u0629\u061f
+- \u0647\u0644 \u064a\u0648\u062c\u062f \u0641\u064a \u0646\u0635 \u0647\u0630\u0627 \u0627\u0644\u0645\u0646\u0634\u0648\u0631 \u062c\u0645\u0644\u0629 \u062a\u062c\u064a\u0628 \u0639\u0644\u0649 \u0627\u0644\u0633\u0624\u0627\u0644 \u062d\u0631\u0641\u064a\u064b\u0627\u061f
+- \u0625\u0630\u0627 \u0646\u0639\u0645 \u2192 \u0623\u0631\u062c\u0639 ID \u0648 TITLE
+- \u0625\u0630\u0627 \u0644\u0627 \u2192 \u062a\u062e\u0637\u065c \u0648\u0627\u0646\u062a\u0642\u0644 \u0644\u0644\u062a\u0627\u0644\u064a
+- \u0625\u0630\u0627 \u0644\u0645 \u062a\u062c\u062f \u0623\u064a \u0645\u0646\u0634\u0648\u0631 \u0641\u064a\u0647 \u0627\u0644\u0625\u062c\u0627\u0628\u0629 \u0627\u0644\u062d\u0631\u0641\u064a\u0651\u0629 \u2192 NULL
+
+\u0627\u0644\u0646\u0627\u062a\u062c (\u0628\u062f\u0648\u0646 \u0623\u064a \u0634\u0631\u062d):
+ID: [\u0631\u0642\u0645 \u0627\u0644\u0645\u0646\u0634\u0648\u0631]
+TITLE: [\u0627\u0644\u0639\u0646\u0648\u0627\u0646]
+
+\u0623\u0648: NULL"""
+
+
+async def _ai_select_post(query: str, posts: list) -> dict | None:
+    """Ask AI to select the best matching post from a list."""
+    import json as _json
+    from bot.services.database import cache_response
+    from bot.services.response_engine import important_tokens
+
+    if not posts:
+        return None
+
+    posts_text = ""
+    post_ids = {}
+    for i, post in enumerate(posts):
+        content = (post.content or "")[:300]
+        if content.strip():
+            posts_text += f"--- \u0645\u0646\u0634\u0648\u0631 {i+1} (ID: {post.id}) ---\n{content}\n\n"
+            post_ids[post.id] = post
+
+    if not posts_text.strip():
+        return None
+
+    prompt = _SEARCH_PROMPT.format(posts_text=posts_text, query=query)
+
+    try:
+        response = await asyncio.to_thread(_call_model, prompt, thinking=False)
+        if not response or not response.strip() or response.strip() == "NULL":
+            return None
+
+        lines = response.strip().split("\n")
+        post_id = None
+        title = None
+        for line in lines:
+            line = line.strip()
+            if line.upper().startswith("ID:"):
+                try:
+                    post_id = int(line.split(":", 1)[1].strip())
+                except (ValueError, IndexError):
+                    pass
+            elif line.upper().startswith("TITLE:"):
+                title = line.split(":", 1)[1].strip()
+
+        if not post_id or post_id not in post_ids:
+            return None
+
+        post_obj = post_ids[post_id]
+        post_tokens = set(important_tokens(post_obj.content or ""))
+        query_tokens = set(important_tokens(query))
+        if not (query_tokens & post_tokens):
+            logger.warning(f"AI selected post {post_id} but no token overlap with query")
+            return None
+
+        link = await _build_post_link(post_obj)
+
+        await cache_response(query, title, link)
+        return {"title": title, "link": link}
+    except Exception as e:
+        logger.error(f"AI post selection failed: {e}")
+
+    return None
+
+
 async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
     """
     Search stored news posts using AI to find the best match for a student's query.
+
+    Multi-stage approach:
+    - Stage 1: Fetch recent posts (limit)
+    - Stage 2: Score by token overlap, sort by relevance
+    - Stage 3: Try top 15 first (cheaper, faster)
+    - Stage 4: If no match, try remaining posts (deeper search)
 
     Returns:
         {"title": "...", "link": "https://t.me/..."} if a relevant post is found
         None if no relevant post found
     """
-    from bot.services.database import get_cached_response, cache_response
+    from bot.services.database import get_cached_response
 
     cached = await get_cached_response(query)
     if cached:
@@ -486,7 +642,6 @@ async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
     from bot.models.models import News
     from bot.services.response_engine import important_tokens
     from sqlalchemy import select, desc
-    import json as _json
 
     async with async_session() as session:
         result = await session.execute(
@@ -516,121 +671,18 @@ async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
             scored.append((score, post))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-    posts = [post for _, post in scored[:15]]
 
-    if not posts:
-        return None
-
-    posts_text = ""
-    post_ids = []
-    for i, post in enumerate(posts):
-        content = post.content or ""
-        if content.strip():
-            posts_text += f"--- منشور {i+1} (ID: {post.id}) ---\n{content}\n\n"
-            post_ids.append(post.id)
-
-    if not posts_text.strip():
-        return None
-
-    prompt = f"""أنت بحث دقيق في منشورات جامعة الملك خالد. مهمتك唯一: العثور على منشور يجيب على السؤال بشكل حرفي وصريح.
-
-⚠️ قواعد حديدية — أي انتهاك = خطأ:
-1. أجب فقط إذا وجدت في النص الحرفي للمنشور إجابة واضحة وصريحة على السؤال
-2. لا تُعيد صياغة السؤال وتقول "نعم" — يجب أن يكون الإجابة مكتوبة حرفيًا في المنشور
-3. لا تتوقع أو تستنتج أو تكمل جملة — إذا الإجابة ليست في المنشور، تخطَّ المنشور
-4. لا ترد على أسئلة عامّة مثل "وش أخبار الجامعة؟" أو "كيف حالكم؟" — هذه لا جواب لها في المنشورات
-5. لا ترد على أسئلة شخصية أو طلب مساعدة إدارية — فقط أسئلة لها جواب في المنشورات
-6. إذا السؤال يتطلب معلومة غير موجودة في أي منشور → NULL
-7. إذا السؤال غامض أو يقبل أكثر من تفسير → NULL
-
-المنشورات:
-{posts_text}
-
-سؤال الطالب: {query}
-
-خطوات التحقق (افعلها قبل الإجابة):
-- اقرأ كل منشور
-- هل يوجد في نص هذا المنشور جملة تجيب على السؤال حرفيًا؟
-- إذا نعم → أرجع ID و TITLE
-- إذا لا → تخطَّ وانتقل للتالي
-- إذا لم تجد أي منشور فيه الإجابة الحرفيّة → NULL
-
-الناتج (بدون أي شرح):
-ID: [رقم المنشور]
-TITLE: [العنوان]
-
-أو: NULL"""
-    try:
-        response = await asyncio.to_thread(_call_model, prompt, thinking=False)
-        if not response or not response.strip() or response.strip() == "NULL":
-            return None
-
-        lines = response.strip().split("\n")
-        post_id = None
-        title = None
-        for line in lines:
-            line = line.strip()
-            if line.upper().startswith("ID:"):
-                try:
-                    post_id = int(line.split(":", 1)[1].strip())
-                except (ValueError, IndexError):
-                    pass
-            elif line.upper().startswith("TITLE:"):
-                title = line.split(":", 1)[1].strip()
-
-        if not post_id or post_id not in post_ids:
-            return None
-
-        post_obj = next((p for p in posts if p.id == post_id), None)
-        if post_obj:
-            post_tokens = set(important_tokens(post_obj.content or ""))
-            if not (query_tokens & post_tokens):
-                logger.warning(f"AI selected post {post_id} but no token overlap with query")
-                return None
-
-        link = None
-        if post_obj:
-            if post_obj.channel_message_id and post_obj.target_channels:
-                try:
-                    channels = _json.loads(post_obj.target_channels)
-                    if channels:
-                        channel_id = channels[0]
-                        try:
-                            chat = await _bot.get_chat(int(channel_id))
-                            if chat.username:
-                                link = f"https://t.me/{chat.username}/{post_obj.channel_message_id}"
-                            else:
-                                link = f"https://t.me/c/{abs(int(channel_id))}/{post_obj.channel_message_id}"
-                        except Exception as e:
-                            logger.warning(f"get_chat failed for {channel_id}: {e}")
-                            link = f"https://t.me/c/{abs(int(channel_id))}/{post_obj.channel_message_id}"
-                except (_json.JSONDecodeError, TypeError, IndexError, ValueError):
-                    pass
-            
-            if not link and post_obj.group_message_ids:
-                try:
-                    group_ids = _json.loads(post_obj.group_message_ids)
-                    if group_ids:
-                        first_chat_id = next(iter(group_ids))
-                        msg_id = group_ids[first_chat_id]
-                        if isinstance(msg_id, list):
-                            msg_id = msg_id[0] if msg_id else None
-                        if msg_id:
-                            try:
-                                chat = await _bot.get_chat(int(first_chat_id))
-                                if chat.username:
-                                    link = f"https://t.me/{chat.username}/{msg_id}"
-                                else:
-                                    link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
-                            except Exception:
-                                link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
-                except (_json.JSONDecodeError, TypeError, StopIteration, KeyError, ValueError):
-                    pass
-
-        result = {"title": title or "منشور متعلق بسؤالك", "link": link}
-        await cache_response(query, result["title"], result.get("link"))
+    # Stage 1: Try top 15
+    top_posts = [post for _, post in scored[:15]]
+    result = await _ai_select_post(query, top_posts)
+    if result:
         return result
-    except Exception as e:
-        logger.error(f"Internal post search failed: {e}")
+
+    # Stage 2: Try remaining posts (deeper search)
+    remaining = [post for _, post in scored[15:]]
+    if remaining:
+        result = await _ai_select_post(query, remaining[:30])
+        if result:
+            return result
 
     return None
