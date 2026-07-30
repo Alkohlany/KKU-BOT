@@ -96,8 +96,8 @@ async def send_auto_response(
             news_post = await get_news_by_id(response.news_id)
             if news_post:
                 content = _with_prefix(news_post.content or "", prefix, response) or ""
-                content = wrap_links_in_blockquote(content)
                 cleaned, link_buttons = _extract_links_with_context(content)
+                cleaned = wrap_links_in_blockquote(cleaned)
                 markup = _build_url_keyboard(link_buttons, reply_markup)
                 if news_post.image_url:
                     await message.reply_photo(
@@ -126,8 +126,8 @@ async def send_auto_response(
             return False
 
         caption = _with_prefix(getattr(response, "response", None), prefix, response)
-        caption = wrap_links_in_blockquote(caption) if caption else None
         cleaned, link_buttons = _extract_links_with_context(caption or "")
+        cleaned = wrap_links_in_blockquote(cleaned) if cleaned else cleaned
         display = cleaned if link_buttons else caption
         markup = _build_url_keyboard(link_buttons, reply_markup)
 
