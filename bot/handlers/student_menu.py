@@ -26,6 +26,7 @@ class MenuTopic:
     search_text: str = ""
     preferred_ids: tuple[int, ...] = ()
     action: str = "search"
+    url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,7 @@ MENU_CATEGORIES: dict[str, MenuCategory] = {
         "🎓 التخصصات والخطط",
         "دليل التخصصات والخطط والمسارات والتخصيص.",
         (
-            MenuTopic("📚 الخطط الدراسية", action="plans"),
+            MenuTopic("📚 الخطط الدراسية", url="https://t.me/kkunewbot?start=plans"),
             MenuTopic("🎓 دليل التخصصات", "دليل التخصصات شروط التخصصات", (392, 249)),
             MenuTopic("🩺 المسار الصحي", "المسار الصحي ضوابط التخصيص", (416, 247)),
             MenuTopic("⚙️ المسار الهندسي", "المسار الهندسي ضوابط التخصيص", (238,)),
@@ -165,10 +166,12 @@ def build_main_menu() -> InlineKeyboardMarkup:
 
 def build_category_menu(category_key: str, chat_type: str = "private") -> InlineKeyboardMarkup:
     category = MENU_CATEGORIES[category_key]
-    rows = [
-        [InlineKeyboardButton(topic.label, callback_data=f"menu:topic:{category_key}:{index}")]
-        for index, topic in enumerate(category.topics)
-    ]
+    rows = []
+    for index, topic in enumerate(category.topics):
+        if topic.url:
+            rows.append([InlineKeyboardButton(topic.label, url=topic.url)])
+        else:
+            rows.append([InlineKeyboardButton(topic.label, callback_data=f"menu:topic:{category_key}:{index}")])
     if chat_type == "private":
         rows.append([
             InlineKeyboardButton("↩️ رجوع", callback_data="menu:home"),
@@ -362,23 +365,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             topic = category.topics[int(parts[3])]
         except (ValueError, IndexError):
             await query.answer("الموضوع غير موجود", show_alert=True)
-            return
-
-        if topic.action == "plans":
-            from bot.handlers.study_plans import get_plans_text
-
-            plans_text = wrap_links_in_blockquote(await get_plans_text())
-            if chat_type == "private":
-                await _edit_or_reply(
-                    query,
-                    plans_text,
-                    InlineKeyboardMarkup([[
-                        InlineKeyboardButton("↩️ رجوع", callback_data=f"menu:cat:{category_key}"),
-                        InlineKeyboardButton("🏠 الرئيسية", callback_data="menu:home"),
-                    ]]),
-                )
-            else:
-                await _edit_or_reply(query, plans_text)
             return
 
         await _show_topic_results(query, category_key, topic, chat_type=update.effective_chat.type)

@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 
 def _is_specific_link(url: str) -> bool:
     """Return True if the link is a specific message link (https or t.me with message ID)."""
-    return bool(re.search(r'https?://|t\.me/[^\s<>"]+/\d+', url))
+    return bool(re.search(r'https?://|t\.me/[a-zA-Z0-9_]+/\d+', url))
 
 
-_LINK_RE = re.compile(r'(t\.me/[^\s<>"]+/\d+|https?://[^\s<>"]+)')
+_LINK_RE = re.compile(r'(t\.me/[a-zA-Z0-9_]+/\d+|https?://[^\s<>"]+)')
 
 
 def _extract_links_with_context(text: str) -> tuple[str, list[dict]]:
