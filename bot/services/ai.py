@@ -13,6 +13,56 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 
 
+def _extract_model_content(payload: object) -> str:
+    """Extract visible assistant text from common OpenAI-compatible response shapes."""
+    if not isinstance(payload, dict):
+        return ""
+
+    def content_to_text(value: object) -> str:
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, list):
+            parts = []
+            for item in value:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    # Chat Completions and Responses API compatible content parts.
+                    candidate = item.get("text") or item.get("output_text")
+                    if isinstance(candidate, dict):
+                        candidate = candidate.get("value")
+                    if isinstance(candidate, str):
+                        parts.append(candidate)
+            return "\n".join(part.strip() for part in parts if part.strip()).strip()
+        return ""
+
+    for choice in payload.get("choices") or []:
+        if not isinstance(choice, dict):
+            continue
+        message = choice.get("message") or {}
+        if isinstance(message, dict):
+            result = content_to_text(message.get("content"))
+            if result:
+                return result
+        result = content_to_text(choice.get("text"))
+        if result:
+            return result
+
+    result = content_to_text(payload.get("output_text"))
+    if result:
+        return result
+
+    # Some providers return a Responses-API-like output array.
+    for output_item in payload.get("output") or []:
+        if not isinstance(output_item, dict):
+            continue
+        result = content_to_text(output_item.get("content"))
+        if result:
+            return result
+
+    return ""
+
+
 def _call_model(prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", thinking: bool = True) -> str:
     import httpx
 
@@ -23,59 +73,119 @@ def _call_model(prompt: str, image_bytes: bytes = None, mime_type: str = "image/
             {"type": "text", "text": prompt},
             {"type": "image_url", "image_url": {"url": image_url}},
         ]
-        max_tokens = 4000
+        base_max_tokens = 4000
         timeout_s = 120.0
     else:
         content = prompt
-        max_tokens = 3000
+        base_max_tokens = 3000
         timeout_s = 90.0
 
     last_err = None
     for attempt in range(MAX_RETRIES):
+        # Structured tasks occasionally return no visible content when provider-side
+        # reasoning consumes the token budget. Retry subsequent attempts without it.
+        use_thinking = bool(thinking and attempt == 0)
+        max_tokens = max(base_max_tokens, 6000) if use_thinking else base_max_tokens
+
         try:
+            request_body = {
+                "model": OPENCODE_AI_MODEL,
+                "messages": [{"role": "user", "content": content}],
+                "max_tokens": max_tokens,
+            }
+            if use_thinking:
+                request_body["extra_body"] = {
+                    "thinking": {"type": "enabled"},
+                    "reasoning_effort": "max",
+                }
+
             response = httpx.post(
                 OPENCODE_API_URL,
                 headers={
                     "Authorization": f"Bearer {OPENCODE_API_KEY}",
                     "Content-Type": "application/json",
                 },
-                json={
-                    "model": OPENCODE_AI_MODEL,
-                    "messages": [{"role": "user", "content": content}],
-                    "max_tokens": max_tokens,
-                    **({"extra_body": {
-                        "thinking": {"type": "enabled"},
-                        "reasoning_effort": "max",
-                    }} if thinking else {}),
-                },
+                json=request_body,
                 timeout=httpx.Timeout(timeout_s, read=timeout_s),
             )
 
-            if response.status_code == 503:
-                logger.warning(f"API overloaded (503), retry {attempt+1}/{MAX_RETRIES}")
-                _time.sleep(2 * (attempt + 1))
-                continue
+            if response.status_code in {429, 500, 502, 503, 504}:
+                last_err = RuntimeError(
+                    f"Transient API error {response.status_code}: {response.text[:200]}"
+                )
+                logger.warning(
+                    "AI API transient error %s, retry %s/%s",
+                    response.status_code,
+                    attempt + 1,
+                    MAX_RETRIES,
+                )
+                if attempt + 1 < MAX_RETRIES:
+                    _time.sleep(2 * (attempt + 1))
+                    continue
+                break
 
             if response.status_code != 200:
-                raise RuntimeError(f"API error {response.status_code}: {response.text[:200]}")
+                raise RuntimeError(f"API error {response.status_code}: {response.text[:300]}")
 
-            data = response.json()
-            choices = data.get("choices", [])
-            if not choices:
-                raise RuntimeError("no choices returned")
+            try:
+                data = response.json()
+            except ValueError as exc:
+                last_err = RuntimeError(f"Invalid JSON response: {response.text[:300]}")
+                logger.warning("AI returned invalid JSON, retry %s/%s", attempt + 1, MAX_RETRIES)
+                if attempt + 1 < MAX_RETRIES:
+                    _time.sleep(1.5 * (attempt + 1))
+                    continue
+                break
 
-            result = choices[0].get("message", {}).get("content", "")
-            if not result:
-                raise RuntimeError("empty content returned")
+            choices = data.get("choices", []) if isinstance(data, dict) else []
+            if not choices and not (isinstance(data, dict) and (data.get("output") or data.get("output_text"))):
+                last_err = RuntimeError("no choices returned")
+                logger.warning("AI returned no choices, retry %s/%s", attempt + 1, MAX_RETRIES)
+                if attempt + 1 < MAX_RETRIES:
+                    _time.sleep(1.5 * (attempt + 1))
+                    continue
+                break
 
-            return result
+            result = _extract_model_content(data)
+            if result:
+                return result
+
+            finish_reason = None
+            if choices and isinstance(choices[0], dict):
+                finish_reason = choices[0].get("finish_reason")
+            usage = data.get("usage") if isinstance(data, dict) else None
+            last_err = RuntimeError("empty content returned")
+            logger.warning(
+                "AI returned empty visible content (finish_reason=%r, usage=%r, thinking=%s), "
+                "retry %s/%s",
+                finish_reason,
+                usage,
+                use_thinking,
+                attempt + 1,
+                MAX_RETRIES,
+            )
+            if attempt + 1 < MAX_RETRIES:
+                _time.sleep(1.5 * (attempt + 1))
+                continue
+            break
+
         except httpx.TimeoutException:
-            logger.warning(f"API timeout, retry {attempt+1}/{MAX_RETRIES}")
-            _time.sleep(2 * (attempt + 1))
-            last_err = RuntimeError(f"Timeout after {MAX_RETRIES} attempts")
-            continue
-        except Exception as e:
-            last_err = e
+            last_err = RuntimeError(f"Timeout after attempt {attempt + 1}")
+            logger.warning("API timeout, retry %s/%s", attempt + 1, MAX_RETRIES)
+            if attempt + 1 < MAX_RETRIES:
+                _time.sleep(2 * (attempt + 1))
+                continue
+            break
+        except (httpx.NetworkError, httpx.RemoteProtocolError) as exc:
+            last_err = exc
+            logger.warning("AI network error, retry %s/%s: %s", attempt + 1, MAX_RETRIES, exc)
+            if attempt + 1 < MAX_RETRIES:
+                _time.sleep(2 * (attempt + 1))
+                continue
+            break
+        except Exception as exc:
+            # Authentication/configuration and other deterministic errors should not be retried.
+            last_err = exc
             break
 
     raise last_err or RuntimeError(f"API failed after {MAX_RETRIES} retries")
@@ -889,8 +999,8 @@ async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
     if len(normalized_query) < 2:
         return None
 
-    # Versioned normalized key prevents old weak-search cache entries from leaking into v2.
-    cache_key = f"internal-search:v2:{normalized_query}"
+    # Versioned normalized key prevents old weak-search cache entries from leaking into v3.
+    cache_key = f"internal-search:v3:{normalized_query}"
     cached = await get_cached_response(cache_key)
     if cached:
         logger.info(f"Internal semantic cache hit: {normalized_query[:80]}")
@@ -1046,6 +1156,11 @@ async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
         if has_retrieval_signal and score >= 0.055:
             document["retrieval_score"] = round(score, 6)
             document["matched_terms"] = sorted(matched_terms)
+            document["original_coverage"] = round(original_coverage, 6)
+            document["must_coverage"] = round(must_coverage, 6)
+            document["phrase_coverage"] = round(phrase_coverage, 6)
+            document["entity_coverage"] = round(entity_coverage, 6)
+            document["exact_query_bonus"] = exact_query_bonus
             candidates.append(document)
 
     candidates.sort(key=lambda item: item["retrieval_score"], reverse=True)
@@ -1117,7 +1232,7 @@ CONTENT:
 {{"match": false, "post_id": null, "match_type": "none", "confidence": 0.0, "title": "", "supporting_quote": "", "reason": ""}}"""
 
     try:
-        raw_response = await asyncio.to_thread(_call_model, rerank_prompt, thinking=True)
+        raw_response = await asyncio.to_thread(_call_model, rerank_prompt, thinking=False)
         decision = _extract_json_object(raw_response)
         if not decision or not bool(decision.get("match")):
             return None
@@ -1170,5 +1285,49 @@ CONTENT:
         return result
 
     except Exception as exc:
-        logger.error(f"Internal semantic post search failed: {exc}", exc_info=True)
+        # The database retrieval remains usable even when the model provider returns an
+        # empty/transient response. Use only an exceptionally strong lexical match;
+        # otherwise return None rather than risk a wrong post.
+        logger.warning("AI reranker unavailable; evaluating strict local fallback: %s", exc)
+
+        top = candidates[0] if candidates else None
+        second_score = candidates[1]["retrieval_score"] if len(candidates) > 1 else 0.0
+        if top:
+            top_score = float(top.get("retrieval_score", 0.0))
+            margin = top_score - float(second_score)
+            original_coverage = float(top.get("original_coverage", 0.0))
+            must_coverage = float(top.get("must_coverage", 0.0))
+            phrase_coverage = float(top.get("phrase_coverage", 0.0))
+            exact_query = bool(top.get("exact_query_bonus"))
+            ambiguity = str(analysis.get("ambiguity") or "medium").lower()
+
+            strong_exact = exact_query and original_coverage >= 0.70 and top_score >= 0.34
+            strong_semantic = (
+                original_coverage >= 0.78
+                and must_coverage >= 0.75
+                and phrase_coverage >= 0.34
+                and top_score >= 0.40
+                and margin >= 0.075
+            )
+            if ambiguity == "high":
+                strong_exact = strong_exact and top_score >= 0.48 and margin >= 0.10
+                strong_semantic = strong_semantic and top_score >= 0.52 and margin >= 0.12
+
+            if strong_exact or strong_semantic:
+                selected_post = top["post"]
+                selected_id = int(_news_value(selected_post, "id"))
+                title = _derive_post_title(selected_post)
+                link = await _build_internal_post_link(selected_post)
+                result = {"title": title, "link": link}
+                await cache_response(cache_key, result["title"], result.get("link"))
+                logger.info(
+                    "Strict local fallback matched query=%r post=%s score=%.3f margin=%.3f",
+                    original_query[:70],
+                    selected_id,
+                    top_score,
+                    margin,
+                )
+                return result
+
+        logger.info("No safe local fallback match for query: %r", original_query[:80])
         return None
