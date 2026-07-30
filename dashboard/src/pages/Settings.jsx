@@ -10,6 +10,7 @@ export default function Settings() {
     antiFlood: "true",
     floodLimit: 5,
     floodTime: 10,
+    ai_internal_search_enabled: "true",
   });
 
   const [saving, setSaving] = useState(false);
@@ -62,6 +63,7 @@ export default function Settings() {
       antiFlood: "true",
       floodLimit: 5,
       floodTime: 10,
+      ai_internal_search_enabled: "true",
     });
     showToast('تمت إعادة التعيين', 'success');
   };
@@ -148,6 +150,20 @@ export default function Settings() {
                   type="checkbox"
                   checked={settings.ai_fallback_enabled !== "false"}
                   onChange={(e) => setSettings({ ...settings, ai_fallback_enabled: e.target.checked ? "true" : "false" })}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+            <div className="setting-row">
+              <div>
+                <div className="label">بحث AI في المنشورات المخزنة</div>
+                <div className="desc">بحث ذكي في المنشورات المخزنة للرد على أسئلة الطلاب</div>
+              </div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={settings.ai_internal_search_enabled !== "false"}
+                  onChange={(e) => setSettings({ ...settings, ai_internal_search_enabled: e.target.checked ? "true" : "false" })}
                 />
                 <span className="toggle-slider" />
               </label>

@@ -132,6 +132,7 @@ async def get_settings(
     defaults = {
         "autoGreeting": "true",
         "ai_fallback_enabled": "true",
+        "ai_internal_search_enabled": "true",
         "antiSpam": "true",
         "antiFlood": "true",
         "floodLimit": "5",

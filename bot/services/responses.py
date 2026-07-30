@@ -11,7 +11,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 
 from bot.config import normalize_arabic
 from bot.handlers.student_menu import build_candidate_keyboard, build_main_menu
-from bot.services.ai import search_university_info
+from bot.services.ai import search_internal_posts, search_university_info
 from bot.services.database import (
     get_all_questions,
     get_auto_responses,
@@ -160,6 +160,23 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     effective_text = _pending_query(update, context, text)
+
+    # AI internal search in stored posts
+    try:
+        ai_internal_enabled = await get_setting("ai_internal_search_enabled")
+        if ai_internal_enabled != "false":  # enabled by default
+            internal_result = await search_internal_posts(text)
+            if internal_result:
+                await update.message.reply_text(internal_result["content"])
+                await log_activity(
+                    user_id=update.effective_user.id,
+                    action="ai_internal_search",
+                    details=f"Query: {text[:100]} | Found match",
+                )
+                return
+    except Exception as e:
+        logger.error(f"AI internal search error: {e}")
+
     responses = await get_auto_responses()
     decision = decide_match(effective_text, responses)
 

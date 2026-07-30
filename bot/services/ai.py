@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 import time as _time
@@ -461,3 +462,67 @@ def enhance_content(title: str, content: str) -> dict:
     except Exception as e:
         logger.error(f"AI enhance failed: {e}")
         raise RuntimeError(f"AI enhance failed: {e}")
+
+
+async def search_internal_posts(query: str, limit: int = 10) -> dict | None:
+    """
+    Search stored news posts using AI to find the best match for a student's query.
+
+    Returns:
+        {"content": "...", "score": 0.95} if a relevant post is found
+        None if no relevant post found
+    """
+    from bot.services.database import async_session
+    from bot.models.models import News
+    from sqlalchemy import select, desc
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(News)
+            .where(News.is_published == True)
+            .order_by(desc(News.created_at))
+            .limit(limit)
+        )
+        posts = result.scalars().all()
+
+    if not posts:
+        return None
+
+    posts_text = ""
+    for i, post in enumerate(posts):
+        content = post.content or ""
+        if content.strip():
+            posts_text += f"--- منشور {i+1} (ID: {post.id}) ---\n{content}\n\n"
+
+    if not posts_text.strip():
+        return None
+
+    prompt = f"""أنت مساعد ذكي لجامعة الملك خالد. لديك مجموعة منشورات مخزنة في قاعدة البيانات.
+
+المنشورات المتاحة:
+{posts_text}
+
+سؤال الطالب: {query}
+
+مهمتك:
+1. اقرأ سؤال الطالب بعناية
+2. ابحث في المنشورات عن الأنسب لسؤاله
+3. إذا وجدت منشوراً يجيب على سؤال الطالب مباشرة، أرسل محتواه
+4. إذا لم تجد منشوراً مناسباً، أرجع null
+
+قواعد مهمة:
+- لا تخترع معلومات
+- لا ترسل منشوراً إذا لم يكن متعلقاً بالسؤال
+- إذا كان السؤال عاماً جداً أو غير متعلق بالجامعة، أرجع null
+- أرجع الإجابة فقط بدون مقدمة أو خاتمة
+
+أرجع الإجابة كنص فقط (بدون تنسيق JSON). إذا لا يوجد منشور مناسب، اكتب: NULL"""
+
+    try:
+        response = await asyncio.to_thread(_call_model, prompt)
+        if response and response.strip() and response.strip() != "NULL":
+            return {"content": response.strip()}
+    except Exception as e:
+        logger.error(f"Internal post search failed: {e}")
+
+    return None
