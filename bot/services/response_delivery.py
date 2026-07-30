@@ -15,47 +15,42 @@ from bot.services.response_engine import needs_freshness_warning
 logger = logging.getLogger(__name__)
 
 
-def _is_specific_link(url: str) -> bool:
-    """Return True if the link is a specific message link (https or t.me with message ID)."""
-    return bool(re.search(r'https?://|t\.me/[a-zA-Z0-9_]+/\d+', url))
-
-
-_LINK_RE = re.compile(r'(t\.me/[a-zA-Z0-9_]+/\d+|https?://[^\s<>"]+)')
-
 
 def _extract_links_with_context(text: str) -> tuple[str, list[dict]]:
-    """Extract all specific links and their labels from text.
-
-    Returns:
-        (cleaned_text, [{"label": "...", "url": "..."}, ...])
-    """
+    """Extract all specific links and their labels from text."""
     lines = text.split('\n')
     buttons: list[dict] = []
     cleaned_lines: list[str] = []
+    link_pattern = re.compile(r'(t\.me/[a-zA-Z0-9_]+/\d+|https?://[^\s<>"]+)')
 
     for i, line in enumerate(lines):
-        link_match = _LINK_RE.search(line)
+        link_match = link_pattern.search(line)
+
         if link_match:
             url = link_match.group(1)
-            if _is_specific_link(url):
-                label = None
-                text_before = line[:link_match.start()].strip().rstrip(':').rstrip('|-').strip()
-                if text_before and len(text_before) > 2:
-                    label = text_before
-                elif i > 0 and not _LINK_RE.search(lines[i - 1]):
-                    label = lines[i - 1].strip()
-                if not label:
-                    label = url.split('/')[-1]
+            is_specific = bool(re.search(r't\.me/[a-zA-Z0-9_]+/\d+', url))
+
+            if is_specific:
+                text_before = line[:link_match.start()].strip()
+
+                label = text_before.rstrip(':').rstrip('|').rstrip('-').rstrip('🔻').strip()
+
+                if not label or len(label) < 3:
+                    if i > 0:
+                        prev_line = lines[i-1].strip()
+                        if prev_line and not link_pattern.search(prev_line):
+                            label = prev_line
+
+                if not label or len(label) < 3:
+                    label = f"رابط {i+1}"
+
                 full_url = url if url.startswith('http') else f"https://{url}"
                 buttons.append({"label": label, "url": full_url})
                 continue
+
         cleaned_lines.append(line)
 
-    if len(buttons) == 1:
-        buttons[0]["label"] = "🔗 اضغط هنا"
-
-    cleaned_text = '\n'.join(cleaned_lines).strip()
-    return cleaned_text, buttons
+    return '\n'.join(cleaned_lines).strip(), buttons
 
 
 def _build_url_keyboard(buttons: list[dict], existing_markup=None) -> InlineKeyboardMarkup | None:
