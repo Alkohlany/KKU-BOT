@@ -171,11 +171,7 @@ async def handle_auto_response(update: Update, context: ContextTypes.DEFAULT_TYP
                 if internal_result.get("link"):
                     reply += f"\n\n🔗 اضغط هنا للذهاب للمنشور: {internal_result['link']}"
                 await update.message.reply_text(reply, disable_web_page_preview=True)
-                await log_activity(
-                    user_id=update.effective_user.id,
-                    action="ai_internal_search",
-                    details=f"Query: {text[:100]} | Found match",
-                )
+                await _log_decision(update, "ai_internal_search", {"query": text[:100], "found": True})
                 return
     except Exception as e:
         logger.error(f"AI internal search error: {e}")

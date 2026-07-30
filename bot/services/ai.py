@@ -566,7 +566,8 @@ TITLE: [عنوان مختصر 5-10 كلمات يلخص موضوع المنشور
                                     )).scalar_one_or_none()
                                     if cg and cg.invite_link and 't.me/' in cg.invite_link:
                                         username = cg.invite_link.rstrip('/').split('/')[-1]
-                                        link = f"https://t.me/{username}/{post_obj.channel_message_id}"
+                                        if not username.startswith('+'):
+                                            link = f"https://t.me/{username}/{post_obj.channel_message_id}"
                             except Exception:
                                 pass
                             if not link:
