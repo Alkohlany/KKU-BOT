@@ -464,7 +464,7 @@ def enhance_content(title: str, content: str) -> dict:
         raise RuntimeError(f"AI enhance failed: {e}")
 
 
-async def search_internal_posts(query: str, limit: int = 10) -> dict | None:
+async def search_internal_posts(query: str, limit: int = 200) -> dict | None:
     """
     Search stored news posts using AI to find the best match for a student's query.
 
@@ -489,6 +489,17 @@ async def search_internal_posts(query: str, limit: int = 10) -> dict | None:
     if not posts:
         return None
 
+    query_words = set(query.split())
+    relevant_posts = []
+    for post in posts:
+        content = post.content or ""
+        content_words = set(content.split())
+        if query_words & content_words:
+            relevant_posts.append(post)
+
+    if relevant_posts:
+        posts = relevant_posts[:20]
+
     posts_text = ""
     post_ids = []
     for i, post in enumerate(posts):
@@ -500,29 +511,28 @@ async def search_internal_posts(query: str, limit: int = 10) -> dict | None:
     if not posts_text.strip():
         return None
 
-    prompt = f"""أنت مساعد ذكي لجامعة الملك خالد. لديك مجموعة منشورات مخزنة في قاعدة البيانات.
+    prompt = f"""أنت مساعد ذكي لجامعة الملك خالد. مهمتك البحث في المنشورات المخزنة وإيجاد الأنسب لسؤال الطالب.
+
+⚠️ تعليمات مهمة جداً:
+- أسئلة الطلاب قد تكون بلهجة عربية (جد، وش، كيف، ليش، إلخ)
+- لا تهمش أي سؤال حتى لو كان قصيراً أو غامضاً
+- حاول فهم النية وراء السؤال
+- إذا كان السؤال عن موضوع عام مثل "السكن" أو "التسجيل" أو "المكافاه"، ابحث في المنشورات المتعلقة
+- لا تتطلب تطابق تام - التشابه الكافي يكفي
 
 المنشورات المتاحة:
 {posts_text}
 
 سؤال الطالب: {query}
 
-مهمتك:
-1. اقرأ سؤال الطالب بعناية
-2. ابحث في المنشورات عن الأنسب لسؤاله — كن متسامحًا، إذا كان المنشور متعلقًا حتى 부분ًا فاحسبه مناسبًا
-3. فهم سياق السؤال ضمن جامعة الملك خالد (قبول، تقديم، معدل، نظام، خدمات، إلخ)
-4. إذا كان السؤال قصيرًا أو غامضًا (مثلاً: "التقديم"، "القبول"، "المعدل"، "التسجيل")، ابحث عن أي منشور متعلق بالموضوع العام للسؤال
+قواعد البحث:
+1. اقرأ السؤال وافهم النية (ماذا يريد الطالب فعلاً؟)
+2. ابحث في المنشورات عن أي موضوع متعلق
+3. إذا وجدت منشوراً متعلقاً حتى لو كان غير مباشر، أرسله
+4. إذا وجدت عدة منشورات، اختر الأقرب
+5. فقط إذا لم تجد أي علاقة على الإطلاق، اكتب: NULL
 
-قواعد مهمة:
-- لا تخترع معلومات
-- إذا كان السؤال عامًا جدًا أو غير متعلق بالجامعة، أرجع NULL
-- لا ترفض منشورًا لمجرد أن السؤال قصير — ابحث عن أي علاقة موضوعية
-
-أرجع النتيجة بهذا الشكل بالضبط:
-ID: [رقم المنشور]
-TITLE: [عنوان مختصر 5-10 كلمات يلخص موضوع المنشور]
-
-إذا لا يوجد مناسب، اكتب: NULL"""
+أرجع فقط العنوان المختصر للمنشور (سطر واحد) أو NULL إذا لا يوجد مناسب."""
 
     try:
         response = await asyncio.to_thread(_call_model, prompt)
