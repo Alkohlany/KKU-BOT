@@ -15,23 +15,16 @@ export default function Groups() {
   const [editItem, setEditItem] = useState(null);
   const [editForm, setEditForm] = useState({ title: '' });
   const [saving, setSaving] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-
-  useEffect(() => { setPage(1); }, [search]);
 
   useEffect(() => {
     loadData();
-  }, [page, search]);
+  }, []);
 
   const loadData = async () => {
     try {
-      const data = await api.get(`/channels?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
+      const data = await api.get('/channels');
       const items = data.items || data;
       setChannelGroups(Array.isArray(items) ? items : []);
-      setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 5)));
     } catch (err) {
       console.error('Failed to load channels/groups:', err);
     } finally {
@@ -40,7 +33,13 @@ export default function Groups() {
   };
 
   const filtered = channelGroups.filter((g) => {
-    return activeTab === 'channels' ? g.type === 'channel' : g.type === 'group';
+    const matchesTab = activeTab === 'channels' ? g.type === 'channel' : g.type === 'group';
+    if (!search) return matchesTab;
+    const q = search.toLowerCase();
+    return matchesTab && (
+      (g.title || '').toLowerCase().includes(q) ||
+      (g.chatId || '').toString().includes(q)
+    );
   });
 
   const channels = channelGroups.filter((g) => g.type === 'channel');
@@ -347,20 +346,6 @@ export default function Groups() {
           )}
         </div>
       </div>
-
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--gray-200)' }}>
-          <div style={{ fontSize: 13, color: 'var(--gray-600)' }}>
-            الصفحة {page} من {totalPages} ({total} إجمالي)
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="btn btn-secondary btn-sm">السابق</button>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="btn btn-secondary btn-sm">التالي</button>
-          </div>
-        </div>
-      )}
 
       {/* Edit Modal */}
       {showEditModal && (
