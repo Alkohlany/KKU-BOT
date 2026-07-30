@@ -9,6 +9,7 @@ import ReplyDictionary from './pages/ReplyDictionary'
 import StudyPlans from './pages/StudyPlans'
 import ScheduledPosts from './pages/ScheduledPosts'
 import BannedUsers from './pages/BannedUsers'
+import SpamPatterns from './pages/SpamPatterns'
 import ActivityLog from './pages/ActivityLog'
 import Settings from './pages/Settings'
 import CloudFiles from './pages/CloudFiles'
@@ -26,6 +27,7 @@ const pageTitles = {
   '/study-plans': { title: 'الخطط الدراسية', subtitle: 'إدارة الخطط الدراسية والمجموعات' },
   '/scheduled-posts': { title: 'النشر المجدول', subtitle: 'إدارة المنشورات المجدولة' },
   '/banned': { title: 'المحظورين', subtitle: 'إدارة المستخدمين المحظورين' },
+  '/spam': { title: 'أنماط السبام', subtitle: 'إدارة أنماط الرسائل المسبمة' },
   '/activity': { title: 'سجل النشاطات', subtitle: 'تتبع جميع أنشطة البوت' },
   '/settings': { title: 'الإعدادات', subtitle: 'تخصيص إعدادات البوت' },
   '/cloud-files': { title: 'إدارة الملفات', subtitle: 'تصفح وحذف الملفات المرفوعة على السحابة' },
@@ -49,6 +51,7 @@ function Layout({ sidebarOpen, setSidebarOpen }) {
             <Route path="/study-plans" element={<StudyPlans />} />
             <Route path="/scheduled-posts" element={<ScheduledPosts />} />
             <Route path="/banned" element={<BannedUsers />} />
+            <Route path="/spam" element={<SpamPatterns />} />
             <Route path="/activity" element={<ActivityLog />} />
             <Route path="/settings" element={<Settings onLogout={() => { localStorage.removeItem('isLoggedIn'); localStorage.removeItem('token'); window.location.href = '/login'; }} />} />
             <Route path="/cloud-files" element={<CloudFiles />} />

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from bot.api.routes import auth, responses, users, stats, news, questions, scheduled_posts, study_plans, channels
+from bot.api.routes import auth, responses, users, stats, news, questions, scheduled_posts, study_plans, channels, spam
 from bot.api.routes.files import router as files_router
 import os
 import logging
@@ -35,6 +35,7 @@ app.include_router(questions.router, prefix="/api/questions", tags=["Questions"]
 app.include_router(scheduled_posts.router, prefix="/api/scheduled-posts", tags=["Scheduled Posts"])
 app.include_router(study_plans.router, prefix="/api/study-plans", tags=["Study Plans"])
 app.include_router(channels.router, prefix="/api/channels", tags=["Channels & Groups"])
+app.include_router(spam.router, prefix="/api/spam", tags=["spam"])
 app.include_router(files_router, prefix="/api/files", tags=["files"])
 
 

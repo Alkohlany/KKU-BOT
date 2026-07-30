@@ -230,6 +230,13 @@ const api = {
   },
   updateStudyPlanGroup: (id, data) => api.put(`/study-plans/groups/${id}`, data),
 
+  getSpamPatterns: (params) => {
+    const q = new URLSearchParams(params).toString();
+    return api.get('/spam' + (q ? '?' + q : ''));
+  },
+  addSpamPattern: (data) => api.post('/spam', data),
+  deleteSpamPattern: (id) => api.delete(`/spam/${id}`),
+
   // Cloud Files
   getCloudFiles: (folder) => api.get('/files' + (folder ? '?folder=' + encodeURIComponent(folder) : '')),
   deleteCloudFile: (key) => api.delete('/files?key=' + encodeURIComponent(key)),

@@ -710,6 +710,22 @@ async def save_spam_pattern(content: str):
         await session.commit()
 
 
+async def get_all_spam_patterns():
+    async with async_session() as session:
+        result = await session.execute(
+            select(SpamPattern).order_by(SpamPattern.created_at.desc())
+        )
+        return result.scalars().all()
+
+
+async def delete_spam_pattern(pattern_id: int):
+    async with async_session() as session:
+        await session.execute(
+            delete(SpamPattern).where(SpamPattern.id == pattern_id)
+        )
+        await session.commit()
+
+
 async def check_spam_pattern(content: str) -> bool:
     async with async_session() as session:
         result = await session.execute(
