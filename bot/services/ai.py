@@ -467,200 +467,669 @@ def enhance_content(title: str, content: str) -> dict:
         raise RuntimeError(f"AI enhance failed: {e}")
 
 
-async def _build_post_link(post_obj) -> str | None:
-    """Build a t.me link for a post object."""
-    import json as _json
+# ---------------------------------------------------------------------------
+# Internal-post semantic search
+# ---------------------------------------------------------------------------
 
-    link = None
-    if post_obj.channel_message_id and post_obj.target_channels:
+_SEARCH_STOPWORDS = {
+    "ابغى", "ابغي", "ابي", "أبي", "اريد", "أريد", "احتاج", "أحتاج",
+    "وش", "ايش", "إيش", "ما", "ماذا", "هل", "كيف", "متى", "وين", "اين", "أين",
+    "من", "في", "على", "عن", "الى", "إلى", "مع", "هذا", "هذه", "هذي", "ذا",
+    "اللي", "الي", "الذي", "التي", "انا", "أنا", "عندي", "عليه", "عليها",
+    "لو", "اذا", "إذا", "طيب", "يعني", "ممكن", "فضلا", "فضلًا", "تكفون",
+    "جامعة", "الجامعة", "الملك", "خالد",  # سياق ثابت للبوت، لا يميز المنشورات غالبًا
+    "https", "http", "www", "com", "t", "me",
+}
+
+_ARABIC_DIACRITICS_RE = re.compile(
+    r"[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]"
+)
+_NON_SEARCH_CHARS_RE = re.compile(r"[^0-9a-zA-Z\u0621-\u063A\u0641-\u064A\u0660-\u0669\u06F0-\u06F9]+")
+
+
+def _normalize_search_text(value: object) -> str:
+    """Normalize Arabic text for retrieval only; never use it as displayed text."""
+    if value is None:
+        return ""
+
+    text = str(value).strip().lower()
+    text = _ARABIC_DIACRITICS_RE.sub("", text)
+    text = text.replace("ـ", "")
+    text = text.translate(str.maketrans({
+        "أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا",
+        "ى": "ي", "ؤ": "و", "ئ": "ي", "ة": "ه",
+    }))
+    text = _NON_SEARCH_CHARS_RE.sub(" ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _token_variants(token: str) -> set[str]:
+    """Generate conservative Arabic variants to improve recall without full stemming."""
+    variants = {token}
+
+    if token.startswith("ال") and len(token) >= 5:
+        variants.add(token[2:])
+
+    # Common conjunction/preposition prefixes. Keep the original token as well.
+    if token[:1] in {"و", "ف", "ب", "ك", "ل"} and len(token) >= 5:
+        variants.add(token[1:])
+        if token[1:].startswith("ال") and len(token) >= 7:
+            variants.add(token[3:])
+
+    for suffix in ("يات", "ات", "ون", "ين", "ها", "هم", "هن", "كم", "نا"):
+        if token.endswith(suffix) and len(token) - len(suffix) >= 3:
+            variants.add(token[:-len(suffix)])
+
+    return {v for v in variants if len(v) >= 2}
+
+
+def _search_tokens(text: object, important_tokens_fn=None) -> set[str]:
+    normalized = _normalize_search_text(text)
+    tokens: set[str] = set()
+
+    for raw_token in normalized.split():
+        if len(raw_token) < 2 or raw_token in _SEARCH_STOPWORDS:
+            continue
+        tokens.update(_token_variants(raw_token))
+
+    # Preserve the project's existing tokenizer as an additional signal.
+    if important_tokens_fn is not None:
         try:
-            channels = _json.loads(post_obj.target_channels)
-            if channels:
-                channel_id = channels[0]
-                try:
-                    chat = await _bot.get_chat(int(channel_id))
-                    if chat.username:
-                        link = f"https://t.me/{chat.username}/{post_obj.channel_message_id}"
-                    else:
-                        link = f"https://t.me/c/{abs(int(channel_id))}/{post_obj.channel_message_id}"
-                except Exception as e:
-                    logger.warning(f"get_chat failed for {channel_id}: {e}")
-                    link = f"https://t.me/c/{abs(int(channel_id))}/{post_obj.channel_message_id}"
-        except (_json.JSONDecodeError, TypeError, IndexError, ValueError):
-            pass
+            for item in important_tokens_fn(str(text or "")) or []:
+                for raw_token in _normalize_search_text(item).split():
+                    if len(raw_token) >= 2 and raw_token not in _SEARCH_STOPWORDS:
+                        tokens.update(_token_variants(raw_token))
+        except Exception as exc:
+            logger.debug(f"important_tokens failed during semantic search: {exc}")
 
-    if not link and post_obj.group_message_ids:
-        try:
-            group_ids = _json.loads(post_obj.group_message_ids)
-            if group_ids:
-                first_chat_id = next(iter(group_ids))
-                msg_id = group_ids[first_chat_id]
-                if isinstance(msg_id, list):
-                    msg_id = msg_id[0] if msg_id else None
-                if msg_id:
-                    try:
-                        chat = await _bot.get_chat(int(first_chat_id))
-                        if chat.username:
-                            link = f"https://t.me/{chat.username}/{msg_id}"
-                        else:
-                            link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
-                    except Exception:
-                        link = f"https://t.me/c/{abs(int(first_chat_id))}/{msg_id}"
-        except (_json.JSONDecodeError, TypeError, StopIteration, KeyError, ValueError):
-            pass
-
-    return link
+    return tokens
 
 
-_SEARCH_PROMPT = """أنت مساعد ذكي لجامعة الملك خالد. مهمتك إيجاد المنشور الأنسب لسؤال الطالب.
+def _coerce_search_field(value: object) -> str:
+    """Convert optional JSON/list/model fields into searchable text safely."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return ""
+        if raw[:1] in {"[", "{"}:
+            try:
+                import json
+                return _coerce_search_field(json.loads(raw))
+            except Exception:
+                return raw
+        return raw
+    if isinstance(value, dict):
+        return " ".join(_coerce_search_field(v) for v in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return " ".join(_coerce_search_field(v) for v in value)
+    return str(value)
 
-المنشورات التالية متاحة في قاعدة البيانات:
 
-{posts_text}
+def _post_search_document(post) -> dict:
+    """Build a schema-tolerant searchable document from a News model instance."""
+    title = _coerce_search_field(getattr(post, "title", ""))
+    content = _coerce_search_field(getattr(post, "content", ""))
 
-سؤال الطالب: {query}
+    metadata_parts = []
+    for attr in (
+        "keywords", "questions", "search_keywords", "search_questions",
+        "analysis_keywords", "analysis_questions", "summary", "category",
+    ):
+        value = _coerce_search_field(getattr(post, attr, ""))
+        if value:
+            metadata_parts.append(value)
 
-تعليمات مهمة:
-1. اقرأ السؤال بعناية وافهم ماذا يريد الطالب
-2. ابحث في المنشورات عن الإجابة المناسبة
-3. إذا وجدت منشوراً يجيب على السؤال مباشرة، أرجع بياناته
-4. إذا لم تجد إجابة مناسبة، اكتب فقط: لا يوجد
-
-تأكد أن المنشور يحتوي على معلومات تجيب على السؤال فعلاً.
-
-أرجع الإجابة بالشكل التالي فقط:
-ID: [رقم المنشور]
-TITLE: [عنوان المنشور]
-
-لا تكتب أي شيء آخر."""
+    metadata = "\n".join(metadata_parts)
+    full_text = "\n".join(part for part in (title, content, metadata) if part)
+    return {
+        "post": post,
+        "title": title,
+        "content": content,
+        "metadata": metadata,
+        "full_text": full_text,
+        "normalized": _normalize_search_text(full_text),
+    }
 
 
-async def _ai_select_post(query: str, posts: list) -> dict | None:
-    """Ask AI to select the best matching post from a list."""
-    import json as _json
-    from bot.services.database import cache_response
-    from bot.services.response_engine import important_tokens
-
-    if not posts:
+def _extract_json_object(raw: str) -> dict | None:
+    """Parse a JSON object even when the model wraps it in a Markdown fence."""
+    if not raw:
         return None
 
-    posts_text = ""
-    post_ids = {}
-    for i, post in enumerate(posts):
-        content = (post.content or "")[:300]
-        if content.strip():
-            posts_text += f"--- \u0645\u0646\u0634\u0648\u0631 {i+1} (ID: {post.id}) ---\n{content}\n\n"
-            post_ids[post.id] = post
+    import json
 
-    if not posts_text.strip():
+    cleaned = raw.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start == -1 or end <= start:
         return None
-
-    prompt = _SEARCH_PROMPT.format(posts_text=posts_text, query=query)
 
     try:
-        response = await asyncio.to_thread(_call_model, prompt, thinking=False)
-        if not response or not response.strip() or response.strip() == "NULL":
+        parsed = json.loads(cleaned[start:end + 1])
+        return parsed if isinstance(parsed, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def _clean_analysis_list(value: object, max_items: int = 10) -> list[str]:
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, (list, tuple, set)):
+        return []
+
+    result = []
+    seen = set()
+    for item in value:
+        text = str(item or "").strip()
+        normalized = _normalize_search_text(text)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        result.append(text[:120])
+        if len(result) >= max_items:
+            break
+    return result
+
+
+async def _analyze_internal_search_query(query: str, important_tokens_fn=None) -> dict:
+    """Use the model to convert a Saudi student question into retrieval constraints."""
+    fallback_terms = sorted(_search_tokens(query, important_tokens_fn))
+    fallback = {
+        "searchable": bool(fallback_terms),
+        "intent": "بحث عن معلومة أو إرشاد مرتبط بالسؤال",
+        "answer_type": "information",
+        "core_concepts": fallback_terms[:8],
+        "must_have": fallback_terms[:4],
+        "should_have": fallback_terms[4:10],
+        "entities": [],
+        "phrases": [],
+        "aliases": [],
+        "ambiguity": "medium",
+    }
+
+    prompt = f"""أنت محلل استعلامات بحث داخلية لطلاب جامعة الملك خالد.
+لا تجب عن سؤال الطالب. حوّل السؤال فقط إلى خطة بحث دقيقة في منشورات عربية.
+
+افهم اللهجة السعودية، الأخطاء الإملائية، الاختصارات، والفرق بين النيات المتقاربة.
+أمثلة مهمة:
+- "كيف أنسحب من منصة قبول؟" = إجراء الانسحاب من منصة قبول.
+- "هل أنسحب من منصة قبول؟" = قرار/نصيحة عن الانسحاب، وليس خطوات الإجراء.
+- "هل الانسحاب يسبب حرمان سنتين؟" = أثر أو لائحة الحرمان بعد الانسحاب.
+- لا تخلط بين الانسحاب من منصة قبول، والانسحاب من الجامعة، والاعتذار عن فصل.
+
+أخرج JSON صحيحًا فقط بهذه البنية:
+{{
+  "searchable": true,
+  "intent": "وصف قصير ودقيق للنية",
+  "answer_type": "procedure|date|condition|eligibility|decision|consequence|definition|location|announcement|information",
+  "core_concepts": ["المفاهيم الأساسية"],
+  "must_have": ["مفاهيم يجب أن يتناولها المنشور"],
+  "should_have": ["مفاهيم مساعدة"],
+  "entities": ["أسماء المنصات أو البرامج أو الجهات"],
+  "phrases": ["عبارات بحث محتملة"],
+  "aliases": ["مرادفات وصيغ سعودية أو إملائية"],
+  "ambiguity": "low|medium|high"
+}}
+
+اجعل searchable=false فقط للتحية، الكلام العام جدًا، أو السؤال الذي لا يحمل موضوعًا يمكن البحث عنه.
+لا تضف معلومات غير موجودة في السؤال، ولا تفترض فصلًا أو برنامجًا أو فئة لم يذكرها الطالب.
+
+سؤال الطالب:
+{query}"""
+
+    try:
+        raw = await asyncio.to_thread(_call_model, prompt, thinking=False)
+        parsed = _extract_json_object(raw)
+        if not parsed:
+            return fallback
+
+        analysis = {
+            "searchable": bool(parsed.get("searchable", True)),
+            "intent": str(parsed.get("intent") or fallback["intent"])[:240],
+            "answer_type": str(parsed.get("answer_type") or "information")[:40],
+            "core_concepts": _clean_analysis_list(parsed.get("core_concepts"), 10),
+            "must_have": _clean_analysis_list(parsed.get("must_have"), 8),
+            "should_have": _clean_analysis_list(parsed.get("should_have"), 10),
+            "entities": _clean_analysis_list(parsed.get("entities"), 8),
+            "phrases": _clean_analysis_list(parsed.get("phrases"), 10),
+            "aliases": _clean_analysis_list(parsed.get("aliases"), 12),
+            "ambiguity": str(parsed.get("ambiguity") or "medium").lower(),
+        }
+
+        # A model occasionally returns empty arrays. Never lose the original query signal.
+        if not analysis["core_concepts"]:
+            analysis["core_concepts"] = fallback["core_concepts"]
+        if not analysis["must_have"]:
+            analysis["must_have"] = fallback["must_have"]
+
+        return analysis
+    except Exception as exc:
+        logger.warning(f"Query analysis failed, using lexical fallback: {exc}")
+        return fallback
+
+
+def _term_is_present(term: str, document_tokens: set[str]) -> bool:
+    normalized = _normalize_search_text(term)
+    if not normalized:
+        return False
+    variants = set()
+    for token in normalized.split():
+        variants.update(_token_variants(token))
+    return bool(variants & document_tokens)
+
+
+def _fuzzy_term_coverage(query_terms: set[str], document_tokens: set[str]) -> float:
+    """Small typo-tolerance signal; exact/semantic signals remain dominant."""
+    from difflib import SequenceMatcher
+
+    useful_query = [t for t in query_terms if len(t) >= 4]
+    useful_doc = [t for t in document_tokens if len(t) >= 4]
+    if not useful_query or not useful_doc:
+        return 0.0
+
+    matched = 0
+    for query_token in useful_query:
+        if query_token in document_tokens:
+            matched += 1
+            continue
+
+        best = 0.0
+        for doc_token in useful_doc:
+            if abs(len(query_token) - len(doc_token)) > 3:
+                continue
+            if query_token[0] != doc_token[0]:
+                continue
+            ratio = SequenceMatcher(None, query_token, doc_token).ratio()
+            if ratio > best:
+                best = ratio
+            if best >= 0.92:
+                break
+        if best >= 0.84:
+            matched += 1
+
+    return matched / max(1, len(useful_query))
+
+
+def _candidate_snippet(content: str, search_terms: set[str], max_chars: int = 2200) -> str:
+    """Select the most query-relevant paragraphs while preserving their original wording."""
+    content = (content or "").strip()
+    if len(content) <= max_chars:
+        return content
+
+    paragraphs = [p.strip() for p in re.split(r"\n{2,}|(?<=[.!؟])\s+", content) if p.strip()]
+    scored = []
+    for index, paragraph in enumerate(paragraphs):
+        tokens = _search_tokens(paragraph)
+        overlap = len(tokens & search_terms)
+        phrase_bonus = sum(1 for term in search_terms if term in _normalize_search_text(paragraph))
+        score = overlap * 3 + phrase_bonus
+        scored.append((score, index, paragraph))
+
+    selected = sorted(scored, key=lambda item: (item[0], -item[1]), reverse=True)[:6]
+    selected.sort(key=lambda item: item[1])
+    snippet = "\n".join(item[2] for item in selected if item[0] > 0)
+
+    if not snippet:
+        snippet = content[:max_chars]
+    elif len(snippet) > max_chars:
+        snippet = snippet[:max_chars]
+
+    return snippet.strip()
+
+
+def _derive_post_title(post, model_title: str = "") -> str:
+    stored_title = _coerce_search_field(getattr(post, "title", "")).strip()
+    if stored_title:
+        return stored_title[:180]
+
+    content = _coerce_search_field(getattr(post, "content", "")).strip()
+    for line in content.splitlines():
+        line = line.strip().strip("-*•# ")
+        if 8 <= len(line) <= 180 and not line.startswith(("http://", "https://")):
+            return line
+
+    model_title = (model_title or "").strip()
+    return model_title[:180] or "منشور مرتبط بسؤالك"
+
+
+def _telegram_private_channel_id(chat_id: object) -> str:
+    """Convert -100xxxxxxxxxx IDs to Telegram's /c/xxxxxxxxxx form."""
+    raw = str(abs(int(chat_id)))
+    return raw[3:] if raw.startswith("100") and len(raw) > 3 else raw
+
+
+async def _build_internal_post_link(post) -> str | None:
+    import json
+
+    async def link_for(chat_id, message_id) -> str | None:
+        if not chat_id or not message_id:
+            return None
+        try:
+            chat = await _bot.get_chat(int(chat_id))
+            if chat.username:
+                return f"https://t.me/{chat.username}/{message_id}"
+        except Exception as exc:
+            logger.warning(f"get_chat failed for {chat_id}: {exc}")
+        try:
+            return f"https://t.me/c/{_telegram_private_channel_id(chat_id)}/{message_id}"
+        except (TypeError, ValueError):
             return None
 
-        lines = response.strip().split("\n")
-        post_id = None
-        title = None
-        for line in lines:
-            line = line.strip()
-            if line.upper().startswith("ID:"):
-                try:
-                    post_id = int(line.split(":", 1)[1].strip())
-                except (ValueError, IndexError):
-                    pass
-            elif line.upper().startswith("TITLE:"):
-                title = line.split(":", 1)[1].strip()
+    channel_message_id = getattr(post, "channel_message_id", None)
+    target_channels = getattr(post, "target_channels", None)
+    if channel_message_id and target_channels:
+        try:
+            channels = json.loads(target_channels) if isinstance(target_channels, str) else target_channels
+            if isinstance(channels, (list, tuple)) and channels:
+                link = await link_for(channels[0], channel_message_id)
+                if link:
+                    return link
+        except (json.JSONDecodeError, TypeError, ValueError, IndexError):
+            pass
 
-        if not post_id or post_id not in post_ids:
-            return None
-
-        post_obj = post_ids[post_id]
-        post_tokens = set(important_tokens(post_obj.content or ""))
-        query_tokens = set(important_tokens(query))
-        if not (query_tokens & post_tokens):
-            logger.warning(f"AI selected post {post_id} but no token overlap with query")
-            return None
-
-        link = await _build_post_link(post_obj)
-
-        await cache_response(query, title, link)
-        return {"title": title, "link": link}
-    except Exception as e:
-        logger.error(f"AI post selection failed: {e}")
+    group_message_ids = getattr(post, "group_message_ids", None)
+    if group_message_ids:
+        try:
+            groups = json.loads(group_message_ids) if isinstance(group_message_ids, str) else group_message_ids
+            if isinstance(groups, dict) and groups:
+                first_chat_id, message_id = next(iter(groups.items()))
+                if isinstance(message_id, list):
+                    message_id = message_id[0] if message_id else None
+                link = await link_for(first_chat_id, message_id)
+                if link:
+                    return link
+        except (json.JSONDecodeError, TypeError, ValueError, StopIteration):
+            pass
 
     return None
 
 
 async def search_internal_posts(query: str, limit: int = 50) -> dict | None:
     """
-    Search stored news posts using AI to find the best match for a student's query.
+    Hybrid Arabic semantic search over stored university posts.
 
-    Multi-stage approach:
-    - Stage 1: Fetch recent posts (limit)
-    - Stage 2: Score by token overlap, sort by relevance
-    - Stage 3: Try top 15 first (cheaper, faster)
-    - Stage 4: If no match, try remaining posts (deeper search)
+    Pipeline:
+      1) normalize and understand the student's intent;
+      2) retrieve candidates using weighted lexical, phrase, entity, and fuzzy signals;
+      3) ask the model to rerank only the strongest candidates;
+      4) verify the selected ID, confidence, evidence, and required concepts locally.
 
-    Returns:
-        {"title": "...", "link": "https://t.me/..."} if a relevant post is found
-        None if no relevant post found
+    The public return schema intentionally remains unchanged:
+        {"title": "...", "link": "https://t.me/..."}
+        None when no sufficiently relevant post exists.
     """
-    from bot.services.database import get_cached_response
+    from collections import Counter
+    import math
+    import json
 
-    cached = await get_cached_response(query)
-    if cached:
-        logger.info(f"Cache hit for query: {query[:50]}")
-        return cached
-
-    from bot.services.database import async_session
+    from bot.services.database import get_cached_response, cache_response, async_session
     from bot.models.models import News
     from bot.services.response_engine import important_tokens
     from sqlalchemy import select, desc
 
+    original_query = (query or "").strip()
+    normalized_query = _normalize_search_text(original_query)
+    if len(normalized_query) < 2:
+        return None
+
+    # Versioned normalized key prevents old weak-search cache entries from leaking into v2.
+    cache_key = f"internal-search:v2:{normalized_query}"
+    cached = await get_cached_response(cache_key)
+    if cached:
+        logger.info(f"Internal semantic cache hit: {normalized_query[:80]}")
+        return cached
+
+    analysis = await _analyze_internal_search_query(original_query, important_tokens)
+    if not analysis.get("searchable", True):
+        logger.info(f"Query marked non-searchable: {original_query[:80]}")
+        return None
+
+    # Scan a meaningful corpus even when legacy callers still pass limit=50.
+    # Keep an upper bound to avoid loading an unbounded table into memory.
+    scan_limit = min(max(int(limit or 0), 600), 1200)
+
     async with async_session() as session:
         result = await session.execute(
             select(News)
-            .where(News.is_published == True)
+            .where(News.is_published.is_(True))
             .order_by(desc(News.created_at))
-            .limit(limit)
+            .limit(scan_limit)
         )
-        posts = result.scalars().all()
+        db_posts = result.scalars().all()
 
-    if not posts:
+    if not db_posts:
         return None
 
-    query_tokens = set(important_tokens(query))
-    if not query_tokens:
+    phrase_inputs = (
+        analysis.get("phrases", [])
+        + analysis.get("entities", [])
+        + analysis.get("core_concepts", [])
+    )
+    normalized_phrases = [
+        _normalize_search_text(item)
+        for item in phrase_inputs
+        if _normalize_search_text(item)
+    ]
+
+    expanded_text = " ".join(
+        [original_query]
+        + analysis.get("core_concepts", [])
+        + analysis.get("must_have", [])
+        + analysis.get("should_have", [])
+        + analysis.get("entities", [])
+        + analysis.get("aliases", [])
+    )
+    expanded_terms = _search_tokens(expanded_text, important_tokens)
+    original_terms = _search_tokens(original_query, important_tokens)
+    must_have = analysis.get("must_have", [])
+    entities = analysis.get("entities", [])
+
+    if not expanded_terms:
         return None
 
-    scored = []
-    for post in posts:
-        content = post.content or ""
-        post_tokens = set(important_tokens(content))
-        if not post_tokens:
+    documents = []
+    document_frequency = Counter()
+    for post in db_posts:
+        document = _post_search_document(post)
+        if not document["content"].strip():
             continue
-        overlap = len(query_tokens & post_tokens)
-        if overlap > 0:
-            score = overlap / len(query_tokens)
-            scored.append((score, post))
 
-    scored.sort(key=lambda x: x[0], reverse=True)
+        document["tokens"] = _search_tokens(document["full_text"], important_tokens)
+        document["title_tokens"] = _search_tokens(document["title"], important_tokens)
+        if not document["tokens"]:
+            continue
 
-    # Stage 1: Try top 15
-    top_posts = [post for _, post in scored[:15]]
-    result = await _ai_select_post(query, top_posts)
-    if result:
+        for term in expanded_terms & document["tokens"]:
+            document_frequency[term] += 1
+        documents.append(document)
+
+    if not documents:
+        return None
+
+    corpus_size = len(documents)
+    idf = {
+        term: math.log((corpus_size + 1) / (document_frequency.get(term, 0) + 1)) + 1.0
+        for term in expanded_terms
+    }
+    total_query_weight = sum(idf.values()) or 1.0
+
+    candidates = []
+    for document in documents:
+        doc_tokens = document["tokens"]
+        matched_terms = expanded_terms & doc_tokens
+        exact_coverage = sum(idf[t] for t in matched_terms) / total_query_weight
+
+        original_coverage = (
+            len(original_terms & doc_tokens) / max(1, len(original_terms))
+            if original_terms else 0.0
+        )
+        title_coverage = (
+            len(expanded_terms & document["title_tokens"]) / max(1, len(expanded_terms))
+        )
+
+        must_matches = sum(1 for term in must_have if _term_is_present(term, doc_tokens))
+        must_coverage = must_matches / max(1, len(must_have)) if must_have else 1.0
+
+        entity_matches = sum(1 for term in entities if _term_is_present(term, doc_tokens))
+        entity_coverage = entity_matches / max(1, len(entities)) if entities else 0.0
+
+        phrase_hits = sum(
+            1 for phrase in normalized_phrases
+            if len(phrase) >= 3 and phrase in document["normalized"]
+        )
+        phrase_coverage = phrase_hits / max(1, len(normalized_phrases))
+
+        fuzzy_coverage = _fuzzy_term_coverage(original_terms - doc_tokens, doc_tokens)
+        exact_query_bonus = 1.0 if normalized_query in document["normalized"] else 0.0
+
+        score = (
+            0.42 * exact_coverage
+            + 0.18 * original_coverage
+            + 0.14 * must_coverage
+            + 0.08 * entity_coverage
+            + 0.08 * phrase_coverage
+            + 0.05 * title_coverage
+            + 0.03 * fuzzy_coverage
+            + 0.02 * exact_query_bonus
+        )
+
+        # Missing all required concepts should be a strong negative, not an automatic
+        # rejection, because the model may have expressed one concept as a phrase.
+        if must_have and must_coverage == 0:
+            score *= 0.35
+
+        has_retrieval_signal = bool(matched_terms or phrase_hits or fuzzy_coverage >= 0.34)
+        if has_retrieval_signal and score >= 0.055:
+            document["retrieval_score"] = round(score, 6)
+            document["matched_terms"] = sorted(matched_terms)
+            candidates.append(document)
+
+    candidates.sort(key=lambda item: item["retrieval_score"], reverse=True)
+    candidates = candidates[:14]
+
+    if not candidates:
+        logger.info(f"No internal candidates for query: {original_query[:80]}")
+        return None
+
+    candidate_blocks = []
+    candidate_ids = set()
+    candidate_by_id = {}
+    for rank, document in enumerate(candidates, start=1):
+        post = document["post"]
+        post_id = int(post.id)
+        candidate_ids.add(post_id)
+        candidate_by_id[post_id] = document
+
+        snippet = _candidate_snippet(document["content"], expanded_terms, max_chars=2200)
+        stored_title = document["title"] or "بدون عنوان مخزن"
+        candidate_blocks.append(
+            f"""--- المرشح {rank} ---
+ID: {post_id}
+RETRIEVAL_SCORE: {document['retrieval_score']}
+STORED_TITLE: {stored_title}
+CONTENT:
+{snippet}"""
+        )
+
+    rerank_prompt = f"""أنت محرك إعادة ترتيب دقيق لمنشورات جامعة الملك خالد.
+المطلوب اختيار منشور واحد فقط يخدم نية الطالب الحقيقية، أو رفض جميع المرشحين.
+
+تحليل السؤال:
+{json.dumps(analysis, ensure_ascii=False)}
+
+سؤال الطالب:
+{original_query}
+
+قواعد المطابقة:
+1. افهم المقصود لا مجرد الكلمات المشتركة.
+2. فضّل المنشور الذي يجيب مباشرة عن السؤال.
+3. يمكن قبول "إرشاد شديد الصلة" إذا كان يعالج نفس الفعل أو القرار الذي يسأل عنه الطالب مباشرة، حتى لو لم يذكر خطوات حرفية.
+4. ارفض المنشور الذي يتحدث عن نفس الموضوع لكنه يجيب عن نية مختلفة؛ مثل تاريخ التقديم بدل شروطه، أو الانسحاب من الجامعة بدل الانسحاب من منصة قبول.
+5. طابق القيود المهمة بدقة: الجهة، المنصة، البرنامج، نوع القبول، الفئة، الفرع، الجنس، الفصل، التاريخ، والحالة الأكاديمية إن ذُكرت.
+6. لا تستنتج لائحة أو حكمًا غير موجود. لا تجعل التشابه العام إجابة.
+7. supporting_quote يجب أن يكون اقتباسًا حرفيًا قصيرًا موجودًا داخل CONTENT للمنشور المختار.
+8. confidence يعبر عن مدى تطابق المنشور مع نية السؤال، لا عن جودة صياغة المنشور.
+
+حدود القبول:
+- direct_answer: لا يقل confidence عن 0.80
+- relevant_guidance: لا يقل confidence عن 0.90
+- عند الشك أو تعارض القيود اختر none.
+
+المرشحون:
+{chr(10).join(candidate_blocks)}
+
+أخرج JSON صحيحًا فقط:
+{{
+  "match": true,
+  "post_id": 123,
+  "match_type": "direct_answer|relevant_guidance|none",
+  "confidence": 0.0,
+  "title": "عنوان وصفي قصير دون اختراع معلومة",
+  "supporting_quote": "اقتباس حرفي من المنشور",
+  "reason": "سبب داخلي مختصر للمراجعة"
+}}
+
+إذا لم يوجد تطابق قوي:
+{{"match": false, "post_id": null, "match_type": "none", "confidence": 0.0, "title": "", "supporting_quote": "", "reason": ""}}"""
+
+    try:
+        raw_response = await asyncio.to_thread(_call_model, rerank_prompt, thinking=True)
+        decision = _extract_json_object(raw_response)
+        if not decision or not bool(decision.get("match")):
+            return None
+
+        try:
+            selected_id = int(decision.get("post_id"))
+            confidence = float(decision.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            return None
+
+        match_type = str(decision.get("match_type") or "none").strip().lower()
+        required_confidence = 0.90 if match_type == "relevant_guidance" else 0.80
+        if match_type not in {"direct_answer", "relevant_guidance"}:
+            return None
+        if selected_id not in candidate_ids or confidence < required_confidence:
+            logger.info(
+                f"Rejected reranker decision id={selected_id}, type={match_type}, "
+                f"confidence={confidence:.3f}"
+            )
+            return None
+
+        selected = candidate_by_id[selected_id]
+        selected_post = selected["post"]
+
+        # Local guard 1: evidence must be a real quote from the selected post.
+        quote = str(decision.get("supporting_quote") or "").strip()
+        normalized_quote = _normalize_search_text(quote)
+        if len(normalized_quote) < 8 or normalized_quote not in selected["normalized"]:
+            logger.warning(f"Rejected post {selected_id}: supporting quote is not verbatim")
+            return None
+
+        # Local guard 2: at least part of the original question or a required concept
+        # must exist in the selected document. This blocks model-only hallucinated matches.
+        original_overlap = original_terms & selected["tokens"]
+        must_matches = sum(1 for term in must_have if _term_is_present(term, selected["tokens"]))
+        if not original_overlap and must_matches == 0:
+            logger.warning(f"Rejected post {selected_id}: no grounded query concept overlap")
+            return None
+
+        title = _derive_post_title(selected_post, str(decision.get("title") or ""))
+        link = await _build_internal_post_link(selected_post)
+        result = {"title": title, "link": link}
+
+        await cache_response(cache_key, result["title"], result.get("link"))
+        logger.info(
+            f"Internal semantic match query={original_query[:70]!r} post={selected_id} "
+            f"type={match_type} confidence={confidence:.3f} "
+            f"retrieval={selected['retrieval_score']:.3f}"
+        )
         return result
 
-    # Stage 2: Try remaining posts (deeper search)
-    remaining = [post for _, post in scored[15:]]
-    if remaining:
-        result = await _ai_select_post(query, remaining[:30])
-        if result:
-            return result
-
-    return None
+    except Exception as exc:
+        logger.error(f"Internal semantic post search failed: {exc}", exc_info=True)
+        return None

@@ -741,24 +741,6 @@ async def get_cached_response(query: str) -> dict | None:
                 "text": cache.response_text,
             }
 
-        if len(normalized) >= 15:
-            result = await session.execute(
-                select(QueryCache)
-                .where(QueryCache.normalized_query.contains(normalized[:15]))
-                .limit(1)
-            )
-            cache = result.scalar_one_or_none()
-
-            if cache:
-                cache.hit_count += 1
-                cache.last_used = func.now()
-                await session.commit()
-                return {
-                    "title": cache.response_title,
-                    "link": cache.response_link,
-                    "text": cache.response_text,
-                }
-
     return None
 
 
