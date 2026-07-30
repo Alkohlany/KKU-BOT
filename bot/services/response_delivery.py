@@ -20,29 +20,49 @@ def _is_specific_link(url: str) -> bool:
     return bool(re.search(r'https?://|t\.me/[^\s<>"]+/\d+', url))
 
 
-def _extract_url(text: str) -> str | None:
-    match = re.search(r'(https?://[^\s<>"]+|t\.me/[^\s<>"]+/\d+)', text or "")
-    return match.group(0) if match else None
+_LINK_RE = re.compile(r'(t\.me/[^\s<>"]+/\d+|https?://[^\s<>"]+)')
 
 
-def _strip_urls(text: str) -> str:
-    """Remove all t.me/... and https://... URLs from text."""
-    clean = re.sub(r'https?://[^\s<>"]+', '', text)
-    clean = re.sub(r't\.me/[^\s<>"]+', '', clean)
-    clean = re.sub(r'\n\s*\n', '\n', clean).strip()
-    return clean
+def _extract_links_with_context(text: str) -> tuple[str, list[dict]]:
+    """Extract all specific links and their labels from text.
+
+    Returns:
+        (cleaned_text, [{"label": "...", "url": "..."}, ...])
+    """
+    lines = text.split('\n')
+    buttons: list[dict] = []
+    cleaned_lines: list[str] = []
+
+    for i, line in enumerate(lines):
+        link_match = _LINK_RE.search(line)
+        if link_match:
+            url = link_match.group(1)
+            if _is_specific_link(url):
+                label = None
+                text_before = line[:link_match.start()].strip().rstrip(':').rstrip('|-').strip()
+                if text_before and len(text_before) > 2:
+                    label = text_before
+                elif i > 0 and not _LINK_RE.search(lines[i - 1]):
+                    label = lines[i - 1].strip()
+                if not label:
+                    label = url.split('/')[-1]
+                full_url = url if url.startswith('http') else f"https://{url}"
+                buttons.append({"label": label, "url": full_url})
+                continue
+        cleaned_lines.append(line)
+
+    cleaned_text = '\n'.join(cleaned_lines).strip()
+    return cleaned_text, buttons
 
 
-def _url_button_markup(content: str, base_markup=None) -> InlineKeyboardMarkup | None:
-    url = _extract_url(content)
-    if not url or not _is_specific_link(url):
-        return base_markup
-    button = InlineKeyboardButton("اضغط هنا", url=url)
-    if base_markup and hasattr(base_markup, "inline_keyboard"):
-        rows = [list(row) for row in base_markup.inline_keyboard]
-        rows.append([button])
-        return InlineKeyboardMarkup(rows)
-    return InlineKeyboardMarkup([[button]])
+def _build_url_keyboard(buttons: list[dict], existing_markup=None) -> InlineKeyboardMarkup | None:
+    """Build an InlineKeyboardMarkup from a list of buttons."""
+    rows = []
+    for btn in buttons:
+        rows.append([InlineKeyboardButton(text=btn["label"], url=btn["url"])])
+    if existing_markup and hasattr(existing_markup, 'inline_keyboard'):
+        rows.extend(existing_markup.inline_keyboard)
+    return InlineKeyboardMarkup(rows) if rows else None
 
 
 FRESHNESS_WARNING = (
@@ -76,27 +96,25 @@ async def send_auto_response(
             if news_post:
                 content = _with_prefix(news_post.content or "", prefix, response) or ""
                 content = wrap_links_in_blockquote(content)
-                url = _extract_url(content)
-                has_specific = url and _is_specific_link(url)
-                display = _strip_urls(content) if has_specific else content
-                markup = _url_button_markup(content if has_specific else "", reply_markup)
+                cleaned, link_buttons = _extract_links_with_context(content)
+                markup = _build_url_keyboard(link_buttons, reply_markup)
                 if news_post.image_url:
                     await message.reply_photo(
                         photo=news_post.image_url,
-                        caption=display,
+                        caption=cleaned,
                         parse_mode="HTML",
                         reply_markup=markup,
                     )
                 elif news_post.file_url:
                     await message.reply_document(
                         document=news_post.file_url,
-                        caption=display,
+                        caption=cleaned,
                         parse_mode="HTML",
                         reply_markup=markup,
                     )
                 else:
                     await message.reply_text(
-                        display,
+                        cleaned,
                         parse_mode="HTML",
                         disable_web_page_preview=True,
                         reply_markup=markup,
@@ -108,12 +126,9 @@ async def send_auto_response(
 
         caption = _with_prefix(getattr(response, "response", None), prefix, response)
         caption = wrap_links_in_blockquote(caption) if caption else None
-        has_specific = False
-        if caption:
-            url = _extract_url(caption)
-            has_specific = url is not None and _is_specific_link(url)
-        display = _strip_urls(caption) if has_specific else caption
-        markup = _url_button_markup(caption if has_specific else "", reply_markup)
+        cleaned, link_buttons = _extract_links_with_context(caption or "")
+        display = cleaned if link_buttons else caption
+        markup = _build_url_keyboard(link_buttons, reply_markup)
 
         file_tg_id = getattr(response, "file_tg_id", None)
         file_url = getattr(response, "file_url", None)
