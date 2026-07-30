@@ -10,9 +10,6 @@ export default function Books() {
   const [groups, setGroups] = useState([]);
   const [view, setView] = useState('groups');
   const [activeGroup, setActiveGroup] = useState(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const [showBookModal, setShowBookModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [form, setForm] = useState({ title: '', file: null, group_id: '', author: '', link: '' });
@@ -36,22 +33,18 @@ export default function Books() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => { setPage(1); }, [search]);
-
   useEffect(() => {
     loadData();
-  }, [page, search]);
+  }, [search]);
 
   const loadData = async () => {
     try {
       const [booksData, groupsData] = await Promise.all([
-        api.getBooks({ page, limit: 5, search }),
+        api.getBooks({ search }),
         api.getBookGroups()
       ]);
       const bookItems = booksData.items || booksData;
       setBooks(Array.isArray(bookItems) ? bookItems : []);
-      setTotal(booksData.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((booksData.total || 0) / 5)));
       setGroups(groupsData);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -543,20 +536,6 @@ export default function Books() {
           </div>
         )}
       </div>
-
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--gray-200)' }}>
-          <div style={{ fontSize: 13, color: 'var(--gray-600)' }}>
-            الصفحة {page} من {totalPages} ({total} إجمالي)
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="btn btn-secondary btn-sm">السابق</button>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="btn btn-secondary btn-sm">التالي</button>
-          </div>
-        </div>
-      )}
 
       {/* Add/Edit Group Modal */}
       {showGroupModal && (

@@ -10,9 +10,6 @@ export default function StudyPlans() {
   const [groups, setGroups] = useState([]);
   const [view, setView] = useState('groups');
   const [activeGroup, setActiveGroup] = useState(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [form, setForm] = useState({ title: '', file: null, group_id: '', specialization: '', link: '' });
@@ -36,22 +33,18 @@ export default function StudyPlans() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => { setPage(1); }, [search]);
-
   useEffect(() => {
     loadData();
-  }, [page, search]);
+  }, [search]);
 
   const loadData = async () => {
     try {
       const [plansData, groupsData] = await Promise.all([
-        api.get(`/study-plans?page=${page}&limit=5&search=${encodeURIComponent(search)}`),
+        api.get(`/study-plans?search=${encodeURIComponent(search)}`),
         api.getStudyPlanGroups()
       ]);
       const planItems = plansData.items || plansData;
       setPlans(Array.isArray(planItems) ? planItems : []);
-      setTotal(plansData.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((plansData.total || 0) / 5)));
       setGroups(groupsData);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -540,20 +533,6 @@ const handlePlanPermanentDelete = async (id) => {
           </div>
         )}
       </div>
-
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--gray-200)' }}>
-          <div style={{ fontSize: 13, color: 'var(--gray-600)' }}>
-            الصفحة {page} من {totalPages} ({total} إجمالي)
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="btn btn-secondary btn-sm">السابق</button>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="btn btn-secondary btn-sm">التالي</button>
-          </div>
-        </div>
-      )}
 
       {/* Add/Edit Group Modal */}
       {showGroupModal && (
