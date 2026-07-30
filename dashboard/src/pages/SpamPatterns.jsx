@@ -8,7 +8,7 @@ export default function SpamPatterns() {
   const { showToast } = useToast();
   const [patterns, setPatterns] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ content: '', created_at: '' });
+  const [form, setForm] = useState({ content: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,12 +39,12 @@ export default function SpamPatterns() {
   const filtered = patterns;
 
   const handleAdd = async () => {
-    if (!form.content || !form.created_at) return;
+    if (!form.content) return;
     setSaving(true);
     try {
       const newItem = await api.addSpamPattern(form);
       setPatterns([newItem, ...patterns]);
-      setForm({ content: '', created_at: '' });
+      setForm({ content: '' });
       setShowModal(false);
     } catch (err) {
       console.error('Failed to add pattern:', err);
