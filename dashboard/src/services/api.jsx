@@ -233,7 +233,6 @@ const api = {
   getBookGroups: () => api.get('/books/groups'),
   getBookGroup: (id) => api.get(`/books/groups/${id}`),
   addBookGroup: (data) => api.post('/books/groups', data),
-  publishBookGroup: (groupId) => api.post(`/books/groups/${groupId}/publish`),
   updateBookGroup: (id, data) => api.put(`/books/groups/${id}`, data),
   deleteBookGroup: (id, mode = 'permanent') => api.delete(`/books/groups/${id}?mode=${mode}`),
   getBooks: (params) => {

@@ -177,19 +177,6 @@ async def create_book_group_endpoint(data: BookGroupCreate):
     return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "message": "تم حفظ المجموعة كمسودة"}
 
 
-@router.post("/groups/{group_id}/publish")
-async def publish_book_group(group_id: int):
-    async with async_session() as session:
-        stmt = select(BookGroup).where(BookGroup.id == group_id)
-        result = await session.execute(stmt)
-        group = result.scalar_one_or_none()
-        if not group:
-            raise HTTPException(status_code=404, detail="Group not found")
-
-    await update_book_group_post(group_id)
-    return {"message": "تم نشر المجموعة بنجاح"}
-
-
 @router.put("/groups/{group_id}")
 async def update_book_group_endpoint(group_id: int, data: BookGroupCreate):
     async with async_session() as session:
