@@ -25,6 +25,7 @@ from bot.handlers.group_handler import group_chat_member_handler, group_new_memb
 from bot.handlers.channel_handler import channel_chat_member_handler, register_channel_cmd
 from bot.services.scheduler import check_scheduled_posts
 from bot.services.database import init_db, run_migrations, add_missing_columns
+from bot.handlers import student_menu
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -37,6 +38,11 @@ logger = logging.getLogger(__name__)
 async def post_init(application):
     try:
         application.bot_data['admin_ids'] = ADMIN_IDS.copy()
+        try:
+            me = await application.bot.get_me()
+            student_menu._bot_username = me.username
+        except Exception as bot_error:
+            logger.warning(f"Could not fetch bot username: {bot_error}")
         try:
             await application.bot.set_my_commands([
                 BotCommand('start', 'بدء استخدام البوت'),

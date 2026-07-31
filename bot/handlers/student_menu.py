@@ -19,6 +19,8 @@ from bot.services.news_publisher import wrap_links_in_blockquote
 
 logger = logging.getLogger(__name__)
 
+_bot_username: str | None = None
+
 
 @dataclass(frozen=True)
 class MenuTopic:
@@ -214,6 +216,11 @@ def build_candidate_keyboard(
             InlineKeyboardButton("↩️ رجوع", callback_data=back_callback),
             InlineKeyboardButton("🏠 الرئيسية", callback_data="menu:home"),
         ])
+    else:
+        if _bot_username:
+            rows.append([
+                InlineKeyboardButton("مواضيع أكثر 📋", url=f"https://t.me/{_bot_username}?start=menu"),
+            ])
     return InlineKeyboardMarkup(rows)
 
 
