@@ -174,37 +174,20 @@ async def get_book_group(group_id: int):
 @router.post("/groups")
 async def create_book_group_endpoint(data: BookGroupCreate):
     group = await create_book_group(title=data.title, description=data.description, group_tag=data.group_tag)
+    return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "message": "تم حفظ المجموعة كمسودة"}
 
-    try:
-        channel_chat_id = await _get_channel_id()
-        channel_username = await _get_channel_username()
-        if channel_username and group.group_tag:
-            link = f"https://t.me/{channel_username.replace('@', '')}"
-            text = f"📂 {group.title}\n"
-            text += f"#{group.group_tag}\n"
-            text += f"{link}"
-        else:
-            text = f"📂 {group.title}\n"
-            if group.description:
-                text += f"{group.description}"
 
-        async with httpx.AsyncClient() as client:
-            data_payload = {"chat_id": channel_chat_id, "text": text}
-            resp = await client.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                data=data_payload,
-                timeout=30
-            )
+@router.post("/groups/{group_id}/publish")
+async def publish_book_group(group_id: int):
+    async with async_session() as session:
+        stmt = select(BookGroup).where(BookGroup.id == group_id)
+        result = await session.execute(stmt)
+        group = result.scalar_one_or_none()
+        if not group:
+            raise HTTPException(status_code=404, detail="Group not found")
 
-            if resp.status_code == 200:
-                result = resp.json()
-                if result.get("ok"):
-                    msg_id = result["result"]["message_id"]
-                    await update_book_group(group.id, channel_message_id=msg_id)
-    except Exception as e:
-        print(f"Error publishing book group to channel: {e}")
-
-    return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "message": "Group created successfully"}
+    await update_book_group_post(group_id)
+    return {"message": "تم نشر المجموعة بنجاح"}
 
 
 @router.put("/groups/{group_id}")
