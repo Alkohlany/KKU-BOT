@@ -1,5 +1,8 @@
 import httpx
 import os
+import asyncio
+import tempfile
+import fitz
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
@@ -15,6 +18,39 @@ from bot.services.cloud_storage import upload_raw
 from bot.config import BOT_TOKEN
 
 router = APIRouter()
+
+
+def _generate_pdf_thumbnail_bytes(pdf_bytes: bytes) -> bytes | None:
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(pdf_bytes)
+            tmp_path = tmp.name
+        doc = fitz.open(tmp_path)
+        if len(doc) > 0:
+            page = doc[0]
+            pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
+            thumb_path = tmp_path.rsplit('.', 1)[0] + '_thumb.jpg'
+            pix.save(thumb_path)
+            with open(thumb_path, 'rb') as f:
+                thumb_bytes = f.read()
+            os.unlink(thumb_path)
+            doc.close()
+            os.unlink(tmp_path)
+            try:
+                from PIL import Image
+                from io import BytesIO
+                img = Image.open(BytesIO(thumb_bytes))
+                img.thumbnail((320, 320), Image.LANCZOS)
+                buf = BytesIO()
+                img.save(buf, "JPEG", quality=85)
+                return buf.getvalue()
+            except Exception:
+                return thumb_bytes
+        doc.close()
+        os.unlink(tmp_path)
+    except Exception:
+        pass
+    return None
 
 
 async def _get_channel_id():
@@ -376,14 +412,20 @@ async def publish_single_book(book_id: int):
             link = book.link if book.link else "t.me/kkunewbot"
             caption += f'<blockquote>{link}</blockquote>'
 
+            thumb_bytes = _generate_pdf_thumbnail_bytes(file_content)
+            send_data = {
+                "chat_id": channel_chat_id,
+                "caption": caption,
+                "parse_mode": "HTML"
+            }
+            files_dict = {"document": (f"{book.title}{os.path.splitext(book.file_url)[1] or '.pdf'}", file_content, "application/pdf")}
+            if thumb_bytes:
+                files_dict["thumbnail"] = ("thumb.jpg", thumb_bytes, "image/jpeg")
+
             resp = await client.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
-                data={
-                    "chat_id": channel_chat_id,
-                    "caption": caption,
-                    "parse_mode": "HTML"
-                },
-                files={"document": (f"{book.title}{os.path.splitext(book.file_url)[1] or '.pdf'}", file_content, "application/pdf")},
+                data=send_data,
+                files=files_dict,
                 timeout=120
             )
 
