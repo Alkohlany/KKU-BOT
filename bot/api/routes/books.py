@@ -1,4 +1,5 @@
 import httpx
+import os
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
@@ -382,7 +383,7 @@ async def publish_single_book(book_id: int):
                     "caption": caption,
                     "parse_mode": "HTML"
                 },
-                files={"document": (f"{book.title}.pdf", file_content, "application/pdf")},
+                files={"document": (f"{book.title}{os.path.splitext(book.file_url)[1] or '.pdf'}", file_content, "application/pdf")},
                 timeout=120
             )
 
@@ -487,6 +488,18 @@ async def delete_book_endpoint(book_id: int, mode: str = "permanent"):
             result = await session.execute(stmt)
             book = result.scalar_one_or_none()
             group_id = book.group_id if book else None
+
+            if book and book.channel_message_id:
+                channel_chat_id = await _get_channel_id()
+                try:
+                    async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+                        await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": channel_chat_id, "message_id": book.channel_message_id},
+                            timeout=30
+                        )
+                except Exception:
+                    pass
 
         await delete_book(book_id)
 

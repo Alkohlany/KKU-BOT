@@ -308,37 +308,7 @@ async def get_study_plan_group(group_id: int):
 @router.post("/groups")
 async def create_study_plan_group_endpoint(data: StudyPlanGroupCreate):
     group = await create_study_plan_group(title=data.title, description=data.description, group_tag=data.group_tag)
-
-    try:
-        channel_chat_id = await _get_channel_id()
-        channel_username = await _get_channel_username()
-        if channel_username and group.group_tag:
-            link = f"https://t.me/{channel_username.replace('@', '')}"
-            text = f"📂 {group.title}\n"
-            text += f"#{group.group_tag}\n"
-            text += f"{link}"
-        else:
-            text = f"📂 {group.title}\n"
-            if group.description:
-                text += f"{group.description}"
-
-        async with httpx.AsyncClient() as client:
-            data_payload = {"chat_id": channel_chat_id, "text": text}
-            resp = await client.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                data=data_payload,
-                timeout=30
-            )
-
-            if resp.status_code == 200:
-                result = resp.json()
-                if result.get("ok"):
-                    msg_id = result["result"]["message_id"]
-                    await update_study_plan_group(group.id, channel_message_id=msg_id)
-    except Exception as e:
-        print(f"Error publishing group to channel: {e}")
-
-    return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "message": "Group created successfully"}
+    return {"id": group.id, "title": group.title, "group_tag": group.group_tag, "message": "تم حفظ المجموعة كمسودة"}
 
 
 @router.put("/groups/{group_id}")
@@ -544,7 +514,7 @@ async def publish_single_plan(plan_id: int):
                 "parse_mode": "HTML"
             }
 
-            files_dict = {"document": (f"{plan.title}.pdf", pdf_content, "application/pdf")}
+            files_dict = {"document": (f"{plan.title}{os.path.splitext(plan.file_url)[1] or '.pdf'}", pdf_content, "application/pdf")}
             if thumb_bytes:
                 files_dict["thumbnail"] = ("thumb.jpg", thumb_bytes, "image/jpeg")
 
@@ -613,7 +583,7 @@ async def update_study_plan(
         if file:
             content = await file.read()
             file_url = upload_raw(content, filename=file.filename, folder="kku-bot/plans")
-            plan.plan_url = file_url
+            plan.file_url = file_url
 
         await session.commit()
 
@@ -663,6 +633,18 @@ async def delete_study_plan_endpoint(plan_id: int, mode: str = "permanent"):
             result = await session.execute(stmt)
             plan = result.scalar_one_or_none()
             group_id = plan.group_id if plan else None
+
+            if plan and plan.channel_message_id:
+                channel_chat_id = await _get_channel_id()
+                try:
+                    async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+                        await client.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            data={"chat_id": channel_chat_id, "message_id": plan.channel_message_id},
+                            timeout=30
+                        )
+                except Exception:
+                    pass
 
         await delete_study_plan(plan_id)
 
