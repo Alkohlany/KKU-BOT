@@ -384,7 +384,7 @@ export default function Books() {
                         </div>
                         <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center', overflow: 'hidden' }}>
                           {group.group_tag && (
-                            <span style={{ fontSize: 11, color: 'var(--primary)', background: 'var(--primary-bg)', padding: '1px 8px', borderRadius: 10, fontWeight: 600 }}>
+                            <span style={{ fontSize: 11, color: 'var(--primary)', background: 'var(--primary-bg)', padding: '1px 8px', borderRadius: 10, fontWeight: 600, overflowWrap: 'break-word', wordBreak: 'break-all' }}>
                               #{group.group_tag}
                             </span>
                           )}
