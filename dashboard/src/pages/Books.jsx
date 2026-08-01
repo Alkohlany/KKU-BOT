@@ -358,6 +358,7 @@ export default function Books() {
                         border: '1px solid var(--gray-200)',
                         cursor: 'pointer',
                         transition: 'all 0.15s',
+                        overflow: 'hidden',
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(46,125,50,0.12)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--gray-200)'; e.currentTarget.style.boxShadow = 'none'; }}
