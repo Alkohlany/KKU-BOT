@@ -358,7 +358,6 @@ const handlePlanPermanentDelete = async (id) => {
                         border: '1px solid var(--gray-200)',
                         cursor: 'pointer',
                         transition: 'all 0.15s',
-                        overflow: 'hidden',
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(46,125,50,0.12)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--gray-200)'; e.currentTarget.style.boxShadow = 'none'; }}
@@ -378,13 +377,13 @@ const handlePlanPermanentDelete = async (id) => {
                       >
                         📁
                       </div>
-                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-800)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-800)' }}>
                           {group.title}
                         </div>
-                        <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center', overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                           {group.group_tag && (
-                            <span style={{ fontSize: 11, color: 'var(--primary)', background: 'var(--primary-bg)', padding: '1px 8px', borderRadius: 10, fontWeight: 600, overflowWrap: 'break-word', wordBreak: 'break-all' }}>
+                            <span style={{ fontSize: 11, color: 'var(--primary)', background: 'var(--primary-bg)', padding: '1px 8px', borderRadius: 10, fontWeight: 600 }}>
                               #{group.group_tag}
                             </span>
                           )}
