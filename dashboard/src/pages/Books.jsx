@@ -379,12 +379,12 @@ export default function Books() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-800)' }}>
-                          {group.title}
+                          {windowWidth < 768 && group.title.length > 30 ? group.title.substring(0, 30) + '…' : group.title}
                         </div>
                         <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                           {group.group_tag && (
                             <span style={{ fontSize: 11, color: 'var(--primary)', background: 'var(--primary-bg)', padding: '1px 8px', borderRadius: 10, fontWeight: 600 }}>
-                              #{group.group_tag}
+                              #{group.group_tag.length > 18 ? group.group_tag.substring(0, 18) + '…' : group.group_tag}
                             </span>
                           )}
                           <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>
