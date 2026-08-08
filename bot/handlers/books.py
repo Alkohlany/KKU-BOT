@@ -10,14 +10,14 @@ import re
 logger = logging.getLogger(__name__)
 
 _BOOK_REQUEST_RE = re.compile(
-    r"^\s*(?:الكتب|الكتاب|كتب|كتاب)"
+    r"(?:^|\s)(?:الكتب|الكتاب|كتب|كتاب)"
     r"(?:\s+.*)?\s*[؟?]?\s*$"
 )
 
 
 def is_book_request(text: str) -> bool:
-    """يكتشف طلبات الكتب مثل 'كتب الطب' أو 'كتب مهارات التواصل'."""
-    return bool(_BOOK_REQUEST_RE.fullmatch(normalize_arabic((text or "").lower()).strip()))
+    """يكتشف طلبات الكتب مثل 'كتب الطب' أو 'وين الاقي كتب التسريبات'."""
+    return bool(_BOOK_REQUEST_RE.search(normalize_arabic((text or "").lower()).strip()))
 
 
 async def books_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -80,16 +80,8 @@ async def books_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # ponytail: تجاهل رسائل القناة المُعاد توجيهها
     if update.message.forward_from_chat or update.message.forward_from:
         return
-    text = update.message.text.strip()
-    for trigger in ["الكتب", "الكتاب", "كتب", "كتاب"]:
-        if text.startswith(trigger):
-            remaining = text[len(trigger):].strip()
-            break
-    else:
-        remaining = text
-    context.args = remaining.split() if remaining else []
     await books_command(update, context)
 
 
 books_handler = CommandHandler("books", books_command)
-books_text_handler = MessageHandler(filters.Regex(r"^\s*(?:الكتب|الكتاب|كتب|كتاب)(?:\s+.*)?\s*[؟?]?\s*$"), books_text_command)
+books_text_handler = MessageHandler(filters.Regex(r"(?:^|\s)(?:الكتب|الكتاب|كتب|كتاب)(?:\s+.*)?\s*[؟?]?\s*$"), books_text_command)
