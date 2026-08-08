@@ -63,6 +63,14 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
     data = query.data
     await query.answer()
 
+    # ==================== الرجوع للقائمة الرئيسية ====================
+    if data == "admin:main":
+        await query.edit_message_text(
+            "⚙️ لوحة تحكم الأدمن\nاختر القسم:",
+            reply_markup=main_menu_keyboard()
+        )
+        return
+
     # ==================== الردود ====================
     if data == "admin:responses":
         await query.edit_message_text(
