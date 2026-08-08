@@ -49,9 +49,9 @@ async def post_init(application):
             await application.bot.set_my_commands([
                 BotCommand('start', 'بدء استخدام البوت'),
                 BotCommand('menu', 'فتح القائمة الرئيسية'),
+                BotCommand('admin', 'لوحة تحكم الأدمن'),
                 BotCommand('plans', 'الخطط الدراسية'),
                 BotCommand('books', 'الكتب'),
-                BotCommand('news', 'المنشورات'),
                 BotCommand('help', 'المساعدة'),
             ])
         except Exception as command_error:
