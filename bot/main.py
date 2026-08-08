@@ -12,6 +12,7 @@ from bot.handlers.admin_commands import (
     stats_command, groups_command, broadcast_command,
     ban_command, unban_command, banned_list, spam_handler
 )
+from bot.handlers.admin_menu import admin_panel_command, admin_panel_text, admin_panel_callback
 from bot.handlers.news import news_handler
 from bot.handlers.questions import questions_handler
 from bot.handlers.study_plans import plans_handler, plans_text_handler
@@ -107,6 +108,10 @@ def main():
     application.add_handler(CommandHandler("unban", unban_command))
     application.add_handler(CommandHandler("banned", banned_list))
     application.add_handler(CommandHandler("spam", spam_handler))
+
+    application.add_handler(admin_panel_command)
+    application.add_handler(admin_panel_callback)
+    application.add_handler(admin_panel_text)
 
     application.add_handler(check_subscription_handler)
     application.add_handler(global_subscription_handler, group=-1)
