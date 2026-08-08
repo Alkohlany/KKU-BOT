@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes, CommandHandler
 from bot.middleware.subscription import subscription_required
 from bot.services.database import search_question, get_all_questions
 from bot.services.news_publisher import wrap_links_in_blockquote
+from bot.config import is_admin
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,10 @@ async def get_questions_text():
 
 
 async def questions_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
+        return
+
     is_subscribed = await subscription_required(update, context)
     if not is_subscribed:
         return
