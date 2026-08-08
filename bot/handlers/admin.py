@@ -1025,6 +1025,34 @@ async def admin_reply_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await remove_auto_responses_by_source(chat.id, replied.message_id)
         await send_admin_message(context, user.id, f"✅ تم إزالة {len(responses)} رد تلقائي:\n{', '.join(keywords)}")
 
+    # ==================== إضافة محتوى محظور ====================
+    elif any(text.startswith(p) for p in ["اضف محتوى محظور", "أضف محتوى محظور", "اضف كلمات محظوره", "أضف كلمات محظوره", "اضف نص محظور", "أضف نص محظور", "اضافه محتوى محظور", "إضافة محتوى محظور", "اضافه كلمات محظوره", "إضافة كلمات محظوره", "اضافه نص محظور", "إضافة نص محظور"]):
+        replied = update.message.reply_to_message
+        
+        if not replied:
+            await send_admin_message(context, user.id,
+                "❌ الطريقة الصحيحة:\n"
+                "1. رد على رسالة في الجروب\n"
+                "2. اكتب:\n"
+                "اضف محتوى محظور\n\n"
+                "💡 مثال:\n"
+                "رد على رسالة spam ثم اكتب: اضف محتوى محظور")
+            return
+        
+        content = replied.text or replied.caption or ""
+        
+        if not content:
+            await send_admin_message(context, user.id, "❌ الرسالة المُشار إليها لا تحتوي على نص")
+            return
+
+        try:
+            from bot.services.database import save_spam_pattern
+            await save_spam_pattern(content)
+            await send_admin_message(context, user.id, f"✅ تمت إضافة النص المحظور\n🚫 النص: {content[:100]}")
+            await log_activity("add_spam", f"Content: {content[:100]}", user.id)
+        except Exception as e:
+            await send_admin_message(context, user.id, f"❌ فشل الإضافة: {str(e)}")
+
 
 # ==================== تسجيل الاوامر ====================
 
