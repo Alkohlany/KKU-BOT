@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 _BOOK_REQUEST_RE = re.compile(
     r"^\s*(?:الكتب|الكتاب|كتب|كتاب)"
-    r"(?:\s+(?:المتوفرة|الجديدة|المنشورة|كلها|.?))?\s*[؟?]?\s*$"
+    r"(?:\s+.*)?\s*[؟?]?\s*$"
 )
 
 
 def is_book_request(text: str) -> bool:
-    """يمنع كلمة «كتاب» العامة من اختطاف أسئلة مثل «كتاب القبول»."""
+    """يكتشف طلبات الكتب مثل 'كتب الطب' أو 'كتب مهارات التواصل'."""
     return bool(_BOOK_REQUEST_RE.fullmatch(normalize_arabic((text or "").lower()).strip()))
 
 
@@ -92,4 +92,4 @@ async def books_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 books_handler = CommandHandler("books", books_command)
-books_text_handler = MessageHandler(filters.Regex(r"^\s*(?:الكتب|الكتاب|كتب|كتاب)(?:\s+(?:المتوفرة|الجديدة|المنشورة|كلها|.?))?\s*[؟?]?\s*$"), books_text_command)
+books_text_handler = MessageHandler(filters.Regex(r"^\s*(?:الكتب|الكتاب|كتب|كتاب)(?:\s+.*)?\s*[؟?]?\s*$"), books_text_command)
