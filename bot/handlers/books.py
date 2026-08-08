@@ -14,10 +14,17 @@ _BOOK_REQUEST_RE = re.compile(
     r"(?:\s+.*)?\s*[؟?]?\s*$"
 )
 
+_SPECIALTY_REQUEST_RE = re.compile(
+    r"(?:تسريبات|حلول|تجميعات|ملخصات|شروحات| exam|mid|final)"
+    r".*(?:كتب|كتاب|material|resources)?",
+    re.IGNORECASE
+)
+
 
 def is_book_request(text: str) -> bool:
-    """يكتشف طلبات الكتب مثل 'كتب الطب' أو 'وين الاقي كتب التسريبات'."""
-    return bool(_BOOK_REQUEST_RE.search(normalize_arabic((text or "").lower()).strip()))
+    """يكتشف طلبات الكتب مثل 'كتب الطب' أو 'وين الاقي كتب التسريبات' أو 'تسريبات التحصيلي'."""
+    normalized = normalize_arabic((text or "").lower()).strip()
+    return bool(_BOOK_REQUEST_RE.search(normalized) or _SPECIALTY_REQUEST_RE.search(normalized))
 
 
 async def books_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,4 +91,8 @@ async def books_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 books_handler = CommandHandler("books", books_command)
-books_text_handler = MessageHandler(filters.Regex(r"(?:^|\s)(?:الكتب|الكتاب|كتب|كتاب)(?:\s+.*)?\s*[؟?]?\s*$"), books_text_command)
+books_text_handler = MessageHandler(
+    filters.Regex(r"(?:^|\s)(?:الكتب|الكتاب|كتب|كتاب)(?:\s+.*)?\s*[؟?]?\s*$") |
+    filters.Regex(r"(?:تسريبات|حلول|تجميعات|ملخصات|شروحات|exam|mid|final)"),
+    books_text_command
+)
