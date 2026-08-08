@@ -40,6 +40,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await plans_command(update, context)
         return
 
+    if context.args and context.args[0] == "books":
+        from bot.handlers.books import books_command
+        await books_command(update, context)
+        return
+
     await update.message.reply_text(
         START_MESSAGE,
         parse_mode="HTML",

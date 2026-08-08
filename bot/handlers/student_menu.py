@@ -69,6 +69,7 @@ MENU_CATEGORIES: dict[str, MenuCategory] = {
         "دليل التخصصات والخطط والمسارات والتخصيص.",
         (
             MenuTopic("📚 الخطط الدراسية", url="https://t.me/kkunewbot?start=plans"),
+            MenuTopic("📖 الكتب", url="https://t.me/kkunewbot?start=books"),
             MenuTopic("🎓 دليل التخصصات", "دليل التخصصات شروط التخصصات", (392, 249)),
             MenuTopic("🩺 المسار الصحي", "المسار الصحي ضوابط التخصيص", (416, 247)),
             MenuTopic("⚙️ المسار الهندسي", "المسار الهندسي ضوابط التخصيص", (238,)),

@@ -15,6 +15,7 @@ from bot.handlers.admin_commands import (
 from bot.handlers.news import news_handler
 from bot.handlers.questions import questions_handler
 from bot.handlers.study_plans import plans_handler, plans_text_handler
+from bot.handlers.books import books_handler, books_text_handler
 from bot.handlers.broadcast import broadcast_handler
 from bot.handlers.responses import responses_handler
 from bot.handlers.student_menu import menu_handler, menu_text_handler, menu_callback_handler
@@ -48,6 +49,7 @@ async def post_init(application):
                 BotCommand('start', 'بدء استخدام البوت'),
                 BotCommand('menu', 'فتح القائمة الرئيسية'),
                 BotCommand('plans', 'الخطط الدراسية'),
+                BotCommand('books', 'الكتب'),
                 BotCommand('news', 'المنشورات'),
                 BotCommand('help', 'المساعدة'),
             ])
@@ -87,6 +89,8 @@ def main():
     application.add_handler(questions_handler)
     application.add_handler(plans_handler)
     application.add_handler(plans_text_handler)
+    application.add_handler(books_handler)
+    application.add_handler(books_text_handler)
     application.add_handler(broadcast_handler)
     application.add_handler(responses_handler)
     application.add_handler(admin_text)
