@@ -8,7 +8,7 @@ from bot.handlers.start import start_handler, feature_handler
 from bot.handlers.help import help_handler
 from bot.handlers.admin import admin_text, admin_reply
 from bot.handlers.admin_commands import (
-    admin_command, response_handler, question_handler, news_handler as admin_news_handler,
+    response_handler, question_handler, news_handler as admin_news_handler,
     stats_command, groups_command, broadcast_command,
     ban_command, unban_command, banned_list, spam_handler
 )
@@ -96,7 +96,6 @@ def main():
     application.add_handler(admin_text)
     application.add_handler(admin_reply)
 
-    application.add_handler(CommandHandler("admin", admin_command))
     application.add_handler(CommandHandler("r", response_handler))
     application.add_handler(CommandHandler("q", question_handler))
     application.add_handler(CommandHandler("n", admin_news_handler))
