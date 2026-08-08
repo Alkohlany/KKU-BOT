@@ -529,6 +529,7 @@ async def add_study_plan(title, description=None, faculty=None, level=None, plan
                         specialization=specialization, link=link)
         session.add(plan)
         await session.commit()
+        await session.refresh(plan)
         return plan
 
 async def get_all_study_plans():
@@ -667,6 +668,7 @@ async def add_book(title, description=None, author=None, file_url=None, group_id
                     file_url=file_url, group_id=group_id, link=link)
         session.add(book)
         await session.commit()
+        await session.refresh(book)
         return book
 
 async def get_all_books():

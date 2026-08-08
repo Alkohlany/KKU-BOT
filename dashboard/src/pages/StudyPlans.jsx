@@ -122,7 +122,7 @@ export default function StudyPlans() {
             link: form.link || null,
           });
         }
-        setPlans([...plans, newItem]);
+        await loadData();
       }
       setForm({ title: '', file: null, group_id: '', specialization: '', link: '' });
       setEditingPlan(null);

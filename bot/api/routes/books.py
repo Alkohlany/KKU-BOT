@@ -359,7 +359,18 @@ async def upload_book(
         link=link,
     )
 
-    return {"id": book.id, "title": book.title, "message": "تم حفظ الكتاب كمسودة"}
+    return {
+        "id": book.id,
+        "title": book.title,
+        "description": book.description,
+        "author": book.author,
+        "file_url": book.file_url,
+        "group_id": book.group_id,
+        "link": book.link,
+        "channel_message_id": book.channel_message_id,
+        "is_active": book.is_active,
+        "message": "تم حفظ الكتاب كمسودة",
+    }
 
 
 @router.post("/publish-book/{book_id}")

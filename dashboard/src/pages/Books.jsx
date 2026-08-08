@@ -122,7 +122,7 @@ export default function Books() {
             link: form.link || null,
           });
         }
-        setBooks([...books, newItem]);
+        await loadData();
       }
       setForm({ title: '', file: null, group_id: '', author: '', link: '' });
       setEditingBook(null);

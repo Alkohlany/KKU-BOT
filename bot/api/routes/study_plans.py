@@ -454,7 +454,21 @@ async def upload_study_plan(
         link=link,
     )
 
-    return {"id": plan.id, "title": plan.title, "message": "تم حفظ الخطة كمسودة"}
+    return {
+        "id": plan.id,
+        "title": plan.title,
+        "description": plan.description,
+        "faculty": plan.faculty,
+        "level": plan.level,
+        "plan_url": plan.plan_url,
+        "file_url": plan.file_url,
+        "group_id": plan.group_id,
+        "specialization": plan.specialization,
+        "link": plan.link,
+        "channel_message_id": plan.channel_message_id,
+        "is_active": plan.is_active,
+        "message": "تم حفظ الخطة كمسودة",
+    }
 
 
 @router.post("/publish-plan/{plan_id}")
