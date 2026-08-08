@@ -286,8 +286,6 @@ async def delete_book_group_endpoint(group_id: int, mode: str = "permanent"):
 async def get_books(
     group_id: Optional[int] = None,
     author: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=200),
     search: str = Query(None),
 ):
     async with async_session() as db:
@@ -301,13 +299,8 @@ async def get_books(
                 Book.title.ilike(f"%{search}%") | Book.author.ilike(f"%{search}%")
             )
 
-        total = (await db.execute(
-            select(func.count(Book.id)).where(*base_filter)
-        )).scalar() or 0
-
         result = await db.execute(
             select(Book).where(*base_filter)
-            .offset((page - 1) * limit).limit(limit)
         )
         items = result.scalars().all()
     return {
@@ -325,9 +318,7 @@ async def get_books(
             }
             for b in items
         ],
-        "total": total,
-        "page": page,
-        "limit": limit,
+        "total": len(items),
     }
 
 
