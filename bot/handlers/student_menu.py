@@ -77,10 +77,10 @@ MENU_CATEGORIES: dict[str, MenuCategory] = {
         ),
     ),
     "books": MenuCategory(
-        "📖 الكتب",
-        "الكتب والمراجع المتوفرة.",
+        "📖 الكتب والتسريبات",
+        "الكتب والتسريبات المتوفرة.",
         (
-            MenuTopic("📖 الكتب المتاحة", url="https://t.me/kkunewbot?start=books"),
+            MenuTopic("📖 الكتب والتسريبات المتاحة", url="https://t.me/kkunewbot?start=books"),
         ),
     ),
     "scores": MenuCategory(
@@ -158,7 +158,7 @@ MENU_CATEGORIES: dict[str, MenuCategory] = {
 
 MAIN_MENU_TEXT = (
     "👋 <b>مرحبًا بك في بوت جامعة الملك خالد</b>\n\n"
-    "يمكنك كتابة سؤالك مباشرة، أو اختيار القسم الأقرب من القائمة.\n\n"
+    "اسألني عن القبول، التسجيل، التخصصات، التحويل أو أي موضوع جامعي.\n\nيمكنك كتابة سؤالك مباشرة، أو تصفح الأقسام أدناه.\n\n"
 )
 
 
