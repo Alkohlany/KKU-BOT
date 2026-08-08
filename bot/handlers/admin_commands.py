@@ -697,3 +697,115 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"✅ تم الإرسال\n📤 نجح: {sent}\n❌ فشل: {failed}", disable_web_page_preview=True)
     await log_activity("broadcast", f"Sent: {sent}, Failed: {failed}", update.effective_user.id)
+
+
+# ==================== أنماط المحتوى المحظور ====================
+
+async def spam_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+
+    if not context.args:
+        await spam_list(update, context)
+        return
+
+    sub_command = context.args[0].lower()
+    context.args = context.args[1:]
+
+    if sub_command in ["add", "اضف"]:
+        if update.message.reply_to_message:
+            await spam_add_reply(update, context)
+        else:
+            await spam_add(update, context)
+    elif sub_command in ["del", "احذف"]:
+        await spam_delete(update, context)
+    elif sub_command in ["list", "قائمة"]:
+        await spam_list(update, context)
+    else:
+        await update.message.reply_text(
+            "❌ اوامر أنماط المحتوى المحظور:\n"
+            "/spam add \[نص\] - إضافة نص محظور\n"
+            "/spam add بالرد على رسالة - إضافة محتوى الرسالة\n"
+            "/spam del \[رقم\] - حذف نص\n"
+            "/spam list - عرض القائمة",
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
+        )
+
+
+async def spam_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from bot.services.database import get_all_spam_patterns
+    patterns = await get_all_spam_patterns()
+    if not patterns:
+        await update.message.reply_text("📭 لا توجد أنماط محتوى محظور", disable_web_page_preview=True)
+        return
+
+    text = "🚫 **أنماط المحتوى المحظور:**\n\n"
+    for p in patterns[:30]:
+        content_preview = p.content[:50] + "..." if len(p.content) > 50 else p.content
+        text += f"`{p.id}` - {content_preview}\n"
+
+    if len(patterns) > 30:
+        text += f"\n... و {len(patterns) - 30} نمط آخر"
+
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
+
+
+async def spam_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from bot.services.database import save_spam_pattern
+
+    if not context.args:
+        await update.message.reply_text(
+            "❌ الطريقة الصحيحة:\n/spam add \[نص محظور\]",
+            disable_web_page_preview=True
+        )
+        return
+
+    content = ' '.join(context.args)
+
+    try:
+        await save_spam_pattern(content)
+        await update.message.reply_text(f"✅ تمت إضافة النص المحظور\n🚫 النص: {content[:100]}", disable_web_page_preview=True)
+        await log_activity("add_spam", f"Content: {content[:100]}", update.effective_user.id)
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل الإضافة: {str(e)}", disable_web_page_preview=True)
+
+
+async def spam_add_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from bot.services.database import save_spam_pattern
+
+    if not update.message.reply_to_message:
+        await update.message.reply_text("❌ يجب الرد على رسالة لإضافة محتوى محظور", disable_web_page_preview=True)
+        return
+
+    replied = update.message.reply_to_message
+    content = replied.text or replied.caption or ""
+
+    if not content:
+        await update.message.reply_text("❌ الرسالة المُشار إليها لا تحتوي على نص", disable_web_page_preview=True)
+        return
+
+    try:
+        await save_spam_pattern(content)
+        await update.message.reply_text(f"✅ تمت إضافة النص المحظور\n🚫 النص: {content[:100]}", disable_web_page_preview=True)
+        await log_activity("add_spam", f"Content: {content[:100]}", update.effective_user.id)
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل الإضافة: {str(e)}", disable_web_page_preview=True)
+
+
+async def spam_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from bot.services.database import delete_spam_pattern
+
+    if not context.args:
+        await update.message.reply_text("❌ الطريقة الصحيحة:\n/spam del \[رقم\]", disable_web_page_preview=True)
+        return
+
+    try:
+        pattern_id = int(context.args[0])
+        await delete_spam_pattern(pattern_id)
+        await update.message.reply_text(f"✅ تم حذف النمط رقم {pattern_id}", disable_web_page_preview=True)
+        await log_activity("delete_spam", f"ID: {pattern_id}", update.effective_user.id)
+    except ValueError:
+        await update.message.reply_text("❌ رقم غير صحيح", disable_web_page_preview=True)
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل الحذف: {str(e)}", disable_web_page_preview=True)

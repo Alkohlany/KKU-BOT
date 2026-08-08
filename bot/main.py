@@ -10,7 +10,7 @@ from bot.handlers.admin import admin_text, admin_reply
 from bot.handlers.admin_commands import (
     admin_command, response_handler, question_handler, news_handler as admin_news_handler,
     stats_command, groups_command, broadcast_command,
-    ban_command, unban_command, banned_list
+    ban_command, unban_command, banned_list, spam_handler
 )
 from bot.handlers.news import news_handler
 from bot.handlers.questions import questions_handler
@@ -106,6 +106,7 @@ def main():
     application.add_handler(CommandHandler("ban", ban_command))
     application.add_handler(CommandHandler("unban", unban_command))
     application.add_handler(CommandHandler("banned", banned_list))
+    application.add_handler(CommandHandler("spam", spam_handler))
 
     application.add_handler(check_subscription_handler)
     application.add_handler(global_subscription_handler, group=-1)
