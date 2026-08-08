@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 from bot.services.database import get_active_channel_groups, log_activity
 from bot.services.news_publisher import wrap_links_in_blockquote
+from bot.config import is_admin
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,6 +11,10 @@ logger = logging.getLogger(__name__)
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not user:
+        return
+
+    if not is_admin(user.id):
+        await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
     
     if not context.args:
