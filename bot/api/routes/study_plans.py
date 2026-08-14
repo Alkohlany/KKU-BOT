@@ -17,7 +17,7 @@ from bot.services.database import (
     create_study_plan_group, delete_study_plan_group, get_study_plans_by_group,
     update_study_plan_group, get_active_channel_groups, get_official_channel
 )
-from bot.services.cloud_storage import upload_raw
+from bot.services.cloud_storage import upload_raw, upload_raw_streaming
 from bot.config import BOT_TOKEN
 
 router = APIRouter()
@@ -439,11 +439,29 @@ async def upload_study_plan(
     specialization: str = Form(None),
     link: str = Form(None),
     file: Optional[UploadFile] = File(None),
+    cloud_files: str = Form("[]"),
 ):
     file_url = None
     if file:
-        content = await file.read()
-        file_url = upload_raw(content, filename=file.filename, folder="kku-bot/plans")
+        try:
+            cloud_files_list = __import__('json').loads(cloud_files) if cloud_files else []
+        except Exception:
+            cloud_files_list = []
+        cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
+
+        if 0 in cloud_urls:
+            import httpx
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.get(cloud_urls[0])
+                file_data = resp.content
+            file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/plans")
+        else:
+            file_url = upload_raw_streaming(
+                file.file,
+                filename=file.filename,
+                folder="kku-bot/plans",
+                content_type=file.content_type
+            )
 
     plan = await add_study_plan(
         title=title,
@@ -573,7 +591,8 @@ async def update_study_plan(
     group_id: int = Form(None),
     specialization: str = Form(None),
     link: str = Form(None),
-    file: UploadFile = File(None)
+    file: UploadFile = File(None),
+    cloud_files: str = Form("[]"),
 ):
     async with async_session() as session:
         stmt = select(StudyPlan).where(StudyPlan.id == plan_id)
@@ -595,8 +614,25 @@ async def update_study_plan(
         new_group_id = plan.group_id
 
         if file:
-            content = await file.read()
-            file_url = upload_raw(content, filename=file.filename, folder="kku-bot/plans")
+            try:
+                cloud_files_list = __import__('json').loads(cloud_files) if cloud_files else []
+            except Exception:
+                cloud_files_list = []
+            cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
+
+            if 0 in cloud_urls:
+                import httpx
+                async with httpx.AsyncClient(timeout=120) as client:
+                    resp = await client.get(cloud_urls[0])
+                    file_data = resp.content
+                file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/plans")
+            else:
+                file_url = upload_raw_streaming(
+                    file.file,
+                    filename=file.filename,
+                    folder="kku-bot/plans",
+                    content_type=file.content_type
+                )
             plan.file_url = file_url
 
         await session.commit()

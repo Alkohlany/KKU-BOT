@@ -36,6 +36,21 @@ def upload_raw(file_bytes: bytes, filename: str = "", folder: str = "kku-bot") -
     s3.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=file_bytes)
     return f"{R2_PUBLIC_URL}/{key}"
 
+def upload_raw_streaming(file_obj, filename: str = "", folder: str = "kku-bot", content_type: str = None) -> str:
+    """Upload large files using streaming to avoid loading entire file into memory."""
+    if filename:
+        safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)
+        key = f"{folder}/{safe_name}"
+    else:
+        key = f"{folder}/{uuid.uuid4().hex}.bin"
+
+    kwargs = {"Bucket": R2_BUCKET_NAME, "Key": key, "Body": file_obj}
+    if content_type:
+        kwargs["ContentType"] = content_type
+
+    s3.put_object(**kwargs)
+    return f"{R2_PUBLIC_URL}/{key}"
+
 def download_raw(file_url: str) -> bytes | None:
     try:
         resp = httpx.get(file_url, timeout=90)

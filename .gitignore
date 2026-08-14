@@ -52,3 +52,5 @@ dashboard/.env
 # Temporary files
 *.tmp
 *.temp
+database_dump.sql
+dump_db.py

@@ -6,8 +6,8 @@ echo "Starting KKU Bot services..."
 python -m bot.main &
 BOT_PID=$!
 
-# Start the API server
-uvicorn bot.api.main:app --host 0.0.0.0 --port ${PORT:-8000} &
+# Start the API server (no body size limit for large file uploads)
+uvicorn bot.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --limit-request-body 0 &
 API_PID=$!
 
 echo "Bot PID: $BOT_PID, API PID: $API_PID"

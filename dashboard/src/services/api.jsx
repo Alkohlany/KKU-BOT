@@ -173,11 +173,11 @@ const api = {
 
   getStudyPlans: () => api.get('/study-plans'),
   addStudyPlan: (data) => api.post('/study-plans', data),
-  uploadStudyPlan: (formData) => {
+  uploadStudyPlan: (endpoint, formData, method = 'POST') => {
     const token = localStorage.getItem('token');
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_URL}/study-plans/upload`);
+      xhr.open(method, `${API_URL}${endpoint}`);
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
@@ -240,11 +240,11 @@ const api = {
     return api.get('/books' + (q ? '?' + q : ''));
   },
   addBook: (data) => api.post('/books', data),
-  uploadBook: (formData) => {
+  uploadBook: (endpoint, formData, method = 'POST') => {
     const token = localStorage.getItem('token');
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_URL}/books/upload`);
+      xhr.open(method, `${API_URL}${endpoint}`);
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {

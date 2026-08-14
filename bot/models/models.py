@@ -89,6 +89,7 @@ class News(Base):
     group_message_ids = Column(Text, nullable=True)  # JSON string: {"chat_id": message_id, ...}
     files_json = Column(Text, nullable=True)
     target_channels = Column(Text, nullable=True)
+    thumbnail_file_id = Column(String(200), nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     auto_responses = relationship("AutoResponse", viewonly=True)
@@ -143,6 +144,8 @@ class StudyPlanGroup(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     group_tag = Column(String(100), nullable=True)
+    specialization = Column(String(200), nullable=True)
+    link = Column(String(500), nullable=True)
     channel_message_id = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useConfirm } from '../components/ConfirmDialog';
 import { useToast } from '../components/ToastContext';
+import FileUpload from '../components/FileUpload';
 
 export default function Books() {
   const { confirm } = useConfirm();
@@ -13,6 +14,10 @@ export default function Books() {
   const [showBookModal, setShowBookModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [form, setForm] = useState({ title: '', file: null, group_id: '', author: '', link: '' });
+  const [uploadFiles, setUploadFiles] = useState([]);
+  const [editUploadFiles, setEditUploadFiles] = useState([]);
+  const [editExistingFiles, setEditExistingFiles] = useState([]);
+  const [editRemovedExisting, setEditRemovedExisting] = useState([]);
   const [groupForm, setGroupForm] = useState({ title: '', description: '', group_tag: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -90,30 +95,45 @@ export default function Books() {
     setSaving(true);
     try {
       if (editingBook) {
-        await api.updateBook(editingBook.id, {
-          title: form.title,
-          group_id: form.group_id || null,
-          file: form.file || null,
-          author: form.author || null,
-          link: form.link || null,
-        });
+        const allFiles = [...editUploadFiles];
+        if (allFiles.length > 0) {
+          const formDataObj = new FormData();
+          formDataObj.append('title', form.title);
+          if (form.group_id) formDataObj.append('group_id', form.group_id);
+          if (form.author) formDataObj.append('author', form.author);
+          if (form.link) formDataObj.append('link', form.link);
+          allFiles.forEach(f => formDataObj.append('file', f));
+          const cloudFiles = [];
+          allFiles.forEach((f, i) => {
+            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
+          });
+          formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
+          await api.uploadBook(`/books/${editingBook.id}`, formDataObj, 'PUT');
+        } else {
+          await api.updateBook(editingBook.id, {
+            title: form.title,
+            group_id: form.group_id || null,
+            file: null,
+            author: form.author || null,
+            link: form.link || null,
+          });
+        }
         await loadData();
       } else {
         let newItem;
-        if (form.file) {
+        if (uploadFiles.length > 0) {
           const formDataObj = new FormData();
           formDataObj.append('title', form.title);
-          if (form.group_id) {
-            formDataObj.append('group_id', form.group_id);
-          }
-          if (form.author) {
-            formDataObj.append('author', form.author);
-          }
-          if (form.link) {
-            formDataObj.append('link', form.link);
-          }
-          formDataObj.append('file', form.file);
-          newItem = await api.uploadBook(formDataObj);
+          if (form.group_id) formDataObj.append('group_id', form.group_id);
+          if (form.author) formDataObj.append('author', form.author);
+          if (form.link) formDataObj.append('link', form.link);
+          uploadFiles.forEach(f => formDataObj.append('file', f));
+          const cloudFiles = [];
+          uploadFiles.forEach((f, i) => {
+            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
+          });
+          formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
+          newItem = await api.uploadBook('/books/upload', formDataObj);
         } else {
           newItem = await api.addBook({
             title: form.title,
@@ -125,6 +145,10 @@ export default function Books() {
         await loadData();
       }
       setForm({ title: '', file: null, group_id: '', author: '', link: '' });
+      setUploadFiles([]);
+      setEditUploadFiles([]);
+      setEditExistingFiles([]);
+      setEditRemovedExisting([]);
       setEditingBook(null);
       setShowBookModal(false);
     } catch (err) {
@@ -232,6 +256,10 @@ export default function Books() {
   const openAddBookModal = () => {
     setEditingBook(null);
     setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '', author: '', link: '' });
+    setUploadFiles([]);
+    setEditUploadFiles([]);
+    setEditExistingFiles([]);
+    setEditRemovedExisting([]);
     setShowBookModal(true);
   };
 
@@ -244,6 +272,9 @@ export default function Books() {
       author: book.author || '',
       link: book.link || '',
     });
+    setEditUploadFiles([]);
+    setEditRemovedExisting([]);
+    setEditExistingFiles(book.file_url ? [{ name: book.title || 'ملف', url: book.file_url }] : []);
     setShowBookModal(true);
   };
 
@@ -629,18 +660,13 @@ export default function Books() {
               </div>
 
               <div className="form-group">
-                <label>الملف المرفق {editingBook ? '(اتركه فارغاً للإبقاء على الملف الحالي)' : '(اختياري)'}</label>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                  className="form-input"
-                  onChange={(e) => setForm({ ...form, file: e.target.files[0] || null })}
+                <FileUpload
+                  files={editingBook ? editUploadFiles : uploadFiles}
+                  setFiles={editingBook ? setEditUploadFiles : setUploadFiles}
+                  existingFiles={editingBook ? editExistingFiles : []}
+                  onRemoveExisting={editingBook ? setEditRemovedExisting : undefined}
+                  label={editingBook ? 'الملف المرفق (اتركه فارغاً للإبقاء على الملف الحالي)' : 'الملف المرفق (اختياري)'}
                 />
-                {form.file && (
-                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                    {form.file.name}
-                  </small>
-                )}
               </div>
             </div>
             <div className="modal-footer">

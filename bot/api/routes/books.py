@@ -14,7 +14,7 @@ from bot.services.database import (
     create_book_group, delete_book_group, update_book_group,
     get_active_channel_groups, get_official_channel
 )
-from bot.services.cloud_storage import upload_raw
+from bot.services.cloud_storage import upload_raw, upload_raw_streaming
 from bot.config import BOT_TOKEN
 
 router = APIRouter()
@@ -336,11 +336,29 @@ async def upload_book(
     author: str = Form(None),
     link: str = Form(None),
     file: Optional[UploadFile] = File(None),
+    cloud_files: str = Form("[]"),
 ):
     file_url = None
     if file:
-        content = await file.read()
-        file_url = upload_raw(content, filename=file.filename, folder="kku-bot/books")
+        try:
+            cloud_files_list = __import__('json').loads(cloud_files) if cloud_files else []
+        except Exception:
+            cloud_files_list = []
+        cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
+
+        if 0 in cloud_urls:
+            import httpx
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.get(cloud_urls[0])
+                file_data = resp.content
+            file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/books")
+        else:
+            file_url = upload_raw_streaming(
+                file.file,
+                filename=file.filename,
+                folder="kku-bot/books",
+                content_type=file.content_type
+            )
 
     book = await add_book(
         title=title,
@@ -460,7 +478,8 @@ async def update_book(
     group_id: int = Form(None),
     author: str = Form(None),
     link: str = Form(None),
-    file: UploadFile = File(None)
+    file: UploadFile = File(None),
+    cloud_files: str = Form("[]"),
 ):
     async with async_session() as session:
         stmt = select(Book).where(Book.id == book_id)
@@ -482,8 +501,25 @@ async def update_book(
         new_group_id = book.group_id
 
         if file:
-            content = await file.read()
-            file_url = upload_raw(content, filename=file.filename, folder="kku-bot/books")
+            try:
+                cloud_files_list = __import__('json').loads(cloud_files) if cloud_files else []
+            except Exception:
+                cloud_files_list = []
+            cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
+
+            if 0 in cloud_urls:
+                import httpx
+                async with httpx.AsyncClient(timeout=120) as client:
+                    resp = await client.get(cloud_urls[0])
+                    file_data = resp.content
+                file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/books")
+            else:
+                file_url = upload_raw_streaming(
+                    file.file,
+                    filename=file.filename,
+                    folder="kku-bot/books",
+                    content_type=file.content_type
+                )
             book.file_url = file_url
 
         await session.commit()

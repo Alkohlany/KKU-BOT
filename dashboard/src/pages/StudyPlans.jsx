@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useConfirm } from '../components/ConfirmDialog';
 import { useToast } from '../components/ToastContext';
+import FileUpload from '../components/FileUpload';
 
 export default function StudyPlans() {
   const { confirm } = useConfirm();
@@ -13,6 +14,10 @@ export default function StudyPlans() {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [form, setForm] = useState({ title: '', file: null, group_id: '', specialization: '', link: '' });
+  const [uploadFiles, setUploadFiles] = useState([]);
+  const [editUploadFiles, setEditUploadFiles] = useState([]);
+  const [editExistingFiles, setEditExistingFiles] = useState([]);
+  const [editRemovedExisting, setEditRemovedExisting] = useState([]);
   const [groupForm, setGroupForm] = useState({ title: '', description: '', group_tag: '' });
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -90,30 +95,45 @@ export default function StudyPlans() {
     setSaving(true);
     try {
       if (editingPlan) {
-        await api.updateStudyPlan(editingPlan.id, {
-          title: form.title,
-          group_id: form.group_id || null,
-          file: form.file || null,
-          specialization: form.specialization || null,
-          link: form.link || null,
-        });
+        const allFiles = [...editUploadFiles];
+        if (allFiles.length > 0) {
+          const formDataObj = new FormData();
+          formDataObj.append('title', form.title);
+          if (form.group_id) formDataObj.append('group_id', form.group_id);
+          if (form.specialization) formDataObj.append('specialization', form.specialization);
+          if (form.link) formDataObj.append('link', form.link);
+          allFiles.forEach(f => formDataObj.append('file', f));
+          const cloudFiles = [];
+          allFiles.forEach((f, i) => {
+            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
+          });
+          formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
+          await api.uploadStudyPlan(`/study-plans/${editingPlan.id}`, formDataObj, 'PUT');
+        } else {
+          await api.updateStudyPlan(editingPlan.id, {
+            title: form.title,
+            group_id: form.group_id || null,
+            file: null,
+            specialization: form.specialization || null,
+            link: form.link || null,
+          });
+        }
         await loadData();
       } else {
         let newItem;
-        if (form.file) {
+        if (uploadFiles.length > 0) {
           const formDataObj = new FormData();
           formDataObj.append('title', form.title);
-          if (form.group_id) {
-            formDataObj.append('group_id', form.group_id);
-          }
-          if (form.specialization) {
-            formDataObj.append('specialization', form.specialization);
-          }
-          if (form.link) {
-            formDataObj.append('link', form.link);
-          }
-          formDataObj.append('file', form.file);
-          newItem = await api.uploadStudyPlan(formDataObj);
+          if (form.group_id) formDataObj.append('group_id', form.group_id);
+          if (form.specialization) formDataObj.append('specialization', form.specialization);
+          if (form.link) formDataObj.append('link', form.link);
+          uploadFiles.forEach(f => formDataObj.append('file', f));
+          const cloudFiles = [];
+          uploadFiles.forEach((f, i) => {
+            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
+          });
+          formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
+          newItem = await api.uploadStudyPlan('/study-plans/upload', formDataObj);
         } else {
           newItem = await api.addStudyPlan({
             title: form.title,
@@ -125,6 +145,10 @@ export default function StudyPlans() {
         await loadData();
       }
       setForm({ title: '', file: null, group_id: '', specialization: '', link: '' });
+      setUploadFiles([]);
+      setEditUploadFiles([]);
+      setEditExistingFiles([]);
+      setEditRemovedExisting([]);
       setEditingPlan(null);
       setShowPlanModal(false);
     } catch (err) {
@@ -232,6 +256,10 @@ const handlePlanPermanentDelete = async (id) => {
   const openAddPlanModal = () => {
     setEditingPlan(null);
     setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '', specialization: '', link: '' });
+    setUploadFiles([]);
+    setEditUploadFiles([]);
+    setEditExistingFiles([]);
+    setEditRemovedExisting([]);
     setShowPlanModal(true);
   };
 
@@ -244,6 +272,9 @@ const handlePlanPermanentDelete = async (id) => {
       specialization: plan.specialization || '',
       link: plan.link || '',
     });
+    setEditUploadFiles([]);
+    setEditRemovedExisting([]);
+    setEditExistingFiles(plan.file_url ? [{ name: plan.title || 'ملف', url: plan.file_url }] : []);
     setShowPlanModal(true);
   };
 
@@ -626,18 +657,13 @@ const handlePlanPermanentDelete = async (id) => {
               </div>
 
               <div className="form-group">
-                <label>الملف المرفق {editingPlan ? '(اتركه فارغاً للإبقاء على الملف الحالي)' : '(اختياري)'}</label>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                  className="form-input"
-                  onChange={(e) => setForm({ ...form, file: e.target.files[0] || null })}
+                <FileUpload
+                  files={editingPlan ? editUploadFiles : uploadFiles}
+                  setFiles={editingPlan ? setEditUploadFiles : setUploadFiles}
+                  existingFiles={editingPlan ? editExistingFiles : []}
+                  onRemoveExisting={editingPlan ? setEditRemovedExisting : undefined}
+                  label={editingPlan ? 'الملف المرفق (اتركه فارغاً للإبقاء على الملف الحالي)' : 'الملف المرفق (اختياري)'}
                 />
-                {form.file && (
-                  <small style={{ color: 'var(--gray-500)', marginTop: 4, display: 'block' }}>
-                    {form.file.name}
-                  </small>
-                )}
               </div>
             </div>
             <div className="modal-footer">
