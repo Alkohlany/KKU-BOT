@@ -610,6 +610,11 @@ export default function News() {
                     <span className={`status-badge ${item.published ? 'active' : 'inactive'}`}>
                       {item.published ? 'منشور' : 'مسودة'}
                     </span>
+                    {item.published && (
+                      <span style={{ fontSize: 11, color: item.channelMessageId ? 'var(--primary)' : '#c62828', fontWeight: 600, marginRight: 4 }}>
+                        {item.channelMessageId ? '✓ بالقناة' : '✗ غير بالقناة'}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -676,6 +681,11 @@ export default function News() {
                 <span className={`status-badge ${item.published ? 'active' : 'inactive'}`}>
                   {item.published ? 'منشور' : 'مسودة'}
                 </span>
+                {item.published && (
+                  <span style={{ fontSize: 11, color: item.channelMessageId ? 'var(--primary)' : '#c62828', fontWeight: 600, marginLeft: 4 }}>
+                    {item.channelMessageId ? '✓ بالقناة' : '✗ غير بالقناة'}
+                  </span>
+                )}
               </div>
               <div className="mobile-card-body">
                 {(() => {
