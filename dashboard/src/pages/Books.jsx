@@ -24,6 +24,7 @@ export default function Books() {
   const [saving, setSaving] = useState(false);
 
   const [publishingBook, setPublishingBook] = useState(null);
+  const [publishingAll, setPublishingAll] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
   const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
@@ -253,6 +254,27 @@ export default function Books() {
     }
   };
 
+  const handlePublishAllBooks = async () => {
+    const unpublished = books.filter(b => !b.channel_message_id && b.file_url);
+    if (unpublished.length === 0) {
+      showToast('جميع الكتب منشورة بالفعل', 'info');
+      return;
+    }
+    const ok = await confirm(`هل تريد نشر ${unpublished.length} كتاب غير منشور؟`);
+    if (!ok) return;
+    setPublishingAll(true);
+    try {
+      const result = await api.publishAllBooks();
+      showToast(result.message || 'تم النشر', result.published > 0 ? 'success' : 'error');
+      await loadData();
+    } catch (err) {
+      console.error('Failed to publish all books:', err);
+      showToast('حدث خطأ أثناء النشر', 'error');
+    } finally {
+      setPublishingAll(false);
+    }
+  };
+
   const openAddBookModal = () => {
     setEditingBook(null);
     setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '', author: '', link: '' });
@@ -335,6 +357,23 @@ export default function Books() {
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                   رجوع
+                </button>
+              )}
+              {books.some(b => !b.channel_message_id && b.file_url) && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={handlePublishAllBooks}
+                  disabled={publishingAll}
+                >
+                  {publishingAll ? (
+                    <span className="spinner" style={{ width: 14, height: 14 }} />
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 2L11 13" />
+                      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                    </svg>
+                  )}
+                  نشر الكل ({books.filter(b => !b.channel_message_id && b.file_url).length})
                 </button>
               )}
               <button className="btn btn-secondary" onClick={openAddGroupModal}>
@@ -505,9 +544,13 @@ export default function Books() {
                               {book.author}
                             </span>
                           )}
-                          {book.channel_message_id && (
+                          {book.channel_message_id ? (
                             <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>
                               ✓ منشورة
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#c62828', fontWeight: 600 }}>
+                              ✗ غير منشورة
                             </span>
                           )}
                         </div>

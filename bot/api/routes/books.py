@@ -382,6 +382,35 @@ async def upload_book(
     }
 
 
+@router.post("/publish-all")
+async def publish_all_books():
+    """نشر جميع الكتب التي لا ت/channel_message_id"""
+    async with async_session() as session:
+        stmt = select(Book).where(Book.is_active == True, Book.file_url.isnot(None), Book.channel_message_id.is_(None))
+        result = await session.execute(stmt)
+        books = result.scalars().all()
+
+    if not books:
+        return {"message": "لا توجد كتب تحتاج نشر", "published": 0, "failed": 0}
+
+    published = 0
+    failed = 0
+    errors = []
+    for book in books:
+        try:
+            result = await publish_single_book(book.id)
+            if result.get("error"):
+                failed += 1
+                errors.append(f"{book.title}: {result['error']}")
+            else:
+                published += 1
+        except Exception as e:
+            failed += 1
+            errors.append(f"{book.title}: {str(e)}")
+
+    return {"message": f"تم نشر {published} كتاب، فشل {failed}", "published": published, "failed": failed, "errors": errors}
+
+
 @router.post("/publish-book/{book_id}")
 async def publish_single_book(book_id: int):
     async with async_session() as session:

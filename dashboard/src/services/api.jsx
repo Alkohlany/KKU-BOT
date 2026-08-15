@@ -201,6 +201,7 @@ const api = {
   addStudyPlanGroup: (data) => api.post('/study-plans/groups', data),
   deleteStudyPlanGroup: (id, mode = 'permanent') => api.delete(`/study-plans/groups/${id}?mode=${mode}`),
   publishPlan: (planId) => api.post(`/study-plans/publish-plan/${planId}`),
+  publishAllPlans: () => api.post(`/study-plans/publish-all`),
   updateStudyPlan: (id, data) => {
     const formData = new FormData();
     if (data.title !== undefined) formData.append('title', data.title);
@@ -290,6 +291,7 @@ const api = {
   },
   deleteBook: (id, mode = 'permanent') => api.delete(`/books/${id}?mode=${mode}`),
   publishBook: (bookId) => api.post(`/books/publish-book/${bookId}`),
+  publishAllBooks: () => api.post(`/books/publish-all`),
 
   getSpamPatterns: (params) => {
     const q = new URLSearchParams(params).toString();

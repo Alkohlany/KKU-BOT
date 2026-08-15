@@ -62,7 +62,7 @@ async def feature_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if feature == "news":
         from bot.handlers.news import get_news_text
         text = await get_news_text()
-        await query.edit_message_text(text, parse_mode="Markdown", disable_web_page_preview=True)
+        await query.edit_message_text(text, disable_web_page_preview=True)
     elif feature in {"questions", "responses"}:
         await query.edit_message_text(
             MAIN_MENU_TEXT,
@@ -73,7 +73,7 @@ async def feature_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif feature == "plans":
         from bot.handlers.study_plans import get_plans_text
         text = await get_plans_text()
-        await query.edit_message_text(text, parse_mode="Markdown", disable_web_page_preview=True)
+        await query.edit_message_text(text, disable_web_page_preview=True)
 
 
 start_handler = CommandHandler("start", start_command)

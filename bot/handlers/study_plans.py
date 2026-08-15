@@ -40,7 +40,7 @@ async def plans_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_plans_text() -> str:
     groups = await get_all_study_plan_groups()
-    groups = [g for g in groups if g.channel_message_id is not None]
+    groups = [g for g in groups if g.is_active]
 
     if not groups:
         return "لا توجد خطط دراسية منشورة حالياً 📭"
@@ -52,21 +52,20 @@ async def get_plans_text() -> str:
             if ch.type == 'channel':
                 channel = ch
                 break
-    if not channel:
-        return "لا توجد قناة نشرة حالياً 📭"
 
     channel_username = None
-    if channel.invite_link and 't.me/' in channel.invite_link:
+    if channel and channel.invite_link and 't.me/' in channel.invite_link:
         channel_username = channel.invite_link.split('t.me/')[-1].strip('/')
-    if not channel_username:
-        channel_username = str(channel.chat_id)
 
     text = "📚 محدث خطط التخصصات\n"
     text += "جامعة الملك خالد 1447هـ\n\n"
 
     for group in groups:
-        group_link = f"https://t.me/{channel_username}/{group.channel_message_id}"
-        text += f"{group.title} 🔻\n{group_link}\n\n"
+        if group.channel_message_id and channel_username:
+            group_link = f"https://t.me/{channel_username}/{group.channel_message_id}"
+            text += f"{group.title} 🔻\n{group_link}\n\n"
+        else:
+            text += f"{group.title} 🔻\n"
 
     text += "🔴 انضموا لقروب جامعة الملك خالد العام 🔻\n"
     text += "https://t.me/KKU_Main1\n\n"
