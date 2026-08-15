@@ -100,39 +100,19 @@ async def send_auto_response(
                 cleaned = wrap_links_in_blockquote(cleaned)
                 markup = _build_url_keyboard(link_buttons, reply_markup)
                 if news_post.image_url:
-                    try:
-                        await message.reply_photo(
-                            photo=news_post.image_url,
-                            caption=cleaned,
-                            parse_mode="HTML",
-                            reply_markup=markup,
-                        )
-                        return True
-                    except Exception:
-                        await message.reply_text(
-                            cleaned,
-                            parse_mode="HTML",
-                            disable_web_page_preview=True,
-                            reply_markup=markup,
-                        )
-                        return True
+                    await message.reply_photo(
+                        photo=news_post.image_url,
+                        caption=cleaned,
+                        parse_mode="HTML",
+                        reply_markup=markup,
+                    )
                 elif news_post.file_url:
-                    try:
-                        await message.reply_document(
-                            document=news_post.file_url,
-                            caption=cleaned,
-                            parse_mode="HTML",
-                            reply_markup=markup,
-                        )
-                        return True
-                    except Exception:
-                        await message.reply_text(
-                            cleaned,
-                            parse_mode="HTML",
-                            disable_web_page_preview=True,
-                            reply_markup=markup,
-                        )
-                        return True
+                    await message.reply_document(
+                        document=news_post.file_url,
+                        caption=cleaned,
+                        parse_mode="HTML",
+                        reply_markup=markup,
+                    )
                 else:
                     await message.reply_text(
                         cleaned,
@@ -140,21 +120,19 @@ async def send_auto_response(
                         disable_web_page_preview=True,
                         reply_markup=markup,
                     )
-                    return True
+                return True
 
-        response_text = getattr(response, "response", None)
-        file_tg_id = getattr(response, "file_tg_id", None)
-        file_url = getattr(response, "file_url", None)
-
-        if not response_text and not file_tg_id and not file_url:
+        if not getattr(response, "response", None) and not getattr(response, "file_tg_id", None) and not getattr(response, "file_url", None):
             return False
 
-        caption = _with_prefix(response_text, prefix, response)
+        caption = _with_prefix(getattr(response, "response", None), prefix, response)
         cleaned, link_buttons = _extract_links_with_context(caption or "")
         cleaned = wrap_links_in_blockquote(cleaned) if cleaned else cleaned
         display = cleaned if link_buttons else caption
         markup = _build_url_keyboard(link_buttons, reply_markup)
 
+        file_tg_id = getattr(response, "file_tg_id", None)
+        file_url = getattr(response, "file_url", None)
         file_type = getattr(response, "file_type", None)
 
         if file_tg_id:
