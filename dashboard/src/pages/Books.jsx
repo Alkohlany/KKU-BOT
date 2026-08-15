@@ -505,9 +505,13 @@ export default function Books() {
                               {book.author}
                             </span>
                           )}
-                          {book.channel_message_id && (
+                          {book.channel_message_id ? (
                             <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>
                               ✓ منشورة
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#c62828', fontWeight: 600 }}>
+                              ✗ غير منشورة
                             </span>
                           )}
                         </div>

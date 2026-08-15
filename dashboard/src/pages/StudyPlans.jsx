@@ -83,7 +83,8 @@ export default function StudyPlans() {
   const getPublishStatus = (group) => {
     const totalPlans = plans.filter((p) => p.group_id === group.id).length;
     const publishedPlans = plans.filter((p) => p.group_id === group.id && p.channel_message_id).length;
-    if (publishedPlans === 0) return { text: 'غير منشور', color: 'var(--gray-400)', bg: 'var(--gray-100)', total: totalPlans, published: publishedPlans };
+    if (totalPlans === 0) return { text: 'بدون خطط', color: 'var(--gray-400)', bg: 'var(--gray-100)', total: totalPlans, published: publishedPlans };
+    if (publishedPlans === 0) return { text: 'غير منشور', color: '#c62828', bg: '#ffebee', total: totalPlans, published: publishedPlans };
     if (publishedPlans < totalPlans) return { text: `منشور جزئياً ${publishedPlans}/${totalPlans}`, color: '#b76e00', bg: '#fff3e0', total: totalPlans, published: publishedPlans };
     return { text: 'منشور كلياً', color: 'var(--primary)', bg: 'var(--primary-bg)', total: totalPlans, published: publishedPlans };
   };
@@ -502,9 +503,13 @@ const handlePlanPermanentDelete = async (id) => {
                               {windowWidth < 768 ? group.title.charAt(0) : group.title}
                             </span>
                           )}
-                          {plan.channel_message_id && (
+                          {plan.channel_message_id ? (
                             <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>
                               ✓ منشورة
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#c62828', fontWeight: 600 }}>
+                              ✗ غير منشورة
                             </span>
                           )}
                         </div>
