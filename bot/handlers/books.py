@@ -46,7 +46,7 @@ async def books_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_books_text() -> str:
     groups = await get_all_book_groups()
-    groups = [g for g in groups if g.is_active]
+    groups = [g for g in groups if g.channel_message_id is not None]
 
     if not groups:
         return "لا توجد كتب منشورة حالياً 📭"
@@ -58,20 +58,21 @@ async def get_books_text() -> str:
             if ch.type == 'channel':
                 channel = ch
                 break
+    if not channel:
+        return "لا توجد قناة نشرة حالياً 📭"
 
     channel_username = None
-    if channel and channel.invite_link and 't.me/' in channel.invite_link:
+    if channel.invite_link and 't.me/' in channel.invite_link:
         channel_username = channel.invite_link.split('t.me/')[-1].strip('/')
+    if not channel_username:
+        channel_username = str(channel.chat_id)
 
     text = "📚 الكتب المتوفرة\n"
     text += "جامعة الملك خالد\n\n"
 
     for group in groups:
-        if group.channel_message_id and channel_username:
-            group_link = f"https://t.me/{channel_username}/{group.channel_message_id}"
-            text += f"{group.title} 🔻\n{group_link}\n\n"
-        else:
-            text += f"{group.title} 🔻\n"
+        group_link = f"https://t.me/{channel_username}/{group.channel_message_id}"
+        text += f"{group.title} 🔻\n{group_link}\n\n"
 
     text += "🔴 انضموا لقروب جامعة الملك خالد العام 🔻\n"
     text += "https://t.me/KKU_Main1\n\n"

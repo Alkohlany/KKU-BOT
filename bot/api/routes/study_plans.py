@@ -489,35 +489,6 @@ async def upload_study_plan(
     }
 
 
-@router.post("/publish-all")
-async def publish_all_plans():
-    """نشر جميع الخطط التي لا ت/channel_message_id"""
-    async with async_session() as session:
-        stmt = select(StudyPlan).where(StudyPlan.is_active == True, StudyPlan.file_url.isnot(None), StudyPlan.channel_message_id.is_(None))
-        result = await session.execute(stmt)
-        plans = result.scalars().all()
-
-    if not plans:
-        return {"message": "لا توجد خطط تحتاج نشر", "published": 0, "failed": 0}
-
-    published = 0
-    failed = 0
-    errors = []
-    for plan in plans:
-        try:
-            result = await publish_single_plan(plan.id)
-            if result.get("error"):
-                failed += 1
-                errors.append(f"{plan.title}: {result['error']}")
-            else:
-                published += 1
-        except Exception as e:
-            failed += 1
-            errors.append(f"{plan.title}: {str(e)}")
-
-    return {"message": f"تم نشر {published} خطة، فشل {failed}", "published": published, "failed": failed, "errors": errors}
-
-
 @router.post("/publish-plan/{plan_id}")
 async def publish_single_plan(plan_id: int):
     """نشر خطة واحدة على القناة"""

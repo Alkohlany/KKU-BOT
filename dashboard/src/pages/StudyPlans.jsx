@@ -24,7 +24,6 @@ export default function StudyPlans() {
   const [saving, setSaving] = useState(false);
 
   const [publishingPlan, setPublishingPlan] = useState(null);
-  const [publishingAll, setPublishingAll] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
   const [showDeleteGroupModal, setShowDeleteGroupModal] = useState(false);
@@ -84,8 +83,7 @@ export default function StudyPlans() {
   const getPublishStatus = (group) => {
     const totalPlans = plans.filter((p) => p.group_id === group.id).length;
     const publishedPlans = plans.filter((p) => p.group_id === group.id && p.channel_message_id).length;
-    if (totalPlans === 0) return { text: 'بدون خطط', color: 'var(--gray-400)', bg: 'var(--gray-100)', total: totalPlans, published: publishedPlans };
-    if (publishedPlans === 0) return { text: 'غير منشور', color: '#c62828', bg: '#ffebee', total: totalPlans, published: publishedPlans };
+    if (publishedPlans === 0) return { text: 'غير منشور', color: 'var(--gray-400)', bg: 'var(--gray-100)', total: totalPlans, published: publishedPlans };
     if (publishedPlans < totalPlans) return { text: `منشور جزئياً ${publishedPlans}/${totalPlans}`, color: '#b76e00', bg: '#fff3e0', total: totalPlans, published: publishedPlans };
     return { text: 'منشور كلياً', color: 'var(--primary)', bg: 'var(--primary-bg)', total: totalPlans, published: publishedPlans };
   };
@@ -255,27 +253,6 @@ const handlePlanPermanentDelete = async (id) => {
     }
   };
 
-  const handlePublishAllPlans = async () => {
-    const unpublished = plans.filter(p => !p.channel_message_id && p.file_url);
-    if (unpublished.length === 0) {
-      showToast('جميع الخطط منشورة بالفعل', 'info');
-      return;
-    }
-    const ok = await confirm(`هل تريد نشر ${unpublished.length} خطة غير منشورة؟`);
-    if (!ok) return;
-    setPublishingAll(true);
-    try {
-      const result = await api.publishAllPlans();
-      showToast(result.message || 'تم النشر', result.published > 0 ? 'success' : 'error');
-      await loadData();
-    } catch (err) {
-      console.error('Failed to publish all plans:', err);
-      showToast('حدث خطأ أثناء النشر', 'error');
-    } finally {
-      setPublishingAll(false);
-    }
-  };
-
   const openAddPlanModal = () => {
     setEditingPlan(null);
     setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '', specialization: '', link: '' });
@@ -358,23 +335,6 @@ const handlePlanPermanentDelete = async (id) => {
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                   رجوع
-                </button>
-              )}
-              {plans.some(p => !p.channel_message_id && p.file_url) && (
-                <button
-                  className="btn btn-secondary"
-                  onClick={handlePublishAllPlans}
-                  disabled={publishingAll}
-                >
-                  {publishingAll ? (
-                    <span className="spinner" style={{ width: 14, height: 14 }} />
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M22 2L11 13" />
-                      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-                    </svg>
-                  )}
-                  نشر الكل ({plans.filter(p => !p.channel_message_id && p.file_url).length})
                 </button>
               )}
               <button className="btn btn-secondary" onClick={openAddGroupModal}>
@@ -542,13 +502,9 @@ const handlePlanPermanentDelete = async (id) => {
                               {windowWidth < 768 ? group.title.charAt(0) : group.title}
                             </span>
                           )}
-                          {plan.channel_message_id ? (
+                          {plan.channel_message_id && (
                             <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>
                               ✓ منشورة
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: 12, color: '#c62828', fontWeight: 600 }}>
-                              ✗ غير منشورة
                             </span>
                           )}
                         </div>
