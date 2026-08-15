@@ -115,7 +115,7 @@ async def send_auto_response(
                     )
                 else:
                     await message.reply_text(
-                        cleaned,
+                        cleaned or content,
                         parse_mode="HTML",
                         disable_web_page_preview=True,
                         reply_markup=markup,
@@ -128,7 +128,7 @@ async def send_auto_response(
         caption = _with_prefix(getattr(response, "response", None), prefix, response)
         cleaned, link_buttons = _extract_links_with_context(caption or "")
         cleaned = wrap_links_in_blockquote(cleaned) if cleaned else cleaned
-        display = cleaned if link_buttons else caption
+        display = cleaned if (link_buttons and cleaned) else caption
         markup = _build_url_keyboard(link_buttons, reply_markup)
 
         file_tg_id = getattr(response, "file_tg_id", None)
