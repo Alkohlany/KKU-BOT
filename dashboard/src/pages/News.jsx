@@ -637,7 +637,7 @@ export default function News() {
                       <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)} title="تعديل">
                         تعديل
                       </button>
-                      {!item.published && (
+                      {!item.channelMessageId && (
                         <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} title="نشر" disabled={publishingId === item.id} style={{ opacity: publishingId === item.id ? 0.7 : 1, transition: 'all 0.2s' }}>
                           {publishingId === item.id ? (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -714,7 +714,7 @@ export default function News() {
                 <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(item)}>
                   تعديل
                 </button>
-                {!item.published && (
+                {!item.channelMessageId && (
                   <button className="btn btn-primary btn-sm" onClick={() => handlePublish(item)} disabled={publishingId === item.id} style={{ opacity: publishingId === item.id ? 0.7 : 1, transition: 'all 0.2s' }}>
                     {publishingId === item.id ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
