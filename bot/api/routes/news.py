@@ -40,9 +40,7 @@ def generate_pdf_thumbnail(pdf_path: str) -> str | None:
         return None
 
 
-import asyncio
-
-async def upload_to_cloud(file_data: bytes, filename: str, folder: str = "kku-bot/news") -> tuple[str, str | None]:
+def upload_to_cloud(file_data: bytes, filename: str, folder: str = "kku-bot/news") -> tuple[str, str | None]:
     ext = filename.lower().split('.')[-1] if '.' in filename else ''
     thumb_url = None
     tmp_path = None
@@ -52,12 +50,12 @@ async def upload_to_cloud(file_data: bytes, filename: str, folder: str = "kku-bo
             tmp.write(file_data)
             tmp_path = tmp.name
         if ext == 'pdf':
-            thumb_tmp = await asyncio.to_thread(generate_pdf_thumbnail, tmp_path)
-        main_url = await asyncio.to_thread(upload_raw, file_data, filename, folder)
+            thumb_tmp = generate_pdf_thumbnail(tmp_path)
+        main_url = upload_raw(file_data, filename=filename, folder=folder)
         if thumb_tmp and os.path.exists(thumb_tmp):
             with open(thumb_tmp, 'rb') as f:
                 thumb_data = f.read()
-            thumb_url = await asyncio.to_thread(upload_raw, thumb_data, "thumb.jpg", folder)
+            thumb_url = upload_raw(thumb_data, filename="thumb.jpg", folder=folder)
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
@@ -233,25 +231,28 @@ async def create_news_with_file(
 
         if files_list:
             for i, f in enumerate(files_list):
+                if i in cloud_urls_map:
+                    import httpx
+                    async with httpx.AsyncClient() as client:
+                        resp = await client.get(cloud_urls_map[i])
+                        file_data = resp.content
+                else:
+                    file_data = await f.read()
                 ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
                 ft = detect_file_type(f.filename)
                 remote_url = None
                 thumb = None
 
-                if i in cloud_urls_map:
-                    remote_url = cloud_urls_map[i]
-                else:
-                    file_data = await f.read()
-                    if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-                        if as_document:
-                            remote_url = await asyncio.to_thread(upload_raw, file_data, f.filename, "kku-bot/news")
-                        else:
-                            try:
-                                remote_url = await asyncio.to_thread(upload_image, file_data, "kku-bot/news")
-                            except Exception as e:
-                                raise HTTPException(status_code=500, detail=f"فشل رفع الصورة للتخزين السحابي: {str(e)}")
+                if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+                    if as_document:
+                        remote_url = upload_raw(file_data, filename=f.filename, folder="kku-bot/news")
                     else:
-                        remote_url, thumb = await upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
+                        try:
+                            remote_url = upload_image(file_data, folder="kku-bot/news")
+                        except Exception as e:
+                            raise HTTPException(status_code=500, detail=f"فشل رفع الصورة للتخزين السحابي: {str(e)}")
+                else:
+                    remote_url, thumb = upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
 
                 url = remote_url
                 files_json_data.append({
@@ -511,25 +512,28 @@ async def edit_news_with_file(
 
     if files_list:
         for i, f in enumerate(files_list):
+            if i in cloud_urls_map:
+                import httpx
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(cloud_urls_map[i])
+                    file_data = resp.content
+            else:
+                file_data = await f.read()
             ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
             ft = detect_file_type(f.filename)
             remote_url = None
             thumb = None
 
-            if i in cloud_urls_map:
-                remote_url = cloud_urls_map[i]
-            else:
-                file_data = await f.read()
-                if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-                    if as_document:
-                        remote_url = await asyncio.to_thread(upload_raw, file_data, f.filename, "kku-bot/news")
-                    else:
-                        try:
-                            remote_url = await asyncio.to_thread(upload_image, file_data, "kku-bot/news")
-                        except Exception as e:
-                            raise HTTPException(status_code=500, detail=f"فشل رفع الصورة للتخزين السحابي: {str(e)}")
+            if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+                if as_document:
+                    remote_url = upload_raw(file_data, filename=f.filename, folder="kku-bot/news")
                 else:
-                    remote_url, thumb = await upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
+                    try:
+                        remote_url = upload_image(file_data, folder="kku-bot/news")
+                    except Exception as e:
+                        raise HTTPException(status_code=500, detail=f"فشل رفع الصورة للتخزين السحابي: {str(e)}")
+            else:
+                remote_url, thumb = upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
 
             url = remote_url
             files_json_data.append({
