@@ -17,7 +17,7 @@ from bot.services.database import (
     create_study_plan_group, delete_study_plan_group, get_study_plans_by_group,
     update_study_plan_group, get_active_channel_groups, get_official_channel
 )
-from bot.services.cloud_storage import upload_raw, upload_raw_streaming, find_file_by_name, find_file_by_content
+from bot.services.cloud_storage import upload_raw, upload_raw_streaming, find_file_by_name
 from bot.config import BOT_TOKEN
 
 router = APIRouter()
@@ -450,10 +450,6 @@ async def upload_study_plan(
         cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
 
         existing_url = find_file_by_name(file.filename, "kku-bot/plans")
-        if not existing_url:
-            file_data = await file.read()
-            existing_url = find_file_by_content(file_data, "kku-bot/plans")
-            await file.seek(0)
         if existing_url:
             file_url = existing_url
         elif 0 in cloud_urls:
@@ -624,10 +620,6 @@ async def update_study_plan(
             cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
 
             existing_url = find_file_by_name(file.filename, "kku-bot/plans")
-            if not existing_url:
-                file_data = await file.read()
-                existing_url = find_file_by_content(file_data, "kku-bot/plans")
-                await file.seek(0)
             if existing_url:
                 file_url = existing_url
             elif 0 in cloud_urls:
