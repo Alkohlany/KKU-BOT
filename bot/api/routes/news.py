@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id, update_auto_response
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages, resend_published_messages
-from bot.services.cloud_storage import upload_image, upload_raw
+from bot.services.cloud_storage import upload_image, upload_raw, find_file_by_name
 
 from bot.models.models import News
 from bot.config import BOT_TOKEN
@@ -243,7 +243,10 @@ async def create_news_with_file(
                 remote_url = None
                 thumb = None
 
-                if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+                existing_url = find_file_by_name(f.filename, "kku-bot/news")
+                if existing_url:
+                    remote_url = existing_url
+                elif ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
                     if as_document:
                         remote_url = upload_raw(file_data, filename=f.filename, folder="kku-bot/news")
                     else:
@@ -254,9 +257,8 @@ async def create_news_with_file(
                 else:
                     remote_url, thumb = upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
 
-                url = remote_url
                 files_json_data.append({
-                    "url": url,
+                    "url": remote_url,
                     "type": ft,
                     "name": f.filename,
                     "thumbnail": thumb,
@@ -524,7 +526,10 @@ async def edit_news_with_file(
             remote_url = None
             thumb = None
 
-            if ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+            existing_url = find_file_by_name(f.filename, "kku-bot/news")
+            if existing_url:
+                remote_url = existing_url
+            elif ext in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
                 if as_document:
                     remote_url = upload_raw(file_data, filename=f.filename, folder="kku-bot/news")
                 else:
@@ -535,9 +540,8 @@ async def edit_news_with_file(
             else:
                 remote_url, thumb = upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
 
-            url = remote_url
             files_json_data.append({
-                "url": url,
+                "url": remote_url,
                 "type": ft,
                 "name": f.filename,
                 "thumbnail": thumb,

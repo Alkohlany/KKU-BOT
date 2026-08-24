@@ -83,6 +83,14 @@ def list_objects(folder="kku-bot"):
         return []
 
 
+def find_file_by_name(filename, folder="kku-bot"):
+    files = list_objects(folder)
+    for f in files:
+        if f["name"] == filename:
+            return f["url"]
+    return None
+
+
 def list_all_folders():
     folders = {}
     for folder in ["kku-bot/news", "kku-bot/plans", "kku-bot/scheduled"]:

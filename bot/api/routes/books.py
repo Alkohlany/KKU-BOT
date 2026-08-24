@@ -14,7 +14,7 @@ from bot.services.database import (
     create_book_group, delete_book_group, update_book_group,
     get_active_channel_groups, get_official_channel
 )
-from bot.services.cloud_storage import upload_raw, upload_raw_streaming
+from bot.services.cloud_storage import upload_raw, upload_raw_streaming, find_file_by_name
 from bot.config import BOT_TOKEN
 
 router = APIRouter()
@@ -344,12 +344,11 @@ async def upload_book(
             cloud_files_list = []
         cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
 
-        if 0 in cloud_urls:
-            import httpx
-            async with httpx.AsyncClient(timeout=120) as client:
-                resp = await client.get(cloud_urls[0])
-                file_data = resp.content
-            file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/books")
+        existing_url = find_file_by_name(file.filename, "kku-bot/books")
+        if existing_url:
+            file_url = existing_url
+        elif 0 in cloud_urls:
+            file_url = cloud_urls[0]
         else:
             file_url = upload_raw_streaming(
                 file.file,
@@ -504,12 +503,11 @@ async def update_book(
                 cloud_files_list = []
             cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
 
-            if 0 in cloud_urls:
-                import httpx
-                async with httpx.AsyncClient(timeout=120) as client:
-                    resp = await client.get(cloud_urls[0])
-                    file_data = resp.content
-                file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/books")
+            existing_url = find_file_by_name(file.filename, "kku-bot/books")
+            if existing_url:
+                file_url = existing_url
+            elif 0 in cloud_urls:
+                file_url = cloud_urls[0]
             else:
                 file_url = upload_raw_streaming(
                     file.file,
