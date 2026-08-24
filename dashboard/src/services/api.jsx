@@ -240,12 +240,19 @@ const api = {
     return api.get('/books' + (q ? '?' + q : ''));
   },
   addBook: (data) => api.post('/books', data),
-  uploadBook: (endpoint, formData, method = 'POST') => {
+  uploadBook: (endpoint, formData, method = 'POST', onProgress) => {
     const token = localStorage.getItem('token');
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open(method, `${API_URL}${endpoint}`);
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      if (onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            onProgress(Math.round((event.loaded * 100) / event.total));
+          }
+        };
+      }
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(JSON.parse(xhr.responseText));

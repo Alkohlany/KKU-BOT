@@ -22,6 +22,8 @@ export default function Books() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savePhase, setSavePhase] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(null);
 
   const [publishingBook, setPublishingBook] = useState(null);
   const [editingBook, setEditingBook] = useState(null);
@@ -93,7 +95,10 @@ export default function Books() {
 
   const handleSaveBook = async () => {
     if (!form.title) return;
+    const hasFiles = (editingBook ? editUploadFiles : uploadFiles).length > 0;
     setSaving(true);
+    setSavePhase(hasFiles ? 'جاري رفع الملفات' : 'جاري الحفظ');
+    setUploadProgress(hasFiles ? 0 : null);
     try {
       if (editingBook) {
         const allFiles = [...editUploadFiles];
@@ -109,7 +114,10 @@ export default function Books() {
             if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
           });
           formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
-          await api.uploadBook(`/books/${editingBook.id}`, formDataObj, 'PUT');
+          await api.uploadBook(`/books/${editingBook.id}`, formDataObj, 'PUT', (percent) => {
+            setUploadProgress(percent);
+            if (percent >= 100) setSavePhase('جاري الحفظ');
+          });
         } else {
           await api.updateBook(editingBook.id, {
             title: form.title,
@@ -134,8 +142,13 @@ export default function Books() {
             if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
           });
           formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
-          newItem = await api.uploadBook('/books/upload', formDataObj);
+          setSavePhase('جاري رفع الملفات');
+          newItem = await api.uploadBook('/books/upload', formDataObj, 'POST', (percent) => {
+            setUploadProgress(percent);
+            if (percent >= 100) setSavePhase('جاري الحفظ');
+          });
         } else {
+          setSavePhase('جاري الحفظ');
           newItem = await api.addBook({
             title: form.title,
             group_id: form.group_id || null,
@@ -145,6 +158,9 @@ export default function Books() {
         }
         await loadData();
       }
+      setSavePhase('تم بنجاح');
+      setUploadProgress(100);
+      await new Promise(r => setTimeout(r, 800));
       setForm({ title: '', file: null, group_id: '', author: '', link: '' });
       setUploadFiles([]);
       setEditUploadFiles([]);
@@ -156,6 +172,8 @@ export default function Books() {
       console.error('Failed to save book:', err);
     } finally {
       setSaving(false);
+      setSavePhase('');
+      setUploadProgress(null);
     }
   };
 
@@ -820,6 +838,54 @@ export default function Books() {
               <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 8, textAlign: 'center' }}>
                 حذف الكتاب بشكل نهائي
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {saving && savePhase && (
+        <div className="save-overlay">
+          <div className="save-progress-container">
+            <div className="save-circle-wrapper">
+              <svg className="save-circle-bg" viewBox="0 0 128 128">
+                <circle cx="64" cy="64" r="60" />
+              </svg>
+              <svg className="save-circle-progress" viewBox="0 0 128 128">
+                <circle
+                  cx="64" cy="64" r="60"
+                  style={{
+                    strokeDashoffset: uploadProgress !== null
+                      ? 377 - (377 * uploadProgress) / 100
+                      : 377
+                  }}
+                />
+              </svg>
+              {savePhase === 'تم بنجاح' ? (
+                <svg className="save-success-icon" viewBox="0 0 52 52">
+                  <circle cx="26" cy="26" r="25" fill="none" stroke="var(--primary)" strokeWidth="2" />
+                  <path className="save-success-check" fill="none" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" d="M14 27l7 7 16-16" />
+                </svg>
+              ) : uploadProgress !== null ? (
+                <div className="save-circle-percent">{Math.round(uploadProgress)}%</div>
+              ) : (
+                <svg className="save-circle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+              )}
+            </div>
+            <div className="save-info">
+              <div className="save-phase" key={savePhase}>{savePhase}</div>
+              {uploadProgress !== null && savePhase !== 'تم بنجاح' && (
+                <div className="save-detail">
+                  {(() => {
+                    const count = editingBook ? editUploadFiles.length : uploadFiles.length;
+                    return count > 0 ? `${count} ${count === 1 ? 'ملف' : 'ملفات'}` : null;
+                  })()}
+                  {uploadProgress < 100 ? ` — ${Math.round(uploadProgress)}%` : ''}
+                </div>
+              )}
             </div>
           </div>
         </div>
