@@ -13,7 +13,7 @@ export default function Books() {
   const [activeGroup, setActiveGroup] = useState(null);
   const [showBookModal, setShowBookModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [form, setForm] = useState({ title: '', file: null, group_id: '', author: '', link: '' });
+  const [form, setForm] = useState({ title: '', file: null, group_id: '', description: '', link: '' });
   const [uploadFiles, setUploadFiles] = useState([]);
   const [editUploadFiles, setEditUploadFiles] = useState([]);
   const [editExistingFiles, setEditExistingFiles] = useState([]);
@@ -106,7 +106,7 @@ export default function Books() {
           const formDataObj = new FormData();
           formDataObj.append('title', form.title);
           if (form.group_id) formDataObj.append('group_id', form.group_id);
-          if (form.author) formDataObj.append('author', form.author);
+          if (form.description) formDataObj.append('description', form.description);
           if (form.link) formDataObj.append('link', form.link);
           allFiles.forEach(f => formDataObj.append('file', f));
           const cloudFiles = [];
@@ -123,7 +123,7 @@ export default function Books() {
             title: form.title,
             group_id: form.group_id || null,
             file: null,
-            author: form.author || null,
+            description: form.description || null,
             link: form.link || null,
           });
         }
@@ -134,7 +134,7 @@ export default function Books() {
           const formDataObj = new FormData();
           formDataObj.append('title', form.title);
           if (form.group_id) formDataObj.append('group_id', form.group_id);
-          if (form.author) formDataObj.append('author', form.author);
+          if (form.description) formDataObj.append('description', form.description);
           if (form.link) formDataObj.append('link', form.link);
           uploadFiles.forEach(f => formDataObj.append('file', f));
           const cloudFiles = [];
@@ -152,7 +152,7 @@ export default function Books() {
           newItem = await api.addBook({
             title: form.title,
             group_id: form.group_id || null,
-            author: form.author || null,
+            description: form.description || null,
             link: form.link || null,
           });
         }
@@ -161,7 +161,7 @@ export default function Books() {
       setSavePhase('تم بنجاح');
       setUploadProgress(100);
       await new Promise(r => setTimeout(r, 800));
-      setForm({ title: '', file: null, group_id: '', author: '', link: '' });
+      setForm({ title: '', file: null, group_id: '', description: '', link: '' });
       setUploadFiles([]);
       setEditUploadFiles([]);
       setEditExistingFiles([]);
@@ -274,7 +274,7 @@ export default function Books() {
 
   const openAddBookModal = () => {
     setEditingBook(null);
-    setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '', author: '', link: '' });
+    setForm({ title: '', file: null, group_id: activeGroup ? String(activeGroup.id) : '', description: '', link: '' });
     setUploadFiles([]);
     setEditUploadFiles([]);
     setEditExistingFiles([]);
@@ -289,7 +289,7 @@ export default function Books() {
       title: book.title || '',
       file: null,
       group_id: book.group_id ? String(book.group_id) : '',
-      author: book.author || '',
+      description: book.description || '',
       link: book.link || '',
     });
     setEditUploadFiles([]);
@@ -522,9 +522,9 @@ export default function Books() {
                               {windowWidth < 768 ? group.title.charAt(0) : group.title}
                             </span>
                           )}
-                          {book.author && (
+                          {book.description && (
                             <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>
-                              {book.author}
+                              {book.description.length > 30 ? book.description.substring(0, 30) + '...' : book.description}
                             </span>
                           )}
                           {book.channel_message_id ? (
@@ -688,12 +688,13 @@ export default function Books() {
                     />
                   </div>
                   <div className="form-group">
-                    <label>المؤلف</label>
-                    <input
+                    <label>الوصف</label>
+                    <textarea
                       className="form-input"
-                      placeholder="مثال: أحمد محمد"
-                      value={form.author}
-                      onChange={(e) => setForm({ ...form, author: e.target.value })}
+                      placeholder="وصف الكتاب..."
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      style={{ minHeight: 80 }}
                     />
                   </div>
                   <div className="form-group">
@@ -735,8 +736,8 @@ export default function Books() {
                       <span>{form.title || '—'}</span>
                     </div>
                     <div className="wizard-summary-row">
-                      <span>المؤلف</span>
-                      <span>{form.author || '—'}</span>
+                      <span>الوصف</span>
+                      <span>{form.description ? (form.description.length > 40 ? form.description.substring(0, 40) + '...' : form.description) : '—'}</span>
                     </div>
                     <div className="wizard-summary-row">
                       <span>المجموعة</span>
@@ -745,6 +746,25 @@ export default function Books() {
                     <div className="wizard-summary-row">
                       <span>الملف</span>
                       <span>{(editingBook ? editUploadFiles : uploadFiles).length > 0 ? `${(editingBook ? editUploadFiles : uploadFiles).length} ملف` : editingBook?.file_url ? 'ملف موجود' : 'بدون ملف'}</span>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 16 }}>
+                    <label style={{ fontWeight: 600, marginBottom: 8, display: 'block', fontSize: 13, color: 'var(--gray-600)' }}>معاينة المنشور</label>
+                    <div style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: 12, padding: 16 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{form.title || 'بدون عنوان'}</div>
+                      {form.description && (
+                        <div style={{ fontSize: 13, color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 10, whiteSpace: 'pre-wrap' }}>{form.description}</div>
+                      )}
+                      {(editingBook ? editUploadFiles : uploadFiles).length > 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--info)', marginBottom: 8 }}>
+                          📎 {(editingBook ? editUploadFiles : uploadFiles).length} ملف مرفق
+                        </div>
+                      )}
+                      {form.link && (
+                        <div style={{ fontSize: 12, color: 'var(--primary)', wordBreak: 'break-all' }}>
+                          🔗 {form.link}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
