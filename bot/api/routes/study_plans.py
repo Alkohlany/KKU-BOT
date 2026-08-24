@@ -450,7 +450,11 @@ async def upload_study_plan(
         cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
 
         if 0 in cloud_urls:
-            file_url = cloud_urls[0]
+            import httpx
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.get(cloud_urls[0])
+                file_data = resp.content
+            file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/plans")
         else:
             file_url = upload_raw_streaming(
                 file.file,
@@ -617,7 +621,11 @@ async def update_study_plan(
             cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
 
             if 0 in cloud_urls:
-                file_url = cloud_urls[0]
+                import httpx
+                async with httpx.AsyncClient(timeout=120) as client:
+                    resp = await client.get(cloud_urls[0])
+                    file_data = resp.content
+                file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/plans")
             else:
                 file_url = upload_raw_streaming(
                     file.file,

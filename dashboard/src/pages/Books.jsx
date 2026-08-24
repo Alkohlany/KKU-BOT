@@ -108,10 +108,12 @@ export default function Books() {
           if (form.group_id) formDataObj.append('group_id', form.group_id);
           if (form.description) formDataObj.append('description', form.description);
           if (form.link) formDataObj.append('link', form.link);
-          const localFiles = allFiles.filter(f => !f._isCloud);
-          localFiles.forEach(f => formDataObj.append('file', f));
-          const cloudUrls = allFiles.map((f, i) => f._isCloud ? { index: i, url: f._cloudUrl, name: f.name } : null).filter(Boolean);
-          formDataObj.append('cloud_files', JSON.stringify(cloudUrls));
+          allFiles.forEach(f => formDataObj.append('file', f));
+          const cloudFiles = [];
+          allFiles.forEach((f, i) => {
+            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
+          });
+          formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
           await api.uploadBook(`/books/${editingBook.id}`, formDataObj, 'PUT', (percent) => {
             setUploadProgress(percent);
             if (percent >= 100) setSavePhase('جاري الحفظ');
@@ -134,10 +136,12 @@ export default function Books() {
           if (form.group_id) formDataObj.append('group_id', form.group_id);
           if (form.description) formDataObj.append('description', form.description);
           if (form.link) formDataObj.append('link', form.link);
-          const localFiles = uploadFiles.filter(f => !f._isCloud);
-          localFiles.forEach(f => formDataObj.append('file', f));
-          const cloudUrls = uploadFiles.map((f, i) => f._isCloud ? { index: i, url: f._cloudUrl, name: f.name } : null).filter(Boolean);
-          formDataObj.append('cloud_files', JSON.stringify(cloudUrls));
+          uploadFiles.forEach(f => formDataObj.append('file', f));
+          const cloudFiles = [];
+          uploadFiles.forEach((f, i) => {
+            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
+          });
+          formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
           setSavePhase('جاري رفع الملفات');
           newItem = await api.uploadBook('/books/upload', formDataObj, 'POST', (percent) => {
             setUploadProgress(percent);
