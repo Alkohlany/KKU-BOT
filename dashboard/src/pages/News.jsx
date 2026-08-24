@@ -250,6 +250,12 @@ export default function News() {
       }
       let newItem;
       if (hasFiles) {
+        setSavePhase('جاري رفع الملفات');
+        const cloudResults = await api.uploadFilesDirectly(uploadFiles, (percent) => {
+          setUploadProgress(percent);
+        });
+        setSavePhase('جاري الحفظ');
+        setUploadProgress(null);
         const formData = new FormData();
         formData.append('title', '');
         formData.append('content', contentToSend);
@@ -260,16 +266,9 @@ export default function News() {
         formData.append('selected_keywords', JSON.stringify(selectedKeywords));
         formData.append('selected_questions', JSON.stringify(selectedQuestions));
         formData.append('linked_response_id', linkedResponseId || '');
-        const cloudFiles = [];
-        uploadFiles.forEach((f, i) => {
-          if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
-        });
+        const cloudFiles = cloudResults.map((r, i) => ({ index: i, url: r.file_url, name: r.name }));
         formData.append('cloud_files', JSON.stringify(cloudFiles));
-        setSavePhase('جاري رفع الملفات');
-        newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
-          setUploadProgress(percent);
-          if (percent >= 100) setSavePhase('جاري الحفظ');
-        });
+        newItem = await api.uploadWithProgress('/news/upload', formData);
       } else {
         setSavePhase('جاري الحفظ');
         newItem = await api.addNews({
@@ -343,6 +342,11 @@ export default function News() {
         if (hasFiles || editPerFileContent) {
           setUploadProgress(0);
           setSavePhase('جاري رفع الملفات');
+          const cloudResults = allEditFiles.length > 0
+            ? await api.uploadFilesDirectly(allEditFiles, (percent) => setUploadProgress(percent))
+            : [];
+          setSavePhase('جاري الحفظ');
+          setUploadProgress(null);
           const formData = new FormData();
           formData.append('title', '');
           formData.append('content', contentToSend);
@@ -353,16 +357,10 @@ export default function News() {
           formData.append('selected_keywords', JSON.stringify(editSelectedKeywords));
           formData.append('selected_questions', JSON.stringify(editSelectedQuestions));
           formData.append('linked_response_id', editLinkedResponseId || '');
-          const cloudFiles = [];
-          allEditFiles.forEach((f, i) => {
-            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
-          });
+          const cloudFiles = cloudResults.map((r, i) => ({ index: i, url: r.file_url, name: r.name }));
           formData.append('cloud_files', JSON.stringify(cloudFiles));
           allEditFiles.forEach(f => formData.append('files', f));
-          await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, (percent) => {
-            setUploadProgress(percent);
-            if (percent >= 100) setSavePhase('جاري الحفظ');
-          }, 'PUT');
+          await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, null, 'PUT');
         } else {
           await api.put(`/news/${editItem.id}`, {
             content: contentToSend,

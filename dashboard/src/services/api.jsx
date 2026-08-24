@@ -95,6 +95,44 @@ const api = {
     });
   },
 
+  async presignUploads(files, folder = 'kku-bot/news') {
+    const res = await api.post('/news/presign', { files: files.map(f => ({ name: f.name })), folder });
+    return res.uploads;
+  },
+
+  async uploadFilesDirectly(files, onProgress, folder = 'kku-bot/news') {
+    const presigns = await api.presignUploads(files, folder);
+    const results = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const p = presigns[i];
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', p.upload_url);
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            const total = files.length;
+            const perFile = 100 / total;
+            const base = i * perFile;
+            onProgress(Math.round(base + (e.loaded * 100 / e.total) * perFile));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            results.push({ file_url: p.file_url, name: file.name });
+            resolve();
+          } else {
+            reject(new Error(`R2 upload failed: ${xhr.status}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send(file);
+      });
+    }
+    return results;
+  },
+
   getStats: () => api.get('/stats'),
   getResponses: () => api.get('/responses'),
   addResponse: (data) => api.post('/responses', data),
