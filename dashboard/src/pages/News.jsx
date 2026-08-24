@@ -954,22 +954,25 @@ export default function News() {
                       </div>
                     </div>
                     {uploadProgress !== null && (
-                      <div style={{ width: '100%', marginBottom: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                          <span>جاري رفع الملف...</span>
-                          <span>{uploadProgress}%</span>
-                        </div>
-                        <div style={{ width: '100%', height: 8, background: 'var(--gray-200)', borderRadius: 4, overflow: 'hidden' }}>
-                          <div
-                            style={{
-                              width: `${uploadProgress}%`,
-                              height: '100%',
-                              background: uploadProgress === 100 ? 'var(--success)' : 'var(--primary)',
-                              borderRadius: 4,
-                              transition: 'width 0.3s ease',
-                            }}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        <svg width="80" height="80" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--gray-200)" strokeWidth="3" />
+                          <circle
+                            cx="18" cy="18" r="15.9" fill="none"
+                            stroke={uploadProgress === 100 ? 'var(--success)' : 'var(--primary)'}
+                            strokeWidth="3"
+                            strokeDasharray={`${uploadProgress} ${100 - uploadProgress}`}
+                            strokeLinecap="round"
+                            transform="rotate(-90 18 18)"
+                            style={{ transition: 'stroke-dasharray 0.3s ease' }}
                           />
-                        </div>
+                          <text x="18" y="18" textAnchor="middle" dy=".1em" fontSize="6" fontWeight="bold" fill="var(--text-primary)">
+                            {uploadProgress}%
+                          </text>
+                        </svg>
+                        <span style={{ fontSize: 13, color: 'var(--gray-600)' }}>
+                          {uploadProgress < 100 ? 'جاري رفع الملف...' : uploadProgress === 100 && savePhase === 'تم بنجاح' ? 'تم بنجاح' : 'جاري الحفظ...'}
+                        </span>
                       </div>
                     )}
                   </>
@@ -1377,15 +1380,6 @@ export default function News() {
         <div className="save-overlay">
           <div className="save-progress-container">
             <div className="save-circle-wrapper">
-              <div className="save-ripple" />
-              <div className="save-particles">
-                <div className="save-particle" />
-                <div className="save-particle" />
-                <div className="save-particle" />
-                <div className="save-particle" />
-                <div className="save-particle" />
-                <div className="save-particle" />
-              </div>
               <svg className="save-circle-bg" viewBox="0 0 128 128">
                 <circle cx="64" cy="64" r="60" />
               </svg>
@@ -1395,7 +1389,7 @@ export default function News() {
                   style={{
                     strokeDashoffset: uploadProgress !== null
                       ? 377 - (377 * uploadProgress) / 100
-                      : 377 - (377 * 70) / 100
+                      : 377
                   }}
                 />
               </svg>
@@ -1423,11 +1417,6 @@ export default function News() {
                     return count > 0 ? `${count} ${count === 1 ? 'ملف' : 'ملفات'}` : null;
                   })()}
                   {uploadProgress < 100 ? ` — ${Math.round(uploadProgress)}%` : ''}
-                </div>
-              )}
-              {savePhase !== 'تم بنجاح' && (
-                <div className="save-dots">
-                  <span /><span /><span />
                 </div>
               )}
             </div>
