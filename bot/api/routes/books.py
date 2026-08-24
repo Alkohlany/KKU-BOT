@@ -191,7 +191,7 @@ class BookCreate(BaseModel):
     title: str
     file_url: Optional[str] = None
     group_id: Optional[int] = None
-    author: Optional[str] = None
+    description: Optional[str] = None
     link: Optional[str] = None
 
 
@@ -287,18 +287,15 @@ async def delete_book_group_endpoint(group_id: int, mode: str = "permanent"):
 @router.get("")
 async def get_books(
     group_id: Optional[int] = None,
-    author: Optional[str] = None,
     search: str = Query(None),
 ):
     async with async_session() as db:
         base_filter = [Book.is_active == True]
         if group_id:
             base_filter.append(Book.group_id == group_id)
-        if author:
-            base_filter.append(Book.author == author)
         if search:
             base_filter.append(
-                Book.title.ilike(f"%{search}%") | Book.author.ilike(f"%{search}%")
+                Book.title.ilike(f"%{search}%") | Book.description.ilike(f"%{search}%")
             )
 
         result = await db.execute(
@@ -311,7 +308,6 @@ async def get_books(
                 "id": b.id,
                 "title": b.title,
                 "description": b.description,
-                "author": b.author,
                 "file_url": b.file_url,
                 "group_id": b.group_id,
                 "link": b.link,
@@ -328,14 +324,14 @@ async def get_books(
 async def create_book(data: BookCreate):
     return await add_book(title=data.title,
                          file_url=data.file_url, group_id=data.group_id,
-                         author=data.author, link=data.link)
+                         description=data.description, link=data.link)
 
 
 @router.post("/upload")
 async def upload_book(
     title: str = Form(...),
     group_id: int = Form(None),
-    author: str = Form(None),
+    description: str = Form(None),
     link: str = Form(None),
     file: Optional[UploadFile] = File(None),
     cloud_files: str = Form("[]"),
@@ -366,7 +362,7 @@ async def upload_book(
         title=title,
         file_url=file_url,
         group_id=group_id,
-        author=author,
+        description=description,
         link=link,
     )
 
@@ -374,7 +370,6 @@ async def upload_book(
         "id": book.id,
         "title": book.title,
         "description": book.description,
-        "author": book.author,
         "file_url": book.file_url,
         "group_id": book.group_id,
         "link": book.link,
@@ -429,8 +424,8 @@ async def publish_single_book(book_id: int):
             caption = ""
             if group and group.group_tag:
                 caption += f"#{group.group_tag}\n"
-            if book.author:
-                caption += f"المؤلف - {book.author}\n\n"
+            if book.description:
+                caption += f"{book.description}\n\n"
             link = book.link if book.link else "t.me/kkunewbot"
             caption += f'<blockquote>{link}</blockquote>'
 
@@ -478,7 +473,7 @@ async def update_book(
     book_id: int,
     title: str = Form(None),
     group_id: int = Form(None),
-    author: str = Form(None),
+    description: str = Form(None),
     link: str = Form(None),
     file: UploadFile = File(None),
     cloud_files: str = Form("[]"),
@@ -497,7 +492,7 @@ async def update_book(
             book.title = title
         if group_id is not None:
             book.group_id = group_id
-        book.author = author if author else None
+        book.description = description if description else None
         book.link = link if link else None
 
         new_group_id = book.group_id

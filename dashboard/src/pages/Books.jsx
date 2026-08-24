@@ -748,25 +748,6 @@ export default function Books() {
                       <span>{(editingBook ? editUploadFiles : uploadFiles).length > 0 ? `${(editingBook ? editUploadFiles : uploadFiles).length} ملف` : editingBook?.file_url ? 'ملف موجود' : 'بدون ملف'}</span>
                     </div>
                   </div>
-                  <div style={{ marginTop: 16 }}>
-                    <label style={{ fontWeight: 600, marginBottom: 8, display: 'block', fontSize: 13, color: 'var(--gray-600)' }}>معاينة المنشور</label>
-                    <div style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: 12, padding: 16 }}>
-                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{form.title || 'بدون عنوان'}</div>
-                      {form.description && (
-                        <div style={{ fontSize: 13, color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 10, whiteSpace: 'pre-wrap' }}>{form.description}</div>
-                      )}
-                      {(editingBook ? editUploadFiles : uploadFiles).length > 0 && (
-                        <div style={{ fontSize: 12, color: 'var(--info)', marginBottom: 8 }}>
-                          📎 {(editingBook ? editUploadFiles : uploadFiles).length} ملف مرفق
-                        </div>
-                      )}
-                      {form.link && (
-                        <div style={{ fontSize: 12, color: 'var(--primary)', wordBreak: 'break-all' }}>
-                          🔗 {form.link}
-                        </div>
-                      )}
-                    </div>
-                  </div>
                 </>
               )}
             </div>

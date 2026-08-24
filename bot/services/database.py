@@ -699,7 +699,6 @@ async def search_books(query):
         stmt = select(Book).where(
             Book.is_active == True,
             (Book.title.ilike(like_pattern)) |
-            (Book.author.ilike(like_pattern)) |
             (Book.description.ilike(like_pattern))
         )
         result = await session.execute(stmt)
@@ -709,7 +708,6 @@ async def search_books(query):
         for book in candidates:
             searchable = normalize_arabic(" ".join(filter(None, [
                 book.title or "",
-                book.author or "",
                 book.description or ""
             ])).lower())
 
