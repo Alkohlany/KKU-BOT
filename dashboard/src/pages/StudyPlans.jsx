@@ -103,12 +103,10 @@ export default function StudyPlans() {
           if (form.group_id) formDataObj.append('group_id', form.group_id);
           if (form.specialization) formDataObj.append('specialization', form.specialization);
           if (form.link) formDataObj.append('link', form.link);
-          allFiles.forEach(f => formDataObj.append('file', f));
-          const cloudFiles = [];
-          allFiles.forEach((f, i) => {
-            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
-          });
-          formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
+          const localFiles = allFiles.filter(f => !f._isCloud);
+          localFiles.forEach(f => formDataObj.append('file', f));
+          const cloudUrls = allFiles.map((f, i) => f._isCloud ? { index: i, url: f._cloudUrl, name: f.name } : null).filter(Boolean);
+          formDataObj.append('cloud_files', JSON.stringify(cloudUrls));
           await api.uploadStudyPlan(`/study-plans/${editingPlan.id}`, formDataObj, 'PUT');
         } else {
           await api.updateStudyPlan(editingPlan.id, {
@@ -128,12 +126,10 @@ export default function StudyPlans() {
           if (form.group_id) formDataObj.append('group_id', form.group_id);
           if (form.specialization) formDataObj.append('specialization', form.specialization);
           if (form.link) formDataObj.append('link', form.link);
-          uploadFiles.forEach(f => formDataObj.append('file', f));
-          const cloudFiles = [];
-          uploadFiles.forEach((f, i) => {
-            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
-          });
-          formDataObj.append('cloud_files', JSON.stringify(cloudFiles));
+          const localFiles = uploadFiles.filter(f => !f._isCloud);
+          localFiles.forEach(f => formDataObj.append('file', f));
+          const cloudUrls = uploadFiles.map((f, i) => f._isCloud ? { index: i, url: f._cloudUrl, name: f.name } : null).filter(Boolean);
+          formDataObj.append('cloud_files', JSON.stringify(cloudUrls));
           newItem = await api.uploadStudyPlan('/study-plans/upload', formDataObj);
         } else {
           newItem = await api.addStudyPlan({

@@ -345,11 +345,7 @@ async def upload_book(
         cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
 
         if 0 in cloud_urls:
-            import httpx
-            async with httpx.AsyncClient(timeout=120) as client:
-                resp = await client.get(cloud_urls[0])
-                file_data = resp.content
-            file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/books")
+            file_url = cloud_urls[0]
         else:
             file_url = upload_raw_streaming(
                 file.file,
@@ -505,11 +501,7 @@ async def update_book(
             cloud_urls = {cf['index']: cf['url'] for cf in cloud_files_list}
 
             if 0 in cloud_urls:
-                import httpx
-                async with httpx.AsyncClient(timeout=120) as client:
-                    resp = await client.get(cloud_urls[0])
-                    file_data = resp.content
-                file_url = upload_raw(file_data, filename=file.filename, folder="kku-bot/books")
+                file_url = cloud_urls[0]
             else:
                 file_url = upload_raw_streaming(
                     file.file,

@@ -227,17 +227,21 @@ async def create_news_with_file(
             cloud_files_list = json.loads(cloud_files) if cloud_files else []
         except:
             cloud_files_list = []
-        cloud_urls_map = {cf['index']: cf['url'] for cf in cloud_files_list}
+
+        for cf in cloud_files_list:
+            idx = cf.get('index', 0)
+            ft = detect_file_type(cf.get('name', ''))
+            files_json_data.append({
+                "url": cf['url'],
+                "type": ft,
+                "name": cf.get('name', ''),
+                "thumbnail": None,
+                "caption": file_captions_dict.get(str(idx), ""),
+            })
 
         if files_list:
             for i, f in enumerate(files_list):
-                if i in cloud_urls_map:
-                    import httpx
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.get(cloud_urls_map[i])
-                        file_data = resp.content
-                else:
-                    file_data = await f.read()
+                file_data = await f.read()
                 ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
                 ft = detect_file_type(f.filename)
                 remote_url = None
@@ -254,25 +258,26 @@ async def create_news_with_file(
                 else:
                     remote_url, thumb = upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
 
-                url = remote_url
                 files_json_data.append({
-                    "url": url,
+                    "url": remote_url,
                     "type": ft,
                     "name": f.filename,
                     "thumbnail": thumb,
                     "caption": file_captions_dict.get(str(i), ""),
                 })
 
-            first = files_list[0]
-            first_ext = first.filename.lower().split('.')[-1] if '.' in first.filename else ''
-            file_type = detect_file_type(first.filename)
+        if files_json_data:
+            first_url = files_json_data[0]["url"]
+            first_name = files_json_data[0].get("name", "")
+            first_ext = first_name.lower().split('.')[-1] if '.' in first_name else ''
+            file_type = detect_file_type(first_name)
             if first_ext in ('jpg', 'jpeg', 'png', 'gif', 'webp') and not as_document:
-                image_url = files_json_data[0]["url"]
+                image_url = first_url
             else:
-                file_url = files_json_data[0]["url"]
+                file_url = first_url
             thumbnail_url = files_json_data[0].get("thumbnail")
 
-        n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=files_list[0].filename if files_list else None, file_type=file_type,
+        n = await add_news(content=content, image_url=image_url, file_url=file_url, thumbnail_url=thumbnail_url, file_name=files_json_data[0].get("name") if files_json_data else None, file_type=file_type,
                             as_document=as_document, target_channels=target_channels,
                       files_json=json.dumps(files_json_data))
 
@@ -481,7 +486,6 @@ async def edit_news_with_file(
         cloud_files_list = json.loads(cloud_files) if cloud_files else []
     except:
         cloud_files_list = []
-    cloud_urls_map = {cf['index']: cf['url'] for cf in cloud_files_list}
 
     kept_existing = []
     if removed_existing:
@@ -510,15 +514,20 @@ async def edit_news_with_file(
     file_type = None
     thumbnail_url = None
 
+    for cf in cloud_files_list:
+        idx = cf.get('index', 0)
+        ft = detect_file_type(cf.get('name', ''))
+        files_json_data.append({
+            "url": cf['url'],
+            "type": ft,
+            "name": cf.get('name', ''),
+            "thumbnail": None,
+            "caption": file_captions_dict.get(str(idx), ""),
+        })
+
     if files_list:
         for i, f in enumerate(files_list):
-            if i in cloud_urls_map:
-                import httpx
-                async with httpx.AsyncClient() as client:
-                    resp = await client.get(cloud_urls_map[i])
-                    file_data = resp.content
-            else:
-                file_data = await f.read()
+            file_data = await f.read()
             ext = f.filename.lower().split('.')[-1] if '.' in f.filename else ''
             ft = detect_file_type(f.filename)
             remote_url = None
@@ -535,23 +544,24 @@ async def edit_news_with_file(
             else:
                 remote_url, thumb = upload_to_cloud(file_data, f.filename, folder="kku-bot/news")
 
-            url = remote_url
             files_json_data.append({
-                "url": url,
+                "url": remote_url,
                 "type": ft,
                 "name": f.filename,
                 "thumbnail": thumb,
                 "caption": file_captions_dict.get(str(i), ""),
             })
 
-        first = files_list[0]
-        first_ext = first.filename.lower().split('.')[-1] if '.' in first.filename else ''
-        file_type = detect_file_type(first.filename)
+    if files_json_data:
+        first_url = files_json_data[0]["url"]
+        first_name = files_json_data[0].get("name", "")
+        first_ext = first_name.lower().split('.')[-1] if '.' in first_name else ''
+        file_type = detect_file_type(first_name)
         if first_ext in ('jpg', 'jpeg', 'png', 'gif', 'webp') and not as_document:
-            image_url = files_json_data[0]["url"]
+            image_url = first_url
         else:
-            file_url = files_json_data[0]["url"]
-        file_name = first.filename
+            file_url = first_url
+        file_name = first_name
         thumbnail_url = files_json_data[0].get("thumbnail")
 
     await update_news(news_id, content=content,

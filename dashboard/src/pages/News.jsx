@@ -253,18 +253,16 @@ export default function News() {
         const formData = new FormData();
         formData.append('title', '');
         formData.append('content', contentToSend);
-        uploadFiles.forEach(f => formData.append('files', f));
+        const localFiles = uploadFiles.filter(f => !f._isCloud);
+        localFiles.forEach(f => formData.append('files', f));
         formData.append('as_document', form.as_document);
+        const cloudUrls = uploadFiles.map((f, i) => f._isCloud ? { index: i, url: f._cloudUrl, name: f.name } : null).filter(Boolean);
         formData.append('file_captions', JSON.stringify(fileCaptions));
         formData.append('target_channels', JSON.stringify(selectedChannels));
         formData.append('selected_keywords', JSON.stringify(selectedKeywords));
         formData.append('selected_questions', JSON.stringify(selectedQuestions));
         formData.append('linked_response_id', linkedResponseId || '');
-        const cloudFiles = [];
-        uploadFiles.forEach((f, i) => {
-          if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
-        });
-        formData.append('cloud_files', JSON.stringify(cloudFiles));
+        formData.append('cloud_files', JSON.stringify(cloudUrls));
         setSavePhase('جاري رفع الملفات');
         newItem = await api.uploadWithProgress('/news/upload', formData, (percent) => {
           setUploadProgress(percent);
@@ -353,12 +351,10 @@ export default function News() {
           formData.append('selected_keywords', JSON.stringify(editSelectedKeywords));
           formData.append('selected_questions', JSON.stringify(editSelectedQuestions));
           formData.append('linked_response_id', editLinkedResponseId || '');
-          const cloudFiles = [];
-          allEditFiles.forEach((f, i) => {
-            if (f._isCloud && f._cloudUrl) cloudFiles.push({ index: i, url: f._cloudUrl, name: f.name });
-          });
-          formData.append('cloud_files', JSON.stringify(cloudFiles));
-          allEditFiles.forEach(f => formData.append('files', f));
+          const localEditFiles = allEditFiles.filter(f => !f._isCloud);
+          localEditFiles.forEach(f => formData.append('files', f));
+          const cloudUrls = allEditFiles.map((f, i) => f._isCloud ? { index: i, url: f._cloudUrl, name: f.name } : null).filter(Boolean);
+          formData.append('cloud_files', JSON.stringify(cloudUrls));
           await api.uploadWithProgress(`/news/${editItem.id}/upload`, formData, (percent) => {
             setUploadProgress(percent);
             if (percent >= 100) setSavePhase('جاري الحفظ');
