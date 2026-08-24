@@ -417,7 +417,7 @@ export default function News() {
     setPublishingId(item.id);
     try {
       await api.post(`/news/${item.id}/publish`);
-      setNews(news.map(n => n.id === item.id ? { ...n, published: true } : n));
+      await loadNews();
       showToast('تم النشر بنجاح', 'success');
     } catch (err) {
       console.error('Publish failed:', err);
@@ -432,7 +432,7 @@ export default function News() {
     setResettingChannel(true);
     try {
       await api.delete(`/news/${id}/channel`);
-      setNews(news.map(n => n.id === id ? { ...n, published: false } : n));
+      await loadNews();
       showToast('تم حذف المنشور من القنوات بنجاح', 'success');
     } catch (err) {
       showToast('حدث خطأ أثناء الحذف', 'error');
@@ -448,7 +448,7 @@ export default function News() {
     setPermanentDeleting(true);
     try {
       await api.delete(`/news/${id}`);
-      setNews(news.filter((n) => n.id !== id));
+      await loadNews();
       showToast('تم حذف المنشور نهائياً', 'success');
     } catch (err) {
       showToast('حدث خطأ أثناء الحذف', 'error');
@@ -463,7 +463,7 @@ export default function News() {
     setDeletingAll(true);
     try {
       await api.delete('/news');
-      setNews([]);
+      await loadNews();
       showToast('تم حذف جميع المنشورات بنجاح', 'success');
     } catch (err) {
       console.error('Failed to delete all news:', err);
