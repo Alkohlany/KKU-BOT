@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id, update_auto_response
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages, resend_published_messages
-from bot.services.cloud_storage import upload_image, upload_raw, generate_presigned_upload
+from bot.services.cloud_storage import upload_image, upload_raw
 
 from bot.models.models import News
 from bot.config import BOT_TOKEN
@@ -194,21 +194,6 @@ async def create_news(data: NewsCreate):
             "imageUrl": n.image_url, "fileUrl": n.file_url, "fileName": n.file_name, "fileId": n.file_id,
             "published": n.is_published,
             "as_document": n.as_document}
-
-
-class PresignRequest(BaseModel):
-    files: list[dict]
-    folder: str = "kku-bot/news"
-
-
-@router.post("/presign")
-async def presign_uploads(req: PresignRequest):
-    results = []
-    for f in req.files:
-        name = f.get("name", "file.bin")
-        info = generate_presigned_upload(name, folder=req.folder)
-        results.append(info)
-    return {"uploads": results}
 
 
 @router.post("/upload")

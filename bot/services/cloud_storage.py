@@ -16,21 +16,6 @@ s3 = boto3.client(
     aws_secret_access_key=R2_SECRET_ACCESS_KEY,
 )
 
-def generate_presigned_upload(filename: str, folder: str = "kku-bot", expires_in: int = 600) -> dict:
-    ext = filename.lower().split('.')[-1] if '.' in filename else 'bin'
-    safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)
-    key = f"{folder}/{uuid.uuid4().hex}_{safe_name}"
-    try:
-        url = s3.generate_presigned_url(
-            "put_object",
-            Params={"Bucket": R2_BUCKET_NAME, "Key": key, "ContentType": "application/octet-stream"},
-            ExpiresIn=expires_in,
-        )
-        return {"upload_url": url, "file_url": f"{R2_PUBLIC_URL}/{key}", "key": key}
-    except Exception as e:
-        logger.error(f"generate_presigned_upload failed: {e}")
-        raise
-
 def upload_file(file_bytes: bytes, folder: str = "kku-bot") -> str:
     ext = ".bin"
     key = f"{folder}/{uuid.uuid4().hex}{ext}"
