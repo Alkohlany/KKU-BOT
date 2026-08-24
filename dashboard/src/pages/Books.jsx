@@ -31,6 +31,7 @@ export default function Books() {
   const [showDeleteBookModal, setShowDeleteBookModal] = useState(false);
   const [deletingBookId, setDeletingBookId] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [addWizardStep, setAddWizardStep] = useState(1);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -260,6 +261,7 @@ export default function Books() {
     setEditUploadFiles([]);
     setEditExistingFiles([]);
     setEditRemovedExisting([]);
+    setAddWizardStep(1);
     setShowBookModal(true);
   };
 
@@ -275,6 +277,7 @@ export default function Books() {
     setEditUploadFiles([]);
     setEditRemovedExisting([]);
     setEditExistingFiles(book.file_url ? [{ name: book.title || 'ملف', url: book.file_url }] : []);
+    setAddWizardStep(1);
     setShowBookModal(true);
   };
 
@@ -295,6 +298,7 @@ export default function Books() {
     setShowGroupModal(false);
     setEditingBook(null);
     setEditingGroup(null);
+    setAddWizardStep(1);
   };
 
   if (loading) {
@@ -621,63 +625,127 @@ export default function Books() {
               <h3>{editingBook ? 'تعديل الكتاب' : 'إضافة كتاب جديد'}</h3>
               <button className="modal-close" onClick={() => closeModals()}>✕</button>
             </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>المجموعة</label>
-                <select
-                  className="form-input"
-                  value={form.group_id}
-                  onChange={(e) => setForm({ ...form, group_id: e.target.value })}
-                >
-                  <option value="">بدون مجموعة</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>{g.title}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>العنوان</label>
-                <input
-                  className="form-input"
-                  placeholder="مثال: مقدمة في البرمجة"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>المؤلف</label>
-                <input
-                  className="form-input"
-                  placeholder="مثال: أحمد محمد"
-                  value={form.author}
-                  onChange={(e) => setForm({ ...form, author: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>الرابط (اختياري)</label>
-                <input
-                  className="form-input"
-                  placeholder="t.me/kkunewbot"
-                  value={form.link}
-                  onChange={(e) => setForm({ ...form, link: e.target.value })}
-                />
-              </div>
 
-              <div className="form-group">
-                <FileUpload
-                  files={editingBook ? editUploadFiles : uploadFiles}
-                  setFiles={editingBook ? setEditUploadFiles : setUploadFiles}
-                  existingFiles={editingBook ? editExistingFiles : []}
-                  onRemoveExisting={editingBook ? setEditRemovedExisting : undefined}
-                  label={editingBook ? 'الملف المرفق (اتركه فارغاً للإبقاء على الملف الحالي)' : 'الملف المرفق (اختياري)'}
-                />
-              </div>
+            <div className="wizard-steps">
+              {[
+                { num: 1, label: 'الملف' },
+                { num: 2, label: 'المعلومات' },
+                { num: 3, label: 'الملخص' },
+              ].map((step, i) => (
+                <React.Fragment key={step.num}>
+                  <div className={`wizard-step ${addWizardStep === step.num ? 'active' : ''} ${addWizardStep > step.num ? 'completed' : ''}`}>
+                    <div className="wizard-step-circle">{addWizardStep > step.num ? '✓' : step.num}</div>
+                    <div className="wizard-step-label">{step.label}</div>
+                  </div>
+                  {i < 2 && <div className={`wizard-connector ${addWizardStep > step.num ? 'completed' : ''}`} />}
+                </React.Fragment>
+              ))}
             </div>
+
+            <div className="modal-body">
+              {addWizardStep === 1 && (
+                <>
+                  <FileUpload
+                    files={editingBook ? editUploadFiles : uploadFiles}
+                    setFiles={editingBook ? setEditUploadFiles : setUploadFiles}
+                    existingFiles={editingBook ? editExistingFiles : []}
+                    onRemoveExisting={editingBook ? setEditRemovedExisting : undefined}
+                    label={editingBook ? 'الملف المرفق (اتركه فارغاً للإبقاء على الملف الحالي)' : 'الملف المرفق (اختياري)'}
+                  />
+                  <div style={{ fontSize: 12, color: 'var(--gray-500)', textAlign: 'center', marginTop: 8 }}>
+                    يمكنك تخطي هذه الخطوة لإنشاء كتاب بدون ملف
+                  </div>
+                </>
+              )}
+
+              {addWizardStep === 2 && (
+                <>
+                  <div className="form-group">
+                    <label>العنوان</label>
+                    <input
+                      className="form-input"
+                      placeholder="مثال: مقدمة في البرمجة"
+                      value={form.title}
+                      onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>المؤلف</label>
+                    <input
+                      className="form-input"
+                      placeholder="مثال: أحمد محمد"
+                      value={form.author}
+                      onChange={(e) => setForm({ ...form, author: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>المجموعة</label>
+                    <select
+                      className="form-input"
+                      value={form.group_id}
+                      onChange={(e) => setForm({ ...form, group_id: e.target.value })}
+                    >
+                      <option value="">بدون مجموعة</option>
+                      {groups.map((g) => (
+                        <option key={g.id} value={g.id}>{g.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>الرابط (اختياري)</label>
+                    <input
+                      className="form-input"
+                      placeholder="t.me/kkunewbot"
+                      value={form.link}
+                      onChange={(e) => setForm({ ...form, link: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+
+              {addWizardStep === 3 && (
+                <>
+                  <div className="wizard-summary">
+                    <div className="wizard-summary-row">
+                      <span>العنوان</span>
+                      <span>{form.title || '—'}</span>
+                    </div>
+                    <div className="wizard-summary-row">
+                      <span>المؤلف</span>
+                      <span>{form.author || '—'}</span>
+                    </div>
+                    <div className="wizard-summary-row">
+                      <span>المجموعة</span>
+                      <span>{groups.find(g => String(g.id) === form.group_id)?.title || 'بدون مجموعة'}</span>
+                    </div>
+                    <div className="wizard-summary-row">
+                      <span>الملف</span>
+                      <span>{(editingBook ? editUploadFiles : uploadFiles).length > 0 ? `${(editingBook ? editUploadFiles : uploadFiles).length} ملف` : editingBook?.file_url ? 'ملف موجود' : 'بدون ملف'}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="modal-footer">
-              <button className="btn btn-primary" onClick={handleSaveBook} disabled={saving}>
-                {saving ? 'جاري الحفظ...' : (editingBook ? 'حفظ التعديلات' : 'إضافة')}
-              </button>
-              <button className="btn btn-secondary" onClick={() => closeModals()}>إلغاء</button>
+              {addWizardStep > 1 && (
+                <button className="btn btn-secondary" onClick={() => setAddWizardStep(addWizardStep - 1)}>
+                  السابق
+                </button>
+              )}
+              {addWizardStep < 3 ? (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setAddWizardStep(addWizardStep + 1)}
+                  disabled={addWizardStep === 2 && !form.title}
+                >
+                  التالي
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={handleSaveBook} disabled={saving}>
+                  {saving ? 'جاري الحفظ...' : (editingBook ? 'حفظ التعديلات' : 'إضافة')}
+                </button>
+              )}
             </div>
           </div>
         </div>
