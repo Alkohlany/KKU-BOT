@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from bot.services.database import async_session, add_news, get_all_news, publish_news, delete_news, add_auto_response, add_question, update_news, delete_all_news, get_news_by_id, update_auto_response
 from bot.services.news_publisher import publish_to_groups, delete_from_channel, delete_from_groups, edit_published_messages, resend_published_messages
-from bot.services.cloud_storage import upload_image, upload_raw, find_file_by_name
+from bot.services.cloud_storage import upload_image, upload_raw, find_file_by_name, find_similar_file
 
 from bot.models.models import News
 from bot.config import BOT_TOKEN

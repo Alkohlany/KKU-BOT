@@ -83,10 +83,23 @@ def list_objects(folder="kku-bot"):
         return []
 
 
+def _normalize_name(name):
+    import re
+    base = name.rsplit('.', 1)[0] if '.' in name else name
+    base = re.sub(r'^[a-f0-9]{32}$', '', base)
+    base = re.sub(r'[^a-zA-Z0-9\u0600-\u06FF]', '', base)
+    return base.lower()
+
+
 def find_file_by_name(filename, folder="kku-bot"):
     files = list_objects(folder)
+    norm = _normalize_name(filename)
+    if not norm:
+        return None
     for f in files:
-        if f["name"] == filename:
+        if _normalize_name(f["name"]) == norm:
+            return f["url"]
+        if norm in _normalize_name(f["name"]) or _normalize_name(f["name"]) in norm:
             return f["url"]
     return None
 
