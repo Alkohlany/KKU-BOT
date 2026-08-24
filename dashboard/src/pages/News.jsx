@@ -63,11 +63,6 @@ export default function News() {
   const [editLinkedResponseId, setEditLinkedResponseId] = useState('');
   const [editAvailableResponses, setEditAvailableResponses] = useState([]);
   const [channelGroups, setChannelGroups] = useState([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-
-  useEffect(() => { setPage(1); }, [search]);
 
   useEffect(() => {
     loadNews();
@@ -75,7 +70,7 @@ export default function News() {
       loadNews();
     }, 120000);
     return () => clearInterval(interval);
-  }, [page, search]);
+  }, [search]);
 
   useEffect(() => {
     if (!showModal) return;
@@ -112,11 +107,9 @@ export default function News() {
 
   const loadNews = async () => {
     try {
-      const data = await api.get(`/news?page=${page}&limit=5&search=${encodeURIComponent(search)}`);
+      const data = await api.get(`/news?search=${encodeURIComponent(search)}`);
       const items = data.items || data;
       setNews(Array.isArray(items) ? items : []);
-      setTotal(data.total || 0);
-      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 5)));
     } catch (err) {
       console.error('Failed to load news:', err);
     } finally {
@@ -743,20 +736,6 @@ export default function News() {
           )}
         </div>
       </div>
-
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--gray-200)' }}>
-          <div style={{ fontSize: 13, color: 'var(--gray-600)' }}>
-            الصفحة {page} من {totalPages} ({total} إجمالي)
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="btn btn-secondary btn-sm">السابق</button>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="btn btn-secondary btn-sm">التالي</button>
-          </div>
-        </div>
-      )}
 
       {showModal && (
         <div className="modal-overlay" onClick={() => { setShowModal(false); setPerFileContent(false); setFileCaptions({}); setAddWizardStep(1); }}>

@@ -99,7 +99,7 @@ class RelinkPayload(BaseModel):
 
 
 @router.get("")
-async def get_news(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=100), search: str = Query(None)):
+async def get_news(search: str = Query(None)):
     from sqlalchemy import select as sa_select, func as sa_func
     from sqlalchemy.orm import selectinload
 
@@ -110,16 +110,9 @@ async def get_news(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=1
             .order_by(News.created_at.desc())
         )
 
-        count_stmt = sa_select(sa_func.count()).select_from(News)
-
         if search:
-            search_filter = News.content.ilike(f"%{search}%")
-            stmt = stmt.where(search_filter)
-            count_stmt = count_stmt.where(search_filter)
+            stmt = stmt.where(News.content.ilike(f"%{search}%"))
 
-        total = (await session.execute(count_stmt)).scalar()
-
-        stmt = stmt.offset((page - 1) * limit).limit(limit)
         items = (await session.execute(stmt)).scalars().unique().all()
 
         result = []
@@ -147,7 +140,7 @@ async def get_news(page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=1
                 "selectedQuestions": questions,
                 "linked_response_id": linked,
             })
-        return {"items": result, "total": total, "page": page, "limit": limit}
+        return {"items": result, "total": len(result)}
 
 
 @router.post("/analyze")
