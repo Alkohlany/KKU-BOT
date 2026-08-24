@@ -661,6 +661,7 @@ async def edit_news_with_file(
 @router.delete("/{news_id}/channel")
 async def delete_from_channel_endpoint(news_id: int):
     import json
+    from sqlalchemy import update as sql_update
     n = await get_news_by_id(news_id)
     if not n:
         raise HTTPException(status_code=404, detail="News not found")
@@ -677,8 +678,14 @@ async def delete_from_channel_endpoint(news_id: int):
             await delete_from_groups(group_ids)
         except:
             pass
-    # Reset to draft
-    await update_news(news_id, channel_message_id=None, group_message_ids=None, is_published=False)
+    # Reset to draft - use raw SQL to set fields to NULL
+    async with async_session() as session:
+        await session.execute(
+            sql_update(News).where(News.id == news_id).values(
+                channel_message_id=None, group_message_ids=None, is_published=False
+            )
+        )
+        await session.commit()
     return {"status": "deleted_from_channel"}
 
 
