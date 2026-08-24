@@ -21,7 +21,7 @@ def _extract_links_with_context(text: str) -> tuple[str, list[dict]]:
     lines = text.split('\n')
     buttons: list[dict] = []
     cleaned_lines: list[str] = []
-    link_pattern = re.compile(r'(t\.me/[a-zA-Z0-9_]+/\d+|https?://[^\s<>"]+)')
+    link_pattern = re.compile(r'(t\.me/[a-zA-Z0-9_]+/\d+|tg://[^\s<>"]+|https?://[^\s<>"]+)')
 
     for i, line in enumerate(lines):
         link_match = link_pattern.search(line)

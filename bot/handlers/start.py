@@ -23,6 +23,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user:
         return
 
+    if update.effective_chat.type != "private":
+        return
+
     db_user = await get_user(user.id)
     if not db_user:
         db_user = await create_user(

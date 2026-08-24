@@ -811,10 +811,14 @@ async def set_official_channel(group_id: int):
             .where(ChannelGroup.type == 'channel')
             .values(is_official=False)
         )
-        group.is_official = True
+        await session.execute(
+            update(ChannelGroup)
+            .where(ChannelGroup.id == group_id)
+            .values(is_official=True)
+        )
         await session.commit()
-        await session.refresh(group)
-        return group
+        result = await session.execute(select(ChannelGroup).where(ChannelGroup.id == group_id))
+        return result.scalar_one_or_none()
 
 
 # ==================== Spam Patterns ====================

@@ -16,7 +16,7 @@ bot = Bot(token=BOT_TOKEN)
 
 def wrap_links_in_blockquote(text: str) -> str:
     """Wrap URLs in text with <blockquote> tags. If URL is followed by || emoji, wrap the whole thing."""
-    pattern = r'(https?://[^\s<]+|t\.me/[^\s<]+|www\.[^\s<]+)(\s*\|\|\s*[^\s<]+)?'
+    pattern = r'(tg://[^\s<]+|https?://[^\s<]+|t\.me/[^\s<]+|www\.[^\s<]+)(\s*\|\|\s*[^\s<]+)?'
     def replace_url(match):
         url = match.group(1)
         suffix = match.group(2) or ''
@@ -42,6 +42,15 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
 
     logger.info(f"target_chat_ids: {target_chat_ids}")
 
+    channel_chat_ids = set()
+    try:
+        groups = await get_active_channel_groups()
+        for ch in groups:
+            if ch.type == 'channel':
+                channel_chat_ids.add(str(ch.chat_id))
+    except Exception as e:
+        logger.warning(f"Failed to load channel groups: {e}")
+
     for chat_id in target_chat_ids:
         chat_id_str = str(chat_id)
         try:
@@ -52,6 +61,8 @@ async def publish_to_groups(text: str, image_url: str = None, file_url: str = No
                     group_message_ids[chat_id_str] = msg_id
                 else:
                     group_message_ids[chat_id_str] = msg_id
+                if chat_id_str in channel_chat_ids and not channel_message_id:
+                    channel_message_id = msg_id if not isinstance(msg_id, list) else msg_id[-1]
         except Exception as e:
             logger.error(f"Failed to send to {chat_id_str}: {e}")
 

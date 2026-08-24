@@ -149,6 +149,8 @@ async def update_book_group_post(group_id: int, force_new: bool = False):
                     },
                     timeout=30
                 )
+                if not (resp.status_code == 200 and resp.json().get("ok")):
+                    print(f"editMessageText failed for group {group_id}: {resp.text}")
             else:
                 if force_new and group.channel_message_id:
                     try:
