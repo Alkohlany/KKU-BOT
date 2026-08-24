@@ -698,16 +698,22 @@ export default function Books() {
                   </div>
                   <div className="form-group">
                     <label>المجموعة</label>
-                    <select
-                      className="form-input"
-                      value={form.group_id}
-                      onChange={(e) => setForm({ ...form, group_id: e.target.value })}
-                    >
-                      <option value="">بدون مجموعة</option>
-                      {groups.map((g) => (
-                        <option key={g.id} value={g.id}>{g.title}</option>
-                      ))}
-                    </select>
+                    {activeGroup ? (
+                      <div className="form-input" style={{ background: 'var(--gray-100)', cursor: 'default' }}>
+                        {activeGroup.title}
+                      </div>
+                    ) : (
+                      <select
+                        className="form-input"
+                        value={form.group_id}
+                        onChange={(e) => setForm({ ...form, group_id: e.target.value })}
+                      >
+                        <option value="">بدون مجموعة</option>
+                        {groups.map((g) => (
+                          <option key={g.id} value={g.id}>{g.title}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>الرابط (اختياري)</label>
@@ -734,7 +740,7 @@ export default function Books() {
                     </div>
                     <div className="wizard-summary-row">
                       <span>المجموعة</span>
-                      <span>{groups.find(g => String(g.id) === form.group_id)?.title || 'بدون مجموعة'}</span>
+                      <span>{activeGroup?.title || groups.find(g => String(g.id) === form.group_id)?.title || 'بدون مجموعة'}</span>
                     </div>
                     <div className="wizard-summary-row">
                       <span>الملف</span>
